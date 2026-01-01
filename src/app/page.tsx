@@ -1,65 +1,368 @@
-import Image from "next/image";
+import Link from 'next/link'
+import {
+    Calendar,
+    Users,
+    Zap,
+    Shield,
+    CheckCircle2,
+    Scissors,
+    Dumbbell,
+    Stethoscope,
+    Wrench,
+    ArrowRight,
+    Bell
+} from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Separator } from '@/components/ui/separator'
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion'
 
 export default function Home() {
-  return (
-    <div className="flex min-h-screen items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex min-h-screen w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
+    return (
+        <div className='flex min-h-screen flex-col'>
+            {/* Hero Section */}
+            <section className='relative overflow-hidden bg-linear-to-b from-zinc-50 to-white dark:from-zinc-950 dark:to-black'>
+                <div className='container mx-auto px-4 py-16 sm:px-6 sm:py-24 lg:px-8 lg:py-32'>
+                    <div className='mx-auto max-w-3xl text-center'>
+                        <h1 className='text-4xl font-bold tracking-tight text-zinc-900 dark:text-zinc-50 sm:text-5xl lg:text-6xl'>
+                            Gestioná tus turnos sin complicaciones
+                        </h1>
+                        <p className='mt-6 text-lg leading-8 text-zinc-600 dark:text-zinc-400 sm:text-xl'>
+                            Dejá atrás el caos de WhatsApp. Tu agenda ordenada, tus clientes reservan solos, vos te
+                            dedicás a tu negocio.
+                        </p>
+                        <div className='mt-10 flex flex-col items-center justify-center gap-4 sm:flex-row'>
+                            <Button asChild size='lg' className='w-full sm:w-auto'>
+                                <Link href='/signup'>
+                                    Crear cuenta gratis
+                                    <ArrowRight className='ml-2 h-4 w-4' />
+                                </Link>
+                            </Button>
+                            <Button asChild variant='outline' size='lg' className='w-full sm:w-auto'>
+                                <Link href='/login'>Iniciar sesión</Link>
+                            </Button>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            {/* Benefits Section */}
+            <section className='bg-white py-16 dark:bg-black sm:py-24'>
+                <div className='container mx-auto px-4 sm:px-6 lg:px-8'>
+                    <div className='mx-auto max-w-2xl text-center'>
+                        <h2 className='text-3xl font-bold tracking-tight text-zinc-900 dark:text-zinc-50 sm:text-4xl'>
+                            ¿Por qué TurnosApp?
+                        </h2>
+                        <p className='mt-4 text-lg text-zinc-600 dark:text-zinc-400'>
+                            Simple, económico y diseñado para que te olvides del estrés de gestionar turnos
+                        </p>
+                    </div>
+
+                    <div className='mt-16 grid gap-6 sm:grid-cols-2 lg:grid-cols-3'>
+                        <Card>
+                            <CardHeader>
+                                <Calendar className='mb-2 h-10 w-10 text-primary' />
+                                <CardTitle>Agenda ordenada por recurso</CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                                <p className='text-zinc-600 dark:text-zinc-400'>
+                                    Cada profesional, cancha o consultorio tiene su propia agenda clara. Sin
+                                    confusiones.
+                                </p>
+                            </CardContent>
+                        </Card>
+
+                        <Card>
+                            <CardHeader>
+                                <Users className='mb-2 h-10 w-10 text-primary' />
+                                <CardTitle>Tus clientes reservan solos</CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                                <p className='text-zinc-600 dark:text-zinc-400'>
+                                    Compartí un link y listo. Ellos eligen día, horario y confirman en menos de 1
+                                    minuto.
+                                </p>
+                            </CardContent>
+                        </Card>
+
+                        <Card>
+                            <CardHeader>
+                                <Shield className='mb-2 h-10 w-10 text-primary' />
+                                <CardTitle>Evitá doble reservas</CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                                <p className='text-zinc-600 dark:text-zinc-400'>
+                                    El sistema bloquea automáticamente los horarios ocupados. Sin superposiciones.
+                                </p>
+                            </CardContent>
+                        </Card>
+
+                        <Card>
+                            <CardHeader>
+                                <Bell className='mb-2 h-10 w-10 text-primary' />
+                                <CardTitle>Recordatorios automáticos</CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                                <p className='text-zinc-600 dark:text-zinc-400'>
+                                    Enviá emails de confirmación y recordatorios 24h/2h antes. Reducí los no-shows.
+                                </p>
+                            </CardContent>
+                        </Card>
+
+                        <Card>
+                            <CardHeader>
+                                <Zap className='mb-2 h-10 w-10 text-primary' />
+                                <CardTitle>Configuración en minutos</CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                                <p className='text-zinc-600 dark:text-zinc-400'>
+                                    Agregás tus servicios, horarios de atención y ya está. Sin tutoriales complicados.
+                                </p>
+                            </CardContent>
+                        </Card>
+
+                        <Card>
+                            <CardHeader>
+                                <CheckCircle2 className='mb-2 h-10 w-10 text-primary' />
+                                <CardTitle>Costo bajo, sin sorpresas</CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                                <p className='text-zinc-600 dark:text-zinc-400'>
+                                    Sin instalaciones, sin hardware. Solo una herramienta simple que funciona.
+                                </p>
+                            </CardContent>
+                        </Card>
+                    </div>
+                </div>
+            </section>
+
+            {/* How It Works Section */}
+            <section className='bg-zinc-50 py-16 dark:bg-zinc-950 sm:py-24'>
+                <div className='container mx-auto px-4 sm:px-6 lg:px-8'>
+                    <div className='mx-auto max-w-2xl text-center'>
+                        <h2 className='text-3xl font-bold tracking-tight text-zinc-900 dark:text-zinc-50 sm:text-4xl'>
+                            ¿Cómo funciona?
+                        </h2>
+                        <p className='mt-4 text-lg text-zinc-600 dark:text-zinc-400'>
+                            Tres pasos para empezar a recibir turnos en línea
+                        </p>
+                    </div>
+
+                    <div className='mt-16 grid gap-8 md:grid-cols-3'>
+                        <div className='flex flex-col items-center text-center'>
+                            <div className='flex h-16 w-16 items-center justify-center rounded-full bg-primary text-2xl font-bold text-primary-foreground'>
+                                1
+                            </div>
+                            <h3 className='mt-6 text-xl font-semibold text-zinc-900 dark:text-zinc-50'>
+                                Configurá tu negocio
+                            </h3>
+                            <p className='mt-4 text-zinc-600 dark:text-zinc-400'>
+                                Agregá tus servicios, profesionales (o recursos) y horarios de atención. Todo en un solo
+                                lugar.
+                            </p>
+                        </div>
+
+                        <div className='flex flex-col items-center text-center'>
+                            <div className='flex h-16 w-16 items-center justify-center rounded-full bg-primary text-2xl font-bold text-primary-foreground'>
+                                2
+                            </div>
+                            <h3 className='mt-6 text-xl font-semibold text-zinc-900 dark:text-zinc-50'>
+                                Compartí tu link
+                            </h3>
+                            <p className='mt-4 text-zinc-600 dark:text-zinc-400'>
+                                Copiá tu link único y compartilo en redes, WhatsApp o donde prefieras. Simple como eso.
+                            </p>
+                        </div>
+
+                        <div className='flex flex-col items-center text-center'>
+                            <div className='flex h-16 w-16 items-center justify-center rounded-full bg-primary text-2xl font-bold text-primary-foreground'>
+                                3
+                            </div>
+                            <h3 className='mt-6 text-xl font-semibold text-zinc-900 dark:text-zinc-50'>
+                                Recibí reservas
+                            </h3>
+                            <p className='mt-4 text-zinc-600 dark:text-zinc-400'>
+                                Tus clientes eligen su horario y confirman. Vos recibís todo ordenado en tu agenda.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            {/* Use Cases Section */}
+            <section className='bg-white py-16 dark:bg-black sm:py-24'>
+                <div className='container mx-auto px-4 sm:px-6 lg:px-8'>
+                    <div className='mx-auto max-w-2xl text-center'>
+                        <h2 className='text-3xl font-bold tracking-tight text-zinc-900 dark:text-zinc-50 sm:text-4xl'>
+                            ¿Para quién es?
+                        </h2>
+                        <p className='mt-4 text-lg text-zinc-600 dark:text-zinc-400'>
+                            Ideal para cualquier negocio que trabaje con turnos
+                        </p>
+                    </div>
+
+                    <div className='mt-16 grid gap-6 sm:grid-cols-2 lg:grid-cols-4'>
+                        <Card>
+                            <CardHeader>
+                                <Scissors className='mb-2 h-10 w-10 text-primary' />
+                                <CardTitle>Peluquerías y salones</CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                                <p className='text-zinc-600 dark:text-zinc-400'>
+                                    Gestioná turnos de múltiples profesionales sin confusión ni llamadas constantes.
+                                </p>
+                            </CardContent>
+                        </Card>
+
+                        <Card>
+                            <CardHeader>
+                                <Dumbbell className='mb-2 h-10 w-10 text-primary' />
+                                <CardTitle>Canchas y gimnasios</CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                                <p className='text-zinc-600 dark:text-zinc-400'>
+                                    Reservá turnos de canchas, clases o equipos. Todo visible y organizado.
+                                </p>
+                            </CardContent>
+                        </Card>
+
+                        <Card>
+                            <CardHeader>
+                                <Stethoscope className='mb-2 h-10 w-10 text-primary' />
+                                <CardTitle>Consultorios médicos</CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                                <p className='text-zinc-600 dark:text-zinc-400'>
+                                    Agendá pacientes por profesional con horarios claros y recordatorios automáticos.
+                                </p>
+                            </CardContent>
+                        </Card>
+
+                        <Card>
+                            <CardHeader>
+                                <Wrench className='mb-2 h-10 w-10 text-primary' />
+                                <CardTitle>Talleres y servicios</CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                                <p className='text-zinc-600 dark:text-zinc-400'>
+                                    Mecánicos, reparaciones, asesorías. Cualquier servicio que necesite turnos.
+                                </p>
+                            </CardContent>
+                        </Card>
+                    </div>
+                </div>
+            </section>
+
+            {/* Pricing Placeholder Section */}
+            <section className='bg-zinc-50 py-16 dark:bg-zinc-950 sm:py-24'>
+                <div className='container mx-auto px-4 sm:px-6 lg:px-8'>
+                    <div className='mx-auto max-w-2xl text-center'>
+                        <h2 className='text-3xl font-bold tracking-tight text-zinc-900 dark:text-zinc-50 sm:text-4xl'>
+                            Planes accesibles
+                        </h2>
+                        <p className='mt-6 text-lg leading-8 text-zinc-600 dark:text-zinc-400'>
+                            Próximamente: planes accesibles para negocios de cualquier tamaño
+                        </p>
+                        <div className='mt-10'>
+                            <Button asChild size='lg'>
+                                <Link href='/signup'>
+                                    Empezá gratis
+                                    <ArrowRight className='ml-2 h-4 w-4' />
+                                </Link>
+                            </Button>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            {/* FAQ Section */}
+            <section className='bg-white py-16 dark:bg-black sm:py-24'>
+                <div className='container mx-auto px-4 sm:px-6 lg:px-8'>
+                    <div className='mx-auto max-w-2xl'>
+                        <h2 className='text-3xl font-bold tracking-tight text-zinc-900 dark:text-zinc-50 sm:text-4xl'>
+                            Preguntas frecuentes
+                        </h2>
+                        <p className='mt-4 text-lg text-zinc-600 dark:text-zinc-400'>
+                            Resolvemos tus dudas para que empieces sin vueltas
+                        </p>
+
+                        <Accordion type='single' collapsible className='mt-10'>
+                            <AccordionItem value='item-1'>
+                                <AccordionTrigger>¿Necesito instalar algo en mi computadora?</AccordionTrigger>
+                                <AccordionContent>
+                                    No. TurnosApp es 100% web, funciona desde cualquier navegador. No hay software que
+                                    instalar ni actualizar.
+                                </AccordionContent>
+                            </AccordionItem>
+
+                            <AccordionItem value='item-2'>
+                                <AccordionTrigger>¿Mis clientes necesitan crear una cuenta?</AccordionTrigger>
+                                <AccordionContent>
+                                    No. Tus clientes solo necesitan tu link para reservar. Ponen su nombre, email o
+                                    teléfono y listo. Es rápido y sin fricciones.
+                                </AccordionContent>
+                            </AccordionItem>
+
+                            <AccordionItem value='item-3'>
+                                <AccordionTrigger>¿Se puede usar desde el celular?</AccordionTrigger>
+                                <AccordionContent>
+                                    Sí. Tanto vos como tus clientes pueden usar TurnosApp desde cualquier dispositivo:
+                                    celular, tablet o computadora. El diseño se adapta automáticamente.
+                                </AccordionContent>
+                            </AccordionItem>
+
+                            <AccordionItem value='item-4'>
+                                <AccordionTrigger>¿Cómo evita las doble reservas?</AccordionTrigger>
+                                <AccordionContent>
+                                    El sistema bloquea automáticamente los horarios ocupados en tiempo real. Cuando
+                                    alguien reserva un turno, ese horario desaparece inmediatamente para otros clientes.
+                                    Es imposible que se superpongan.
+                                </AccordionContent>
+                            </AccordionItem>
+
+                            <AccordionItem value='item-5'>
+                                <AccordionTrigger>¿Cuánto tiempo tarda en configurarse?</AccordionTrigger>
+                                <AccordionContent>
+                                    Entre 5 y 10 minutos. Creás tu cuenta, agregás tus servicios y horarios de atención,
+                                    y ya podés compartir tu link para empezar a recibir turnos.
+                                </AccordionContent>
+                            </AccordionItem>
+                        </Accordion>
+                    </div>
+                </div>
+            </section>
+
+            {/* Footer */}
+            <footer className='border-t border-zinc-200 bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-950'>
+                <div className='container mx-auto px-4 py-12 sm:px-6 lg:px-8'>
+                    <div className='flex flex-col items-center justify-between gap-6 sm:flex-row'>
+                        <div className='text-center sm:text-left'>
+                            <p className='text-lg font-semibold text-zinc-900 dark:text-zinc-50'>TurnosApp</p>
+                            <p className='mt-1 text-sm text-zinc-600 dark:text-zinc-400'>
+                                Gestioná tus turnos sin complicaciones
+                            </p>
+                        </div>
+                        <div className='flex flex-wrap justify-center gap-6 text-sm'>
+                            <Link
+                                href='/privacy'
+                                className='text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-50'
+                            >
+                                Privacidad
+                            </Link>
+                            <Link
+                                href='/terms'
+                                className='text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-50'
+                            >
+                                Términos
+                            </Link>
+                        </div>
+                    </div>
+                    <Separator className='my-8' />
+                    <p className='text-center text-sm text-zinc-600 dark:text-zinc-400'>
+                        © {new Date().getFullYear()} TurnosApp. Todos los derechos reservados.
+                    </p>
+                </div>
+            </footer>
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
-    </div>
-  );
+    )
 }
