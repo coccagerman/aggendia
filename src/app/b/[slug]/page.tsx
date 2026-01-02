@@ -1,6 +1,7 @@
 import { notFound } from 'next/navigation'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { findBusinessBySlug } from '@/data/repositories/business.repo'
+import { getActiveServicesByBusinessId } from '@/data/repositories/service.repo'
 import { prisma } from '@/data/prisma/prisma'
 
 type PageProps = {
@@ -23,8 +24,14 @@ export default async function PublicBusinessPage({ params }: PageProps) {
         notFound()
     }
 
-    // Por ahora, página mínima que muestra el negocio y el resourceLabel
-    // En futuras US se agregarán servicios, recursos y reservas
+    // Obtener servicios activos
+    let services
+    try {
+        services = await getActiveServicesByBusinessId(prisma, business.id)
+    } catch (error) {
+        console.error('Error al buscar servicios:', error instanceof Error ? error.message : 'UNKNOWN')
+        services = []
+    }
     return (
         <div className='flex min-h-screen flex-col bg-zinc-50 dark:bg-zinc-950'>
             {/* Header público */}
@@ -70,38 +77,70 @@ export default async function PublicBusinessPage({ params }: PageProps) {
                             </CardContent>
                         </Card>
 
-                        {/* Estado vacío (próximos features) */}
+                        {/* Estado vacío o lista de servicios */}
                         <Card>
                             <CardHeader>
                                 <CardTitle>Servicios disponibles</CardTitle>
                                 <CardDescription>Seleccioná el servicio que querés reservar</CardDescription>
                             </CardHeader>
                             <CardContent>
-                                <div className='flex flex-col items-center justify-center py-12 text-center'>
-                                    <div className='rounded-full bg-zinc-100 p-3 dark:bg-zinc-800'>
-                                        <svg
-                                            className='h-6 w-6 text-zinc-400'
-                                            fill='none'
-                                            viewBox='0 0 24 24'
-                                            stroke='currentColor'
-                                        >
-                                            <path
-                                                strokeLinecap='round'
-                                                strokeLinejoin='round'
-                                                strokeWidth={2}
-                                                d='M12 6v6m0 0v6m0-6h6m-6 0H6'
-                                            />
-                                        </svg>
+                                {services.length === 0 ? (
+                                    <div className='flex flex-col items-center justify-center py-12 text-center'>
+                                        <div className='rounded-full bg-zinc-100 p-3 dark:bg-zinc-800'>
+                                            <svg
+                                                className='h-6 w-6 text-zinc-400'
+                                                fill='none'
+                                                viewBox='0 0 24 24'
+                                                stroke='currentColor'
+                                            >
+                                                <path
+                                                    strokeLinecap='round'
+                                                    strokeLinejoin='round'
+                                                    strokeWidth={2}
+                                                    d='M12 6v6m0 0v6m0-6h6m-6 0H6'
+                                                />
+                                            </svg>
+                                        </div>
+                                        <h3 className='mt-4 text-sm font-medium text-zinc-900 dark:text-zinc-50'>
+                                            Estamos configurando los servicios
+                                        </h3>
+                                        <p className='mt-1 text-sm text-zinc-500 dark:text-zinc-400'>
+                                            Este negocio está preparando su catálogo de servicios. Volvé pronto para
+                                            reservar tu turno.
+                                        </p>
                                     </div>
-                                    <h3 className='mt-4 text-sm font-medium text-zinc-900 dark:text-zinc-50'>
-                                        Todavía no hay servicios disponibles
-                                    </h3>
-                                    <p className='mt-1 text-sm text-zinc-500 dark:text-zinc-400'>
-                                        El negocio está configurando sus servicios y{' '}
-                                        {business.resourceLabel.toLowerCase()}
-                                        s.
-                                    </p>
-                                </div>
+                                ) : (
+                                    <div className='space-y-4'>
+                                        {services.map(service => (
+                                            <div
+                                                key={service.id}
+                                                className='rounded-lg border border-zinc-200 p-4 transition-colors hover:bg-zinc-50 dark:border-zinc-800 dark:hover:bg-zinc-900'
+                                            >
+                                                <div className='flex items-start justify-between'>
+                                                    <div className='flex-1'>
+                                                        <h3 className='font-medium text-zinc-900 dark:text-zinc-50'>
+                                                            {service.name}
+                                                        </h3>
+                                                        {service.description && (
+                                                            <p className='mt-1 text-sm text-zinc-600 dark:text-zinc-400'>
+                                                                {service.description}
+                                                            </p>
+                                                        )}
+                                                        <div className='mt-2 flex items-center gap-4 text-sm text-zinc-500 dark:text-zinc-400'>
+                                                            <span>⏱️ {service.durationMinutes} min</span>
+                                                            {service.priceCents !== null && (
+                                                                <span>
+                                                                    💰 ${(service.priceCents / 100).toFixed(2)}{' '}
+                                                                    {service.currency}
+                                                                </span>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
                             </CardContent>
                         </Card>
                     </div>

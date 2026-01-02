@@ -12,10 +12,10 @@ const nextConfig = {
     webpack: config => {
         config.resolve.alias = {
             ...(config.resolve.alias || {}),
-            tailwindcss: path.join(__dirname, 'node_modules', 'tailwindcss'),
+            tailwindcss: path.join(__dirname, 'node_modules', 'tailwindcss')
         }
         return config
-    },
+    }
 }
 
 export default nextConfig

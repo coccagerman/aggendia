@@ -5,6 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { LogoutButton } from './logout-button'
+import { CopyLinkButton } from './copy-link-button'
 import { getBusinessesByUserId } from '@/data/repositories/business.repo'
 import { getResourcesByBusinessIdsMap } from '@/data/repositories/resource.repo'
 import { prisma } from '@/data/prisma/prisma'
@@ -215,6 +216,14 @@ export default async function DashboardPage() {
                                                                         {business.area}
                                                                     </p>
                                                                 )}
+                                                            </div>
+
+                                                            {/* Link público */}
+                                                            <div className='mt-4 rounded-md border border-blue-200 bg-blue-50 p-3 dark:border-blue-900/50 dark:bg-blue-950/30'>
+                                                                <p className='text-xs font-medium text-blue-900 dark:text-blue-200'>
+                                                                    🔗 Link público para compartir
+                                                                </p>
+                                                                <CopyLinkButton slug={business.slug} />
                                                             </div>
 
                                                             {/* Sección de recursos */}

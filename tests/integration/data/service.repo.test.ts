@@ -1,0 +1,244 @@
+/**
+ * Integration tests for service repository
+ */
+
+import { describe, it, expect, beforeAll } from 'vitest'
+import { prisma } from '@/data/prisma/prisma'
+import {
+    getActiveServicesByBusinessId,
+    getServicesByBusinessId,
+    createService,
+    updateService,
+    deactivateService
+} from '@/data/repositories/service.repo'
+import { createBusinessWithOwner } from '@/data/repositories/business.repo'
+
+describe('Service Repository - Integration Tests', () => {
+    let businessId1: string
+    let businessId2: string
+    const userId = 'test-user-services-' + Date.now()
+
+    beforeAll(async () => {
+        // Crear dos negocios de prueba
+        const biz1 = await createBusinessWithOwner(
+            prisma,
+            {
+                name: `Test Business 1 ${Date.now()}`,
+                timezone: 'America/Argentina/Buenos_Aires'
+            },
+            `test-biz-services-1-${Date.now()}`,
+            userId
+        )
+        businessId1 = biz1.business.id
+
+        const biz2 = await createBusinessWithOwner(
+            prisma,
+            {
+                name: `Test Business 2 ${Date.now()}`,
+                timezone: 'America/Argentina/Buenos_Aires'
+            },
+            `test-biz-services-2-${Date.now()}`,
+            userId + '-2'
+        )
+        businessId2 = biz2.business.id
+    })
+
+    describe('getActiveServicesByBusinessId', () => {
+        it('devuelve solo servicios activos del negocio', async () => {
+            // Crear servicios: 2 activos, 1 inactivo
+            const service1 = await createService(prisma, businessId1, {
+                name: 'Servicio Activo 1',
+                durationMinutes: 30
+            })
+
+            const service2 = await createService(prisma, businessId1, {
+                name: 'Servicio Activo 2',
+                durationMinutes: 45
+            })
+
+            const service3 = await createService(prisma, businessId1, {
+                name: 'Servicio Inactivo',
+                durationMinutes: 60
+            })
+            await deactivateService(prisma, businessId1, service3.id)
+
+            const activeServices = await getActiveServicesByBusinessId(prisma, businessId1)
+
+            expect(activeServices).toHaveLength(2)
+            expect(activeServices.map(s => s.id)).toContain(service1.id)
+            expect(activeServices.map(s => s.id)).toContain(service2.id)
+            expect(activeServices.map(s => s.id)).not.toContain(service3.id)
+        })
+
+        it('devuelve array vacío si no hay servicios activos', async () => {
+            const services = await getActiveServicesByBusinessId(prisma, businessId2)
+            expect(services).toEqual([])
+        })
+
+        it('no devuelve servicios de otro negocio (tenant isolation)', async () => {
+            // Crear servicio en business2
+            const otherService = await createService(prisma, businessId2, {
+                name: 'Servicio Otro Negocio',
+                durationMinutes: 30
+            })
+
+            // Buscar servicios de business1
+            const services = await getActiveServicesByBusinessId(prisma, businessId1)
+
+            // No debe incluir el servicio de business2
+            expect(services.map(s => s.id)).not.toContain(otherService.id)
+        })
+
+        it('ordena servicios por nombre ascendente', async () => {
+            // Limpiar servicios previos
+            const existingServices = await getServicesByBusinessId(prisma, businessId2)
+            for (const s of existingServices) {
+                await deactivateService(prisma, businessId2, s.id)
+            }
+
+            // Crear servicios en orden no alfabético
+            await createService(prisma, businessId2, {
+                name: 'Zebra Service',
+                durationMinutes: 30
+            })
+            await createService(prisma, businessId2, {
+                name: 'Alpha Service',
+                durationMinutes: 30
+            })
+            await createService(prisma, businessId2, {
+                name: 'Middle Service',
+                durationMinutes: 30
+            })
+
+            const services = await getActiveServicesByBusinessId(prisma, businessId2)
+
+            expect(services).toHaveLength(3)
+            expect(services[0].name).toBe('Alpha Service')
+            expect(services[1].name).toBe('Middle Service')
+            expect(services[2].name).toBe('Zebra Service')
+        })
+    })
+
+    describe('getServicesByBusinessId', () => {
+        it('devuelve todos los servicios (activos e inactivos)', async () => {
+            const allServices = await getServicesByBusinessId(prisma, businessId1)
+
+            // Debe incluir tanto activos como inactivos
+            const activeCount = allServices.filter(s => s.active).length
+            const inactiveCount = allServices.filter(s => !s.active).length
+
+            expect(allServices.length).toBeGreaterThan(0)
+            expect(activeCount).toBeGreaterThan(0)
+            expect(inactiveCount).toBeGreaterThan(0)
+        })
+
+        it('ordena por fecha de creación descendente', async () => {
+            const services = await getServicesByBusinessId(prisma, businessId1)
+
+            // Verificar que están ordenados por createdAt desc
+            for (let i = 0; i < services.length - 1; i++) {
+                expect(services[i].createdAt.getTime()).toBeGreaterThanOrEqual(services[i + 1].createdAt.getTime())
+            }
+        })
+    })
+
+    describe('createService', () => {
+        it('crea servicio con datos mínimos', async () => {
+            const service = await createService(prisma, businessId1, {
+                name: 'Servicio Mínimo',
+                durationMinutes: 30
+            })
+
+            expect(service.id).toBeDefined()
+            expect(service.name).toBe('Servicio Mínimo')
+            expect(service.durationMinutes).toBe(30)
+            expect(service.bufferMinutes).toBe(0)
+            expect(service.active).toBe(true)
+            expect(service.currency).toBe('ARS')
+        })
+
+        it('crea servicio con todos los datos', async () => {
+            const service = await createService(prisma, businessId1, {
+                name: 'Servicio Completo',
+                description: 'Descripción del servicio',
+                durationMinutes: 60,
+                bufferMinutes: 15,
+                priceCents: 5000,
+                currency: 'USD'
+            })
+
+            expect(service.name).toBe('Servicio Completo')
+            expect(service.description).toBe('Descripción del servicio')
+            expect(service.durationMinutes).toBe(60)
+            expect(service.bufferMinutes).toBe(15)
+            expect(service.priceCents).toBe(5000)
+            expect(service.currency).toBe('USD')
+        })
+
+        it('respeta unique constraint (businessId, name)', async () => {
+            await createService(prisma, businessId1, {
+                name: 'Servicio Único',
+                durationMinutes: 30
+            })
+
+            // Intentar crear otro servicio con el mismo nombre en el mismo negocio
+            await expect(
+                createService(prisma, businessId1, {
+                    name: 'Servicio Único',
+                    durationMinutes: 45
+                })
+            ).rejects.toThrow()
+        })
+    })
+
+    describe('updateService', () => {
+        it('actualiza nombre del servicio', async () => {
+            const service = await createService(prisma, businessId1, {
+                name: 'Nombre Original',
+                durationMinutes: 30
+            })
+
+            const updated = await updateService(prisma, businessId1, service.id, {
+                name: 'Nombre Actualizado'
+            })
+
+            expect(updated.name).toBe('Nombre Actualizado')
+            expect(updated.durationMinutes).toBe(30) // No cambió
+        })
+
+        it('actualiza múltiples campos', async () => {
+            const service = await createService(prisma, businessId1, {
+                name: 'Multi Update',
+                durationMinutes: 30
+            })
+
+            const updated = await updateService(prisma, businessId1, service.id, {
+                durationMinutes: 60,
+                bufferMinutes: 10,
+                priceCents: 3000,
+                active: false
+            })
+
+            expect(updated.durationMinutes).toBe(60)
+            expect(updated.bufferMinutes).toBe(10)
+            expect(updated.priceCents).toBe(3000)
+            expect(updated.active).toBe(false)
+        })
+    })
+
+    describe('deactivateService', () => {
+        it('desactiva un servicio activo', async () => {
+            const service = await createService(prisma, businessId1, {
+                name: 'Para Desactivar',
+                durationMinutes: 30
+            })
+
+            expect(service.active).toBe(true)
+
+            const deactivated = await deactivateService(prisma, businessId1, service.id)
+
+            expect(deactivated.active).toBe(false)
+            expect(deactivated.id).toBe(service.id)
+        })
+    })
+})

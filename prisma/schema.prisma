@@ -43,6 +43,7 @@ model Business {
 
   members       BusinessMember[]
   resources     Resource[]
+  services      Service[]
 }
 
 model BusinessMember {
@@ -73,4 +74,24 @@ model Resource {
   @@unique([businessId, name])
   @@index([businessId])
   @@index([status])
+}
+
+model Service {
+  id              String   @id @default(uuid())
+  businessId      String
+  name            String
+  description     String?
+  durationMinutes Int
+  bufferMinutes   Int      @default(0)
+  priceCents      Int?
+  currency        String?  @default("ARS")
+  active          Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  business        Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+
+  @@unique([businessId, name])
+  @@index([businessId])
+  @@index([businessId, active])
 }

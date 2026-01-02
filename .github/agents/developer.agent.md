@@ -7,7 +7,7 @@ infer: true
 handoffs:
     - label: Pasar a Code Reviewer
       agent: Code Reviewer
-      prompt: 'Revisá los cambios hechos para esta feature: seguridad, multi-tenant, convenciones, edge-cases y performance. Marcá bloqueantes y sugerí fixes.'
+      prompt: 'Revisá los cambios hechos para esta feature: seguridad, multi-tenant, convenciones, edge-cases y performance. Marcá bloqueantes en caso de haberlos y sugerí fixes para ellos.'
       send: false
 ---
 
