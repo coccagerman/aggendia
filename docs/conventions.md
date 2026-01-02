@@ -429,6 +429,8 @@ businessId, resourceId, serviceId, appointmentId
 
 startAt, endAt, occupiedEndAt
 
+**Botones con cursor pointer:** todos los botones (componente Button de shadcn/ui y botones HTML nativos) deben incluir `cursor-pointer` en su className para indicar interactividad al hacer hover.
+
 Tests (cuando empecemos):
 
 unit tests para domain (cálculo de slots, reglas de conflicto)

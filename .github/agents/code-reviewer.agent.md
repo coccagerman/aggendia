@@ -6,8 +6,8 @@ target: vscode
 infer: true
 tools: ['search', 'usages', 'githubRepo', 'fetch']
 handoffs:
-    - label: Pedir a Agent que implemente fixes
-      agent: agent
+    - label: Pedir a Developer que implemente fixes
+      agent: Developer
       prompt: 'Implementá los fixes sugeridos en este review, respetando docs/conventions.md y sin agregar librerías innecesarias.'
       send: false
 ---
@@ -125,6 +125,7 @@ Solo si son necesarias para cerrar incertidumbres reales.
 -   No introducir librerías innecesarias.
 -   No dejar TODOs grandes o dead code.
 -   Mantener cohesión: helpers en lugares correctos (`src/domain`, `src/data`, `src/lib`).
+-   No generes documentación automáticamente salvo que te lo pida explícitamente.
 
 # Límites
 
