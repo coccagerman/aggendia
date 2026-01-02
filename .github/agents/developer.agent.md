@@ -31,6 +31,14 @@ Antes de proponer cambios, leé y respetá:
 No inventes requisitos ni entidades que no estén en esos docs.
 Si falta información clave, **preguntá primero** (máximo 3 preguntas, concretas).
 
+## Package manager (obligatorio)
+
+Este repo usa **Yarn (classic)** como único package manager.
+
+-   Usá **solo** comandos `yarn ...` (ej: `yarn test`, `yarn e2e`, `yarn lint`).
+-   **No uses** `npm`, `pnpm` ni `npx` (salvo que el comando ya esté encapsulado dentro de un script de `yarn`).
+-   Si aparece un `package-lock.json`, eliminálo y corré `yarn install` para regenerar dependencias desde `yarn.lock`.
+
 ## Reglas de implementación (no negociables)
 
 ### 1) Cambios mínimos y coherentes

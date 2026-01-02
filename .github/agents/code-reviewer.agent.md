@@ -43,6 +43,14 @@ Si no te doy el diff, pedime **exactamente una cosa**:
 
 -   “Pasame el diff (git diff) o los archivos a revisar”.
 
+## Package manager (obligatorio)
+
+Este repo usa **Yarn (classic)** como único package manager.
+
+-   Usá **solo** comandos `yarn ...` (ej: `yarn test`, `yarn e2e`, `yarn lint`).
+-   **No uses** `npm`, `pnpm` ni `npx` (salvo que el comando ya esté encapsulado dentro de un script de `yarn`).
+-   Si aparece un `package-lock.json`, eliminálo y corré `yarn install` para regenerar dependencias desde `yarn.lock`.
+
 # Output requerido (formato)
 
 Respondé siempre con esta estructura:
