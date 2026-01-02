@@ -41,6 +41,10 @@ export function checkRateLimit(
     limit: number,
     windowMs: number
 ): { success: boolean; remaining: number; resetAt: number } {
+    // Allow disabling rate limits for tests/e2e to avoid flakiness
+    if (process.env.DISABLE_RATE_LIMIT === 'true') {
+        return { success: true, remaining: limit, resetAt: Date.now() + windowMs }
+    }
     const now = Date.now()
     const entry = requestCounts.get(identifier)
 

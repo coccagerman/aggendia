@@ -60,21 +60,18 @@ export async function POST(request: NextRequest, context: RouteContext) {
             return NextResponse.json(error.toJSON(), { status: error.httpStatus })
         }
 
-        // Capturar colisión de nombre (P2002 unique constraint)
+        // Capturar colisión (P2002 unique constraint) y responder 409 sin loguear como error
         if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
-            const target = error.meta?.target as string[] | undefined
-            if (target?.includes('name')) {
-                return NextResponse.json(
-                    {
-                        error: {
-                            code: 'RESOURCE_NAME_CONFLICT',
-                            message: 'Ya existe un recurso con ese nombre en este negocio.',
-                            details: { field: 'name' }
-                        }
-                    },
-                    { status: 409 }
-                )
-            }
+            return NextResponse.json(
+                {
+                    error: {
+                        code: 'RESOURCE_NAME_CONFLICT',
+                        message: 'Ya existe un recurso con ese nombre en este negocio.',
+                        details: { field: 'name' }
+                    }
+                },
+                { status: 409 }
+            )
         }
 
         console.error('Error al crear recurso:', error instanceof Error ? error.message : 'UNKNOWN')

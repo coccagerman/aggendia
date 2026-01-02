@@ -106,7 +106,7 @@ export default function NewBusinessPage() {
                                     Completá la información de tu negocio para comenzar a recibir turnos
                                 </CardDescription>
                             </CardHeader>
-                            <form onSubmit={handleSubmit}>
+                            <form onSubmit={handleSubmit} noValidate>
                                 <CardContent className='space-y-6'>
                                     {/* Nombre */}
                                     <div className='space-y-2'>
@@ -120,7 +120,6 @@ export default function NewBusinessPage() {
                                             value={formData.name}
                                             onChange={e => setFormData({ ...formData, name: e.target.value })}
                                             disabled={loading}
-                                            required
                                             maxLength={100}
                                         />
                                         <p className='text-xs text-zinc-600 dark:text-zinc-400'>
@@ -137,7 +136,6 @@ export default function NewBusinessPage() {
                                             value={formData.timezone}
                                             onValueChange={value => setFormData({ ...formData, timezone: value })}
                                             disabled={loading}
-                                            required
                                         >
                                             <SelectTrigger id='timezone'>
                                                 <SelectValue placeholder='Seleccioná tu zona horaria' />
