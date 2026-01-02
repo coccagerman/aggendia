@@ -16,6 +16,7 @@ export async function createBusinessWithOwner(
                 name: input.name,
                 slug,
                 timezone: input.timezone,
+                resourceLabel: input.resourceLabel ?? 'Recurso',
                 address: input.address ?? null,
                 area: input.area ?? null
             }
@@ -58,5 +59,28 @@ export async function getBusinessesByUserId(prisma: PrismaClient, userId: string
 export async function findBusinessBySlug(prisma: PrismaClient, slug: string): Promise<Business | null> {
     return prisma.business.findUnique({
         where: { slug }
+    })
+}
+
+/**
+ * Obtiene un negocio por ID.
+ */
+export async function getBusinessById(prisma: PrismaClient, businessId: string): Promise<Business | null> {
+    return prisma.business.findUnique({
+        where: { id: businessId }
+    })
+}
+
+/**
+ * Actualiza el resourceLabel de un negocio.
+ */
+export async function updateBusinessResourceLabel(
+    prisma: PrismaClient,
+    businessId: string,
+    resourceLabel: string
+): Promise<Business> {
+    return prisma.business.update({
+        where: { id: businessId },
+        data: { resourceLabel }
     })
 }

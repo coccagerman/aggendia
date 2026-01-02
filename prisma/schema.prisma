@@ -19,17 +19,30 @@ enum BusinessRole {
   STAFF
 }
 
-model Business {
-  id        String   @id @default(uuid())
-  name      String
-  slug      String   @unique
-  timezone  String
-  address   String?
-  area      String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+enum ResourceType {
+  PERSON
+  ASSET
+}
 
-  members   BusinessMember[]
+enum ResourceStatus {
+  ACTIVE
+  INACTIVE
+  DELETED
+}
+
+model Business {
+  id            String   @id @default(uuid())
+  name          String
+  slug          String   @unique
+  timezone      String
+  resourceLabel String   @default("Recurso")
+  address       String?
+  area          String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  members       BusinessMember[]
+  resources     Resource[]
 }
 
 model BusinessMember {
@@ -44,4 +57,20 @@ model BusinessMember {
   @@unique([businessId, userId])
   @@index([userId])
   @@index([businessId])
+}
+
+model Resource {
+  id         String         @id @default(uuid())
+  businessId String
+  name       String
+  type       ResourceType?
+  status     ResourceStatus @default(ACTIVE)
+  createdAt  DateTime       @default(now())
+  updatedAt  DateTime       @updatedAt
+
+  business   Business       @relation(fields: [businessId], references: [id], onDelete: Cascade)
+
+  @@unique([businessId, name])
+  @@index([businessId])
+  @@index([status])
 }

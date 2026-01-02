@@ -11,6 +11,7 @@ export interface Business {
     name: string
     slug: string
     timezone: string
+    resourceLabel: string
     address: string | null
     area: string | null
     createdAt: Date
@@ -28,6 +29,7 @@ export interface BusinessMember {
 export interface CreateBusinessInput {
     name: string
     timezone: string
+    resourceLabel?: string
     address?: string | null
     area?: string | null
 }

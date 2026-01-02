@@ -67,7 +67,8 @@ export const BusinessErrorCodes = {
  */
 export const ResourceErrorCodes = {
     RESOURCE_NOT_FOUND: 'RESOURCE_NOT_FOUND',
-    RESOURCE_INACTIVE: 'RESOURCE_INACTIVE'
+    RESOURCE_INACTIVE: 'RESOURCE_INACTIVE',
+    RESOURCE_NAME_CONFLICT: 'RESOURCE_NAME_CONFLICT'
 } as const
 
 /**
