@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
 
 interface CopyLinkButtonProps {
@@ -9,7 +9,11 @@ interface CopyLinkButtonProps {
 
 export function CopyLinkButton({ slug }: CopyLinkButtonProps) {
     const [copied, setCopied] = useState(false)
-    const publicUrl = `${typeof window !== 'undefined' ? window.location.origin : ''}/b/${slug}`
+    const [publicUrl, setPublicUrl] = useState(`/b/${slug}`)
+
+    useEffect(() => {
+        setPublicUrl(`${window.location.origin}/b/${slug}`)
+    }, [slug])
 
     const handleCopy = async () => {
         try {
@@ -26,7 +30,7 @@ export function CopyLinkButton({ slug }: CopyLinkButtonProps) {
             <code className='flex-1 rounded bg-zinc-100 px-2 py-1 text-xs text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300'>
                 {publicUrl}
             </code>
-            <Button size='sm' variant='outline' onClick={handleCopy}>
+            <Button size='sm' variant='outline' onClick={handleCopy} className='cursor-pointer'>
                 {copied ? '✓ Copiado' : '🔗 Copiar'}
             </Button>
         </div>

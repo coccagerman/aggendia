@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { LogoutButton } from './logout-button'
 import { CopyLinkButton } from './copy-link-button'
+import { ResourceActions } from '@/components/dashboard/resource-actions'
 import { getBusinessesByUserId } from '@/data/repositories/business.repo'
 import { getResourcesByBusinessIdsMap } from '@/data/repositories/resource.repo'
 import { prisma } from '@/data/prisma/prisma'
@@ -286,8 +287,16 @@ export default async function DashboardPage() {
                                                                                             : 'bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400'
                                                                                     }`}
                                                                                 >
-                                                                                    {resource.status}
+                                                                                    {resource.status === 'ACTIVE'
+                                                                                        ? 'Activo'
+                                                                                        : 'Inactivo'}
                                                                                 </span>
+                                                                                <ResourceActions
+                                                                                    resource={resource}
+                                                                                    resourceLabel={
+                                                                                        business.resourceLabel
+                                                                                    }
+                                                                                />
                                                                             </li>
                                                                         ))}
                                                                     </ul>

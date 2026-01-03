@@ -15,7 +15,7 @@ export const createResourceSchema = z.object({
 export const updateResourceSchema = z.object({
     name: z.string().trim().min(1).max(100).optional(),
     type: z.enum(['PERSON', 'ASSET']).optional().nullable(),
-    status: z.enum(['ACTIVE', 'INACTIVE', 'DELETED']).optional()
+    status: z.enum(['ACTIVE', 'INACTIVE']).optional()
 })
 
 export type CreateResourceRequest = z.infer<typeof createResourceSchema>
