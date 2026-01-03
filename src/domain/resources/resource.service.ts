@@ -46,3 +46,28 @@ export function validateUpdateResourceInput(input: UpdateResourceInput): void {
         )
     }
 }
+
+/**
+ * Resultado de la validación para eliminar un recurso.
+ */
+export interface CanDeleteResult {
+    canDelete: boolean
+    futureAppointmentsCount: number
+}
+
+/**
+ * Verifica si un recurso puede ser eliminado.
+ * Retorna si puede eliminarse y la cantidad de turnos futuros.
+ *
+ * TODO: Cuando exista el modelo Appointment, implementar la verificación real.
+ * Por ahora siempre permite eliminar (futureAppointmentsCount = 0).
+ */
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+export function canDeleteResource(_resourceId: string): CanDeleteResult {
+    // Stub: cuando se implemente Appointment, aquí se consultará
+    // la cantidad de turnos futuros para este recurso
+    return {
+        canDelete: true,
+        futureAppointmentsCount: 0
+    }
+}

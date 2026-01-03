@@ -92,6 +92,7 @@ export async function getResourcesByBusinessIdsMap(
 
 /**
  * Obtiene un recurso por ID (verifica que pertenezca al negocio).
+ * Excluye recursos con status DELETED.
  */
 export async function getResourceById(
     prisma: PrismaClient,
@@ -102,7 +103,10 @@ export async function getResourceById(
     return client.resource.findFirst({
         where: {
             id: resourceId,
-            businessId
+            businessId,
+            status: {
+                not: 'DELETED'
+            }
         }
     })
 }

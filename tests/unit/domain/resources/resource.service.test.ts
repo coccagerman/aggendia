@@ -3,7 +3,11 @@
  */
 
 import { describe, it, expect } from 'vitest'
-import { validateCreateResourceInput, validateUpdateResourceInput } from '@/domain/resources/resource.service'
+import {
+    validateCreateResourceInput,
+    validateUpdateResourceInput,
+    canDeleteResource
+} from '@/domain/resources/resource.service'
 import { AppError } from '@/domain/common/errors'
 
 describe('Resource Domain Service - Unit Tests', () => {
@@ -173,6 +177,22 @@ describe('Resource Domain Service - Unit Tests', () => {
                     status: 'INACTIVE'
                 })
             ).not.toThrow()
+        })
+    })
+
+    describe('canDeleteResource', () => {
+        it('retorna canDelete=true cuando no hay turnos futuros (stub)', () => {
+            const result = canDeleteResource('resource-123')
+            expect(result.canDelete).toBe(true)
+            expect(result.futureAppointmentsCount).toBe(0)
+        })
+
+        it('retorna estructura correcta del resultado', () => {
+            const result = canDeleteResource('any-resource-id')
+            expect(result).toHaveProperty('canDelete')
+            expect(result).toHaveProperty('futureAppointmentsCount')
+            expect(typeof result.canDelete).toBe('boolean')
+            expect(typeof result.futureAppointmentsCount).toBe('number')
         })
     })
 })

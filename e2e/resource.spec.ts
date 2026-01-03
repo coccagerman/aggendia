@@ -295,3 +295,97 @@ test.describe('Resource Edit E2E', () => {
         await expect(page.getByText(/ya existe/i)).toBeVisible({ timeout: 5000 })
     })
 })
+
+test.describe('Resource Delete E2E', () => {
+    test('delete resource removes it from listing', async ({ page }) => {
+        const email = generateTestEmail()
+        const password = 'TestPassword123!'
+        const businessName = `Business ${Date.now()}`
+        const resourceName = `Recurso a Eliminar ${Date.now()}`
+
+        // Setup: crear negocio y recurso
+        await signupUser(page, email, password)
+        await createBusiness(page, businessName)
+        await navigateToCreateResource(page)
+        await page.getByLabel(/nombre/i).fill(resourceName)
+        await page.getByRole('button', { name: /crear/i }).click()
+        await expect(page).toHaveURL('/dashboard')
+
+        // Verificar recurso en listado
+        const resourceItem = page.locator('li').filter({ hasText: resourceName })
+        await expect(resourceItem).toBeVisible()
+
+        // Abrir menú de acciones
+        await resourceItem.getByRole('button', { name: /abrir menú/i }).click()
+
+        // Clic en Eliminar
+        await page.getByRole('menuitem', { name: /eliminar/i }).click()
+
+        // Debe mostrar diálogo de confirmación
+        await expect(page.getByText(/¿eliminar/i)).toBeVisible()
+        await expect(page.getByText(/no se puede deshacer/i)).toBeVisible()
+
+        // Confirmar eliminación
+        await page.getByRole('button', { name: /^eliminar$/i }).click()
+
+        // Verificar que el recurso desaparece del listado (usar locator específico)
+        await expect(resourceItem).not.toBeVisible({ timeout: 5000 })
+    })
+
+    test('cancel delete keeps resource in listing', async ({ page }) => {
+        const email = generateTestEmail()
+        const password = 'TestPassword123!'
+        const businessName = `Business ${Date.now()}`
+        const resourceName = `Recurso No Eliminar ${Date.now()}`
+
+        // Setup: crear negocio y recurso
+        await signupUser(page, email, password)
+        await createBusiness(page, businessName)
+        await navigateToCreateResource(page)
+        await page.getByLabel(/nombre/i).fill(resourceName)
+        await page.getByRole('button', { name: /crear/i }).click()
+        await expect(page).toHaveURL('/dashboard')
+
+        // Abrir menú y diálogo de eliminar
+        const resourceItem = page.locator('li').filter({ hasText: resourceName })
+        await resourceItem.getByRole('button', { name: /abrir menú/i }).click()
+        await page.getByRole('menuitem', { name: /eliminar/i }).click()
+        await expect(page.getByText(/¿eliminar/i)).toBeVisible()
+
+        // Cancelar
+        await page.getByRole('button', { name: /cancelar/i }).click()
+
+        // Verificar que el recurso sigue visible en el listado
+        await expect(resourceItem).toBeVisible()
+    })
+
+    test('delete inactive resource works', async ({ page }) => {
+        const email = generateTestEmail()
+        const password = 'TestPassword123!'
+        const businessName = `Business ${Date.now()}`
+        const resourceName = `Recurso Inactivo Delete ${Date.now()}`
+
+        // Setup: crear negocio y recurso
+        await signupUser(page, email, password)
+        await createBusiness(page, businessName)
+        await navigateToCreateResource(page)
+        await page.getByLabel(/nombre/i).fill(resourceName)
+        await page.getByRole('button', { name: /crear/i }).click()
+        await expect(page).toHaveURL('/dashboard')
+
+        // Desactivar primero
+        const resourceItem = page.locator('li').filter({ hasText: resourceName })
+        await resourceItem.getByRole('button', { name: /abrir menú/i }).click()
+        await page.getByRole('menuitem', { name: /desactivar/i }).click()
+        await page.getByRole('button', { name: /^desactivar$/i }).click()
+        await expect(resourceItem.getByText('Inactivo')).toBeVisible({ timeout: 5000 })
+
+        // Ahora eliminar
+        await resourceItem.getByRole('button', { name: /abrir menú/i }).click()
+        await page.getByRole('menuitem', { name: /eliminar/i }).click()
+        await page.getByRole('button', { name: /^eliminar$/i }).click()
+
+        // Verificar que el recurso desaparece del listado
+        await expect(resourceItem).not.toBeVisible({ timeout: 5000 })
+    })
+})

@@ -8,7 +8,8 @@ import {
     createResource,
     getResourcesByBusinessId,
     getResourceById,
-    updateResource
+    updateResource,
+    deleteResource
 } from '@/data/repositories/resource.repo'
 import { createBusinessWithOwner } from '@/data/repositories/business.repo'
 
@@ -306,6 +307,59 @@ describe('Resource Repository - Integration Tests', () => {
                     name: 'Intento Malicioso'
                 })
             ).rejects.toThrow()
+        })
+    })
+
+    describe('deleteResource', () => {
+        it('hace soft delete cambiando status a DELETED', async () => {
+            const resource = await createResource(prisma, businessId1, {
+                name: `Delete Test ${Date.now()}`,
+                status: 'ACTIVE'
+            })
+
+            // Delete
+            await deleteResource(prisma, businessId1, resource.id)
+
+            // Verificar que no aparece en listado
+            const resources = await getResourcesByBusinessId(prisma, businessId1)
+            const found = resources.find(r => r.id === resource.id)
+            expect(found).toBeUndefined()
+        })
+
+        it('recurso eliminado no se encuentra con getResourceById', async () => {
+            const resource = await createResource(prisma, businessId1, {
+                name: `Delete ById Test ${Date.now()}`
+            })
+
+            await deleteResource(prisma, businessId1, resource.id)
+
+            const found = await getResourceById(prisma, businessId1, resource.id)
+            expect(found).toBeNull()
+        })
+
+        it('rechaza eliminar recurso de otro negocio', async () => {
+            const resourceBiz2 = await createResource(prisma, businessId2, {
+                name: `Delete Cross Tenant ${Date.now()}`
+            })
+
+            // Intentar eliminar desde businessId1
+            await expect(deleteResource(prisma, businessId1, resourceBiz2.id)).rejects.toThrow()
+        })
+
+        it('rechaza eliminar recurso inexistente', async () => {
+            await expect(deleteResource(prisma, businessId1, 'non-existent-id')).rejects.toThrow()
+        })
+
+        it('recurso INACTIVE también puede ser eliminado', async () => {
+            const resource = await createResource(prisma, businessId1, {
+                name: `Delete Inactive ${Date.now()}`,
+                status: 'INACTIVE'
+            })
+
+            await deleteResource(prisma, businessId1, resource.id)
+
+            const found = await getResourceById(prisma, businessId1, resource.id)
+            expect(found).toBeNull()
         })
     })
 })

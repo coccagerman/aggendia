@@ -3,10 +3,10 @@ import { Prisma } from '@prisma/client'
 import { requireAuth } from '@/lib/auth'
 import { requireBusinessAccess } from '@/lib/auth/require-business-access'
 import { prisma } from '@/data/prisma/prisma'
-import { getResourceById, updateResource } from '@/data/repositories/resource.repo'
-import { validateUpdateResourceInput } from '@/domain/resources/resource.service'
+import { getResourceById, updateResource, deleteResource } from '@/data/repositories/resource.repo'
+import { validateUpdateResourceInput, canDeleteResource } from '@/domain/resources/resource.service'
 import { updateResourceSchema } from '../dto'
-import { AppError, ValidationErrorCodes } from '@/domain/common/errors'
+import { AppError, ValidationErrorCodes, ResourceErrorCodes } from '@/domain/common/errors'
 
 type RouteContext = {
     params: Promise<{ businessId: string; resourceId: string }>
@@ -121,6 +121,74 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
                 error: {
                     code: 'INTERNAL_ERROR',
                     message: 'Ocurrió un error al actualizar el recurso.'
+                }
+            },
+            { status: 500 }
+        )
+    }
+}
+
+/**
+ * DELETE /api/v1/businesses/:businessId/resources/:resourceId
+ * Elimina un recurso del negocio (soft delete).
+ *
+ * - Si el recurso tiene turnos futuros, retorna 409 con sugerencia de desactivar.
+ * - Si no tiene turnos futuros, cambia status a DELETED.
+ */
+export async function DELETE(request: NextRequest, context: RouteContext) {
+    try {
+        const { businessId, resourceId } = await context.params
+
+        // Auth: verificar usuario autenticado y acceso al negocio
+        const { userId } = await requireAuth()
+        await requireBusinessAccess(userId, businessId)
+
+        // Verificar que el recurso existe y pertenece al negocio
+        const resource = await getResourceById(prisma, businessId, resourceId)
+
+        if (!resource) {
+            return NextResponse.json(
+                {
+                    error: {
+                        code: ResourceErrorCodes.RESOURCE_NOT_FOUND,
+                        message: 'Recurso no encontrado.'
+                    }
+                },
+                { status: 404 }
+            )
+        }
+
+        // Verificar si puede ser eliminado (sin turnos futuros)
+        const { canDelete, futureAppointmentsCount } = canDeleteResource(resourceId)
+
+        if (!canDelete) {
+            return NextResponse.json(
+                {
+                    error: {
+                        code: ResourceErrorCodes.RESOURCE_HAS_FUTURE_APPOINTMENTS,
+                        message: 'No se puede eliminar porque tiene turnos futuros. Desactivá el recurso en su lugar.',
+                        details: { futureAppointmentsCount }
+                    }
+                },
+                { status: 409 }
+            )
+        }
+
+        // Soft delete: cambiar status a DELETED
+        await deleteResource(prisma, businessId, resourceId)
+
+        return NextResponse.json({ data: { deleted: true } }, { status: 200 })
+    } catch (error) {
+        if (error instanceof AppError) {
+            return NextResponse.json(error.toJSON(), { status: error.httpStatus })
+        }
+
+        console.error('Error al eliminar recurso:', error instanceof Error ? error.message : 'UNKNOWN')
+        return NextResponse.json(
+            {
+                error: {
+                    code: 'INTERNAL_ERROR',
+                    message: 'Ocurrió un error al eliminar el recurso.'
                 }
             },
             { status: 500 }
