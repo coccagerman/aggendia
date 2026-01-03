@@ -262,15 +262,32 @@ export default async function DashboardPage() {
                                                                         {business.resources.map(resource => (
                                                                             <li
                                                                                 key={resource.id}
-                                                                                className='flex items-center text-sm text-zinc-600 dark:text-zinc-400'
+                                                                                className='flex items-center gap-2 text-sm text-zinc-600 dark:text-zinc-400'
                                                                             >
-                                                                                <span className='mr-2 h-1.5 w-1.5 rounded-full bg-green-500' />
-                                                                                {resource.name}
-                                                                                {resource.type && (
-                                                                                    <span className='ml-2 text-xs text-zinc-500 dark:text-zinc-500'>
-                                                                                        ({resource.type})
-                                                                                    </span>
-                                                                                )}
+                                                                                <span
+                                                                                    className={`h-1.5 w-1.5 rounded-full ${
+                                                                                        resource.status === 'ACTIVE'
+                                                                                            ? 'bg-green-500'
+                                                                                            : 'bg-zinc-400'
+                                                                                    }`}
+                                                                                />
+                                                                                <span className='flex-1'>
+                                                                                    {resource.name}
+                                                                                    {resource.type && (
+                                                                                        <span className='ml-2 text-xs text-zinc-500 dark:text-zinc-500'>
+                                                                                            ({resource.type})
+                                                                                        </span>
+                                                                                    )}
+                                                                                </span>
+                                                                                <span
+                                                                                    className={`rounded px-1.5 py-0.5 text-xs font-medium ${
+                                                                                        resource.status === 'ACTIVE'
+                                                                                            ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300'
+                                                                                            : 'bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400'
+                                                                                    }`}
+                                                                                >
+                                                                                    {resource.status}
+                                                                                </span>
                                                                             </li>
                                                                         ))}
                                                                     </ul>

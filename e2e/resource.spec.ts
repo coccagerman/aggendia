@@ -6,6 +6,7 @@
 
 import { test, expect } from '@playwright/test'
 import { generateTestEmail, signupUser } from './helpers/auth.helper'
+import { createBusiness, navigateToCreateResource } from './helpers/business.helper'
 
 test.describe('Resource Creation E2E', () => {
     test('complete resource creation flow', async ({ page }) => {
@@ -14,42 +15,20 @@ test.describe('Resource Creation E2E', () => {
         const businessName = `Business ${Date.now()}`
         const resourceName = `Resource ${Date.now()}`
 
-        // 1. Signup
+        // Setup: signup + crear negocio
         await signupUser(page, email, password)
-
-        // 2. Create a business first
-        await page.getByRole('link', { name: /crear negocio/i }).click()
-        await page.getByLabel(/nombre/i).fill(businessName)
-        await page.getByLabel(/zona horaria/i).click()
-        await page
-            .getByRole('option', { name: /buenos aires/i })
-            .first()
-            .click()
-        await page.getByRole('button', { name: /crear negocio/i }).click()
-
-        // 3. Wait for redirect to dashboard
-        await expect(page).toHaveURL('/dashboard', { timeout: 10000 })
+        await createBusiness(page, businessName)
         await expect(page.getByText(businessName)).toBeVisible()
 
-        // 4. Click "Crear recurso" button for the business
-        await Promise.all([
-            page.waitForURL('**/dashboard/business/**/resources/new', { timeout: 10000 }),
-            page
-                .getByRole('link', { name: /crear.*recurso/i })
-                .first()
-                .click()
-        ])
+        // Navegar a crear recurso
+        await navigateToCreateResource(page)
 
-        // 6. Fill the form
+        // Completar formulario
         await page.getByLabel(/nombre/i).fill(resourceName)
-
-        // 7. Submit form
         await page.getByRole('button', { name: /crear/i }).click()
 
-        // 8. Should redirect back to dashboard
+        // Verificar redirect y recurso visible
         await expect(page).toHaveURL('/dashboard', { timeout: 10000 })
-
-        // 9. Resource should appear in the business card
         await expect(page.getByText(resourceName)).toBeVisible({ timeout: 5000 })
     })
 
@@ -59,42 +38,22 @@ test.describe('Resource Creation E2E', () => {
         const businessName = `Business ${Date.now()}`
         const resourceName = `Duplicate Resource ${Date.now()}`
 
-        // Setup: create business
+        // Setup: signup + crear negocio
         await signupUser(page, email, password)
-        await page.getByRole('link', { name: /crear negocio/i }).click()
-        await page.getByLabel(/nombre/i).fill(businessName)
-        await page.getByLabel(/zona horaria/i).click()
-        await page
-            .getByRole('option', { name: /buenos aires/i })
-            .first()
-            .click()
-        await page.getByRole('button', { name: /crear negocio/i }).click()
-        await expect(page).toHaveURL('/dashboard')
+        await createBusiness(page, businessName)
 
-        // Create first resource
-        await Promise.all([
-            page.waitForURL('**/dashboard/business/**/resources/new', { timeout: 10000 }),
-            page
-                .getByRole('link', { name: /crear.*recurso/i })
-                .first()
-                .click()
-        ])
+        // Crear primer recurso
+        await navigateToCreateResource(page)
         await page.getByLabel(/nombre/i).fill(resourceName)
         await page.getByRole('button', { name: /crear/i }).click()
         await expect(page).toHaveURL('/dashboard')
 
-        // Try to create duplicate
-        await Promise.all([
-            page.waitForURL('**/dashboard/business/**/resources/new', { timeout: 10000 }),
-            page
-                .getByRole('link', { name: /crear.*recurso/i })
-                .first()
-                .click()
-        ])
+        // Intentar crear duplicado
+        await navigateToCreateResource(page)
         await page.getByLabel(/nombre/i).fill(resourceName)
         await page.getByRole('button', { name: /crear/i }).click()
 
-        // Should show error message about duplicate
+        // Debe mostrar error
         const nameError = page.locator('#name-error')
         const generalError = page.getByText(/ocurri[oó] un error|error/i)
 
@@ -105,5 +64,104 @@ test.describe('Resource Creation E2E', () => {
         } else {
             await expect(generalError).toBeVisible()
         }
+    })
+
+    test('create resource with type PERSON shows correct badge', async ({ page }) => {
+        const email = generateTestEmail()
+        const password = 'TestPassword123!'
+        const businessName = `Business ${Date.now()}`
+        const resourceName = `Profesional ${Date.now()}`
+
+        // Setup: signup + crear negocio
+        await signupUser(page, email, password)
+        await createBusiness(page, businessName)
+
+        // Crear recurso con type PERSON
+        await navigateToCreateResource(page)
+        await page.getByLabel(/nombre/i).fill(resourceName)
+        await page.getByLabel(/tipo/i).selectOption('PERSON')
+        await page.getByRole('button', { name: /crear/i }).click()
+        await expect(page).toHaveURL('/dashboard')
+
+        // Verificar recurso con badge ACTIVE
+        await expect(page.getByText(resourceName)).toBeVisible()
+        const resourceItem = page.locator('li').filter({ hasText: resourceName })
+        await expect(resourceItem.getByText('ACTIVE')).toBeVisible()
+    })
+
+    test('create resource with type ASSET shows correct display', async ({ page }) => {
+        const email = generateTestEmail()
+        const password = 'TestPassword123!'
+        const businessName = `Business ${Date.now()}`
+        const resourceName = `Cancha ${Date.now()}`
+
+        // Setup: signup + crear negocio
+        await signupUser(page, email, password)
+        await createBusiness(page, businessName)
+
+        // Crear recurso con type ASSET
+        await navigateToCreateResource(page)
+        await page.getByLabel(/nombre/i).fill(resourceName)
+        await page.getByLabel(/tipo/i).selectOption('ASSET')
+        await page.getByRole('button', { name: /crear/i }).click()
+        await expect(page).toHaveURL('/dashboard')
+
+        // Verificar recurso con badge ACTIVE
+        await expect(page.getByText(resourceName)).toBeVisible()
+        const resourceItem = page.locator('li').filter({ hasText: resourceName })
+        await expect(resourceItem.getByText('ACTIVE')).toBeVisible()
+    })
+
+    test('create resource without type (null) succeeds', async ({ page }) => {
+        const email = generateTestEmail()
+        const password = 'TestPassword123!'
+        const businessName = `Business ${Date.now()}`
+        const resourceName = `Recurso Sin Tipo ${Date.now()}`
+
+        // Setup: signup + crear negocio
+        await signupUser(page, email, password)
+        await createBusiness(page, businessName)
+
+        // Crear recurso sin tipo (default = null)
+        await navigateToCreateResource(page)
+        await page.getByLabel(/nombre/i).fill(resourceName)
+        await page.getByRole('button', { name: /crear/i }).click()
+        await expect(page).toHaveURL('/dashboard')
+
+        // Verificar recurso con badge ACTIVE
+        await expect(page.getByText(resourceName)).toBeVisible()
+        const resourceItem = page.locator('li').filter({ hasText: resourceName })
+        await expect(resourceItem.getByText('ACTIVE')).toBeVisible()
+    })
+
+    test('create multiple resources in same business shows both', async ({ page }) => {
+        const email = generateTestEmail()
+        const password = 'TestPassword123!'
+        const businessName = `Business ${Date.now()}`
+        const resource1Name = `Resource 1 ${Date.now()}`
+        const resource2Name = `Resource 2 ${Date.now()}`
+
+        // Setup: signup + crear negocio
+        await signupUser(page, email, password)
+        await createBusiness(page, businessName)
+
+        // Crear primer recurso
+        await navigateToCreateResource(page)
+        await page.getByLabel(/nombre/i).fill(resource1Name)
+        await page.getByLabel(/tipo/i).selectOption('PERSON')
+        await page.getByRole('button', { name: /crear/i }).click()
+        await expect(page).toHaveURL('/dashboard')
+        await expect(page.getByText(resource1Name)).toBeVisible()
+
+        // Crear segundo recurso
+        await navigateToCreateResource(page)
+        await page.getByLabel(/nombre/i).fill(resource2Name)
+        await page.getByLabel(/tipo/i).selectOption('ASSET')
+        await page.getByRole('button', { name: /crear/i }).click()
+        await expect(page).toHaveURL('/dashboard')
+
+        // Verificar ambos recursos visibles
+        await expect(page.getByText(resource1Name)).toBeVisible()
+        await expect(page.getByText(resource2Name)).toBeVisible()
     })
 })

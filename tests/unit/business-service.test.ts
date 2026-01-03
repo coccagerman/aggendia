@@ -6,7 +6,7 @@
 
 import { describe, it, expect } from 'vitest'
 import { validateCreateBusinessInput, generateSlug } from '@/domain/businesses/business.service'
-import { AppError, ValidationErrorCodes } from '@/domain/common/errors'
+import { AppError } from '@/domain/common/errors'
 
 describe('Business Service', () => {
     describe('validateCreateBusinessInput', () => {

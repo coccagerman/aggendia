@@ -24,7 +24,7 @@ export function CreateResourceForm({ businessId, resourceLabel }: CreateResource
 
     const [formData, setFormData] = useState({
         name: '',
-        type: 'PERSON' as 'PERSON' | 'ASSET'
+        type: '' as '' | 'PERSON' | 'ASSET'
     })
 
     const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -40,7 +40,7 @@ export function CreateResourceForm({ businessId, resourceLabel }: CreateResource
                 },
                 body: JSON.stringify({
                     name: formData.name,
-                    type: formData.type
+                    type: formData.type || null
                 })
             })
 
@@ -52,16 +52,24 @@ export function CreateResourceForm({ businessId, resourceLabel }: CreateResource
                     setErrors({
                         name: `Ya existe un ${resourceLabel.toLowerCase()} con ese nombre en este negocio.`
                     })
-                } else if (response.status === 400 && data.error?.details) {
+                } else if (response.status === 400) {
                     // Error de validación
-                    const validationErrors: FormErrors = {}
-                    if (data.error.details.name) {
-                        validationErrors.name = data.error.details.name
+                    if (data.error?.details) {
+                        const validationErrors: FormErrors = {}
+                        if (data.error.details.name) {
+                            validationErrors.name = data.error.details.name
+                        }
+                        if (data.error.details.type) {
+                            validationErrors.type = data.error.details.type
+                        }
+                        if (Object.keys(validationErrors).length > 0) {
+                            setErrors(validationErrors)
+                        } else {
+                            setErrors({ general: data.error?.message || 'Datos inválidos.' })
+                        }
+                    } else {
+                        setErrors({ general: data.error?.message || 'Datos inválidos.' })
                     }
-                    if (data.error.details.type) {
-                        validationErrors.type = data.error.details.type
-                    }
-                    setErrors(validationErrors)
                 } else {
                     setErrors({
                         general: data.error?.message || 'Ocurrió un error al crear el recurso. Intentá nuevamente.'
@@ -121,10 +129,11 @@ export function CreateResourceForm({ businessId, resourceLabel }: CreateResource
                 <select
                     id='type'
                     value={formData.type}
-                    onChange={e => setFormData({ ...formData, type: e.target.value as 'PERSON' | 'ASSET' })}
+                    onChange={e => setFormData({ ...formData, type: e.target.value as '' | 'PERSON' | 'ASSET' })}
                     disabled={isSubmitting}
                     className='flex h-10 w-full rounded-md border border-zinc-200 bg-white px-3 py-2 text-sm ring-offset-white file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-zinc-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-950 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 dark:border-zinc-800 dark:bg-zinc-950 dark:ring-offset-zinc-950 dark:placeholder:text-zinc-400 dark:focus-visible:ring-zinc-300'
                 >
+                    <option value=''>Sin especificar</option>
                     <option value='PERSON'>Persona (Ej: profesional, instructor)</option>
                     <option value='ASSET'>Recurso físico (Ej: cancha, sala, equipo)</option>
                 </select>
