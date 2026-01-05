@@ -69,11 +69,27 @@ model Resource {
   createdAt  DateTime       @default(now())
   updatedAt  DateTime       @updatedAt
 
-  business   Business       @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  business          Business           @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  availabilityRules AvailabilityRule[]
 
   @@unique([businessId, name])
   @@index([businessId])
   @@index([status])
+}
+
+model AvailabilityRule {
+  id           String   @id @default(uuid())
+  resourceId   String
+  dayOfWeek    Int      // 0=Domingo, 1=Lunes, ..., 6=Sábado
+  startMinutes Int      // Minutos desde 00:00 (ej: 540 = 09:00)
+  endMinutes   Int      // Minutos desde 00:00 (ej: 1080 = 18:00)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  resource     Resource @relation(fields: [resourceId], references: [id], onDelete: Cascade)
+
+  @@index([resourceId])
+  @@index([resourceId, dayOfWeek])
 }
 
 model Service {

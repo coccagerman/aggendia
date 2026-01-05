@@ -293,14 +293,17 @@ export default async function DashboardPage() {
                                                                                             : 'bg-zinc-400'
                                                                                     }`}
                                                                                 />
-                                                                                <span className='flex-1'>
+                                                                                <Link
+                                                                                    href={`/dashboard/business/${business.id}/resources/${resource.id}`}
+                                                                                    className='flex-1 hover:text-zinc-900 hover:underline dark:hover:text-zinc-200'
+                                                                                >
                                                                                     {resource.name}
                                                                                     {resource.type && (
                                                                                         <span className='ml-2 text-xs text-zinc-500 dark:text-zinc-500'>
                                                                                             ({resource.type})
                                                                                         </span>
                                                                                     )}
-                                                                                </span>
+                                                                                </Link>
                                                                                 <span
                                                                                     className={`rounded px-1.5 py-0.5 text-xs font-medium ${
                                                                                         resource.status === 'ACTIVE'
