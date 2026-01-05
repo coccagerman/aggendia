@@ -4,6 +4,8 @@ import { findBusinessBySlug } from '@/data/repositories/business.repo'
 import { getActiveServicesByBusinessId } from '@/data/repositories/service.repo'
 import { prisma } from '@/data/prisma/prisma'
 import { Service } from '@/domain/services/service.types'
+import { formatPrice } from '@/lib/format'
+import { ServiceCard } from './service-card'
 
 // Forzar renderizado dinámico para mostrar datos actualizados
 export const dynamic = 'force-dynamic'
@@ -116,32 +118,13 @@ export default async function PublicBusinessPage({ params }: PageProps) {
                                 ) : (
                                     <div className='space-y-4'>
                                         {services.map(service => (
-                                            <div
+                                            <ServiceCard
                                                 key={service.id}
-                                                className='rounded-lg border border-zinc-200 p-4 transition-colors hover:bg-zinc-50 dark:border-zinc-800 dark:hover:bg-zinc-900'
-                                            >
-                                                <div className='flex items-start justify-between'>
-                                                    <div className='flex-1'>
-                                                        <h3 className='font-medium text-zinc-900 dark:text-zinc-50'>
-                                                            {service.name}
-                                                        </h3>
-                                                        {service.description && (
-                                                            <p className='mt-1 text-sm text-zinc-600 dark:text-zinc-400'>
-                                                                {service.description}
-                                                            </p>
-                                                        )}
-                                                        <div className='mt-2 flex items-center gap-4 text-sm text-zinc-500 dark:text-zinc-400'>
-                                                            <span>⏱️ {service.durationMinutes} min</span>
-                                                            {service.priceCents !== null && (
-                                                                <span>
-                                                                    💰 ${(service.priceCents / 100).toFixed(2)}{' '}
-                                                                    {service.currency}
-                                                                </span>
-                                                            )}
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            </div>
+                                                name={service.name}
+                                                description={service.description}
+                                                durationMinutes={service.durationMinutes}
+                                                formattedPrice={formatPrice(service.priceCents, service.currency)}
+                                            />
                                         ))}
                                     </div>
                                 )}

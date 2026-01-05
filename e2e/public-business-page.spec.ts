@@ -1,11 +1,12 @@
 /**
- * E2E Tests - Public Business Page (US-1.4)
+ * E2E Tests - Public Business Page (US-1.4, US-5.1)
  *
  * Tests end-to-end de la página pública del negocio y link compartible.
  */
 
 import { test, expect } from '@playwright/test'
 import { generateTestEmail, signupUser } from './helpers/auth.helper'
+import { createBusiness } from './helpers/business.helper'
 
 test.describe('Public Business Page E2E', () => {
     test('muestra página pública cuando el slug existe', async ({ page }) => {
@@ -112,5 +113,96 @@ test.describe('Public Business Page E2E', () => {
 
         // Verificar feedback de copiado (aparece por 2 segundos)
         await expect(page.getByRole('button', { name: /copiado/i })).toBeVisible({ timeout: 3000 })
+    })
+
+    // US-5.1: Ver servicios disponibles
+    test('muestra servicios activos con nombre, duración y precio', async ({ page }) => {
+        const email = generateTestEmail()
+        const password = 'TestPassword123!'
+        const businessName = `Service Display Business ${Date.now()}`
+        const serviceName = `Corte de pelo ${Date.now()}`
+
+        // Setup: crear negocio
+        await signupUser(page, email, password)
+        await createBusiness(page, businessName)
+
+        // Obtener el slug desde el dashboard
+        const slugElement = await page.locator('p:has-text("Slug:")').first()
+        const slugText = await slugElement.textContent()
+        const slug = slugText?.replace('Slug:', '').trim()
+        expect(slug).toBeTruthy()
+
+        // Crear un servicio con precio
+        await page
+            .getByRole('link', { name: /gestionar/i })
+            .first()
+            .click()
+        await expect(page).toHaveURL(/.*\/services$/, { timeout: 10000 })
+
+        await page.getByRole('button', { name: /crear servicio/i }).click()
+        await page.getByLabel(/nombre del servicio/i).fill(serviceName)
+        await page.getByLabel(/precio/i).fill('2500') // $2500
+        await page
+            .getByRole('button', { name: /crear servicio/i })
+            .last()
+            .click()
+        await expect(page.getByText(/servicio creado/i)).toBeVisible({ timeout: 10000 })
+
+        // Navegar a página pública
+        await page.goto(`/b/${slug}`)
+
+        // Verificar que se muestra el servicio
+        await expect(page.getByText(serviceName)).toBeVisible()
+        await expect(page.getByText('30 min')).toBeVisible() // duración default
+        // Precio formateado (puede ser $2.500,00 ARS o similar según locale)
+        await expect(page.getByText(/2.*500/)).toBeVisible()
+        await expect(page.getByText('ARS')).toBeVisible()
+
+        // Verificar botón Reservar deshabilitado
+        const reservarButton = page.getByRole('button', { name: /reservar/i })
+        await expect(reservarButton).toBeVisible()
+        await expect(reservarButton).toBeDisabled()
+    })
+
+    test('muestra "Precio a confirmar" cuando el servicio no tiene precio', async ({ page }) => {
+        const email = generateTestEmail()
+        const password = 'TestPassword123!'
+        const businessName = `No Price Business ${Date.now()}`
+        const serviceName = `Consulta ${Date.now()}`
+
+        // Setup: crear negocio
+        await signupUser(page, email, password)
+        await createBusiness(page, businessName)
+
+        // Obtener el slug desde el dashboard
+        const slugElement = await page.locator('p:has-text("Slug:")').first()
+        const slugText = await slugElement.textContent()
+        const slug = slugText?.replace('Slug:', '').trim()
+        expect(slug).toBeTruthy()
+
+        // Crear un servicio SIN precio
+        await page
+            .getByRole('link', { name: /gestionar/i })
+            .first()
+            .click()
+        await expect(page).toHaveURL(/.*\/services$/, { timeout: 10000 })
+
+        await page.getByRole('button', { name: /crear servicio/i }).click()
+        await page.getByLabel(/nombre del servicio/i).fill(serviceName)
+        // No llenar precio
+        await page
+            .getByRole('button', { name: /crear servicio/i })
+            .last()
+            .click()
+        await expect(page.getByText(/servicio creado/i)).toBeVisible({ timeout: 10000 })
+
+        // Navegar a página pública
+        await page.goto(`/b/${slug}`)
+
+        // Verificar que se muestra el servicio
+        await expect(page.getByText(serviceName)).toBeVisible()
+
+        // Verificar "Precio a confirmar" en lugar de un precio
+        await expect(page.getByText(/precio a confirmar/i)).toBeVisible()
     })
 })
