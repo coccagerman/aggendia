@@ -9,6 +9,7 @@ import { CopyLinkButton } from './copy-link-button'
 import { ResourceActions } from '@/components/dashboard/resource-actions'
 import { getBusinessesByUserId } from '@/data/repositories/business.repo'
 import { getResourcesByBusinessIdsMap } from '@/data/repositories/resource.repo'
+import { getServicesByBusinessIdsMap } from '@/data/repositories/service.repo'
 import { prisma } from '@/data/prisma/prisma'
 
 interface Business {
@@ -27,6 +28,16 @@ interface Resource {
     name: string
     type: string | null
     status: string
+    businessId: string
+}
+
+interface Service {
+    id: string
+    name: string
+    durationMinutes: number
+    priceCents: number | null
+    currency: string | null
+    active: boolean
     businessId: string
 }
 
@@ -63,6 +74,7 @@ export default async function DashboardPage() {
     // Cargar recursos en batch para evitar N+1 usando repositorio (capa data)
     const businessIds = businesses.map(b => b.id)
     let resourcesByBusinessId: Record<string, Resource[]> = {}
+    let servicesByBusinessId: Record<string, Service[]> = {}
 
     if (businessIds.length > 0) {
         try {
@@ -71,14 +83,23 @@ export default async function DashboardPage() {
             console.error('Error al obtener recursos:', error instanceof Error ? error.message : 'UNKNOWN')
             resourcesByBusinessId = {}
         }
+
+        try {
+            servicesByBusinessId = await getServicesByBusinessIdsMap(prisma, businessIds)
+        } catch (error) {
+            console.error('Error al obtener servicios:', error instanceof Error ? error.message : 'UNKNOWN')
+            servicesByBusinessId = {}
+        }
     }
 
-    const businessesWithResources = businesses.map(business => ({
+    const businessesWithData = businesses.map(business => ({
         ...business,
-        resources: resourcesByBusinessId[business.id] ?? []
+        resources: resourcesByBusinessId[business.id] ?? [],
+        services: servicesByBusinessId[business.id] ?? []
     }))
 
-    const totalResources = businessesWithResources.reduce((acc, b) => acc + b.resources.length, 0)
+    const totalResources = businessesWithData.reduce((acc, b) => acc + b.resources.length, 0)
+    const totalActiveServices = businessesWithData.reduce((acc, b) => acc + b.services.filter(s => s.active).length, 0)
 
     return (
         <div className='flex min-h-screen flex-col bg-zinc-50 dark:bg-zinc-950'>
@@ -121,11 +142,11 @@ export default async function DashboardPage() {
                                     <div>
                                         <CardTitle>Mis Negocios</CardTitle>
                                         <CardDescription>
-                                            {businessesWithResources.length === 0
+                                            {businessesWithData.length === 0
                                                 ? 'Creá tu primer negocio para comenzar'
-                                                : `${businessesWithResources.length} negocio${
-                                                      businessesWithResources.length > 1 ? 's' : ''
-                                                  } configurado${businessesWithResources.length > 1 ? 's' : ''}`}
+                                                : `${businessesWithData.length} negocio${
+                                                      businessesWithData.length > 1 ? 's' : ''
+                                                  } configurado${businessesWithData.length > 1 ? 's' : ''}`}
                                         </CardDescription>
                                     </div>
                                     <TooltipProvider>
@@ -149,7 +170,7 @@ export default async function DashboardPage() {
                                             {fetchError}
                                         </div>
                                     )}
-                                    {businessesWithResources.length === 0 ? (
+                                    {businessesWithData.length === 0 ? (
                                         <div className='flex flex-col items-center justify-center py-12 text-center'>
                                             <div className='rounded-full bg-zinc-100 p-3 dark:bg-zinc-800'>
                                                 <svg
@@ -178,7 +199,7 @@ export default async function DashboardPage() {
                                         </div>
                                     ) : (
                                         <div className='space-y-4'>
-                                            {businessesWithResources.map(business => (
+                                            {businessesWithData.map(business => (
                                                 <div
                                                     key={business.id}
                                                     className='rounded-lg border border-zinc-200 p-4 dark:border-zinc-800'
@@ -302,6 +323,63 @@ export default async function DashboardPage() {
                                                                     </ul>
                                                                 )}
                                                             </div>
+
+                                                            {/* Sección de servicios */}
+                                                            <div className='mt-4 border-t border-zinc-200 pt-4 dark:border-zinc-700'>
+                                                                <div className='flex items-center justify-between'>
+                                                                    <h4 className='text-sm font-medium text-zinc-700 dark:text-zinc-300'>
+                                                                        Servicios
+                                                                    </h4>
+                                                                    <Tooltip>
+                                                                        <TooltipTrigger asChild>
+                                                                            <Button asChild size='sm' variant='outline'>
+                                                                                <Link
+                                                                                    href={`/dashboard/business/${business.id}/services`}
+                                                                                >
+                                                                                    Gestionar
+                                                                                </Link>
+                                                                            </Button>
+                                                                        </TooltipTrigger>
+                                                                        <TooltipContent>
+                                                                            <p>Administrá los servicios que ofrecés</p>
+                                                                        </TooltipContent>
+                                                                    </Tooltip>
+                                                                </div>
+
+                                                                {business.services.length === 0 ? (
+                                                                    <p className='mt-2 text-sm text-zinc-500 dark:text-zinc-400'>
+                                                                        No hay servicios creados todavía.
+                                                                    </p>
+                                                                ) : (
+                                                                    <ul className='mt-2 space-y-1'>
+                                                                        {business.services.slice(0, 3).map(service => (
+                                                                            <li
+                                                                                key={service.id}
+                                                                                className='flex items-center gap-2 text-sm text-zinc-600 dark:text-zinc-400'
+                                                                            >
+                                                                                <span
+                                                                                    className={`h-1.5 w-1.5 rounded-full ${
+                                                                                        service.active
+                                                                                            ? 'bg-green-500'
+                                                                                            : 'bg-zinc-400'
+                                                                                    }`}
+                                                                                />
+                                                                                <span className='flex-1'>
+                                                                                    {service.name}
+                                                                                </span>
+                                                                                <span className='text-xs text-zinc-500'>
+                                                                                    {service.durationMinutes} min
+                                                                                </span>
+                                                                            </li>
+                                                                        ))}
+                                                                        {business.services.length > 3 && (
+                                                                            <li className='text-sm text-zinc-500 dark:text-zinc-400'>
+                                                                                +{business.services.length - 3} más...
+                                                                            </li>
+                                                                        )}
+                                                                    </ul>
+                                                                )}
+                                                            </div>
                                                         </div>
                                                         <span className='rounded-full bg-blue-100 px-2 py-1 text-xs font-medium text-blue-800 dark:bg-blue-900/30 dark:text-blue-300'>
                                                             {business.role}
@@ -326,16 +404,16 @@ export default async function DashboardPage() {
                                     <p>✓ Cuenta creada</p>
                                     <p
                                         className={
-                                            businessesWithResources.length > 0 ? '' : 'text-zinc-400 dark:text-zinc-600'
+                                            businessesWithData.length > 0 ? '' : 'text-zinc-400 dark:text-zinc-600'
                                         }
                                     >
-                                        {businessesWithResources.length > 0 ? '✓' : '○'} Crear negocio
+                                        {businessesWithData.length > 0 ? '✓' : '○'} Crear negocio
                                     </p>
                                     <p className={totalResources > 0 ? '' : 'text-zinc-400 dark:text-zinc-600'}>
                                         {totalResources > 0 ? '✓' : '○'} Agregar recursos
                                     </p>
-                                    <p className='text-zinc-400 dark:text-zinc-600'>
-                                        ○ Definir servicios (próximamente)
+                                    <p className={totalActiveServices > 0 ? '' : 'text-zinc-400 dark:text-zinc-600'}>
+                                        {totalActiveServices > 0 ? '✓' : '○'} Definir servicios
                                     </p>
                                 </div>
                             </CardContent>

@@ -2,6 +2,12 @@
  * Service domain types
  */
 
+/**
+ * Constante para el paso de duración en minutos.
+ * Los slots de servicio deben ser múltiplos de este valor.
+ */
+export const DURATION_STEP = 5
+
 export type Service = {
     id: string
     businessId: string

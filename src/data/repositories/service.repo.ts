@@ -5,6 +5,7 @@
 import { PrismaClient } from '@prisma/client'
 import { Service, CreateServiceInput, UpdateServiceInput } from '@/domain/services/service.types'
 import { validateCreateServiceInput, validateUpdateServiceInput } from '@/domain/services/service.service'
+import { AppError, ServiceErrorCodes } from '@/domain/common/errors'
 
 /**
  * Obtiene servicios activos de un negocio (para página pública)
@@ -36,8 +37,41 @@ export async function getServicesByBusinessId(prisma: PrismaClient, businessId: 
 }
 
 /**
+ * Obtiene servicios de múltiples negocios en una sola query (batch)
+ * @param prisma - Prisma client
+ * @param businessIds - IDs de los negocios
+ * @returns Lista de servicios de todos los negocios
+ */
+export async function getServicesByBusinessIds(prisma: PrismaClient, businessIds: string[]): Promise<Service[]> {
+    if (businessIds.length === 0) return []
+    return prisma.service.findMany({
+        where: { businessId: { in: businessIds } },
+        orderBy: { name: 'asc' }
+    })
+}
+
+/**
+ * Obtiene servicios agrupados por negocio (batch)
+ * @param prisma - Prisma client
+ * @param businessIds - IDs de los negocios
+ * @returns Mapa de businessId a lista de servicios
+ */
+export async function getServicesByBusinessIdsMap(
+    prisma: PrismaClient,
+    businessIds: string[]
+): Promise<Record<string, Service[]>> {
+    const services = await getServicesByBusinessIds(prisma, businessIds)
+    return services.reduce<Record<string, Service[]>>((acc, service) => {
+        acc[service.businessId] = acc[service.businessId] || []
+        acc[service.businessId].push(service)
+        return acc
+    }, {})
+}
+
+/**
  * Obtiene un servicio por ID
  * @param prisma - Prisma client
+ * @param businessId - ID del negocio
  * @param serviceId - ID del servicio
  * @returns Servicio o null si no existe
  */
@@ -48,6 +82,23 @@ export async function getServiceById(
 ): Promise<Service | null> {
     return prisma.service.findFirst({
         where: { id: serviceId, businessId }
+    })
+}
+
+/**
+ * Obtiene un servicio activo por ID (para uso público/booking)
+ * @param prisma - Prisma client
+ * @param businessId - ID del negocio
+ * @param serviceId - ID del servicio
+ * @returns Servicio activo o null si no existe o está inactivo
+ */
+export async function getActiveServiceById(
+    prisma: PrismaClient,
+    businessId: string,
+    serviceId: string
+): Promise<Service | null> {
+    return prisma.service.findFirst({
+        where: { id: serviceId, businessId, active: true }
     })
 }
 
@@ -105,7 +156,7 @@ export async function updateService(
 
     const existing = await prisma.service.findFirst({ where: { id: serviceId, businessId } })
     if (!existing) {
-        throw new Error('Service not found for business')
+        throw new AppError(ServiceErrorCodes.SERVICE_NOT_FOUND, 'Servicio no encontrado para este negocio', 404)
     }
 
     return prisma.service.update({
@@ -123,7 +174,7 @@ export async function updateService(
 export async function deactivateService(prisma: PrismaClient, businessId: string, serviceId: string): Promise<Service> {
     const existing = await prisma.service.findFirst({ where: { id: serviceId, businessId } })
     if (!existing) {
-        throw new Error('Service not found for business')
+        throw new AppError(ServiceErrorCodes.SERVICE_NOT_FOUND, 'Servicio no encontrado para este negocio', 404)
     }
 
     return prisma.service.update({

@@ -3,19 +3,23 @@
  */
 
 import { AppError, ValidationErrorCodes } from '@/domain/common/errors'
-import { CreateServiceInput, UpdateServiceInput } from './service.types'
+import { CreateServiceInput, UpdateServiceInput, DURATION_STEP } from './service.types'
 
 /**
- * Valida que la duración del servicio sea válida (> 0 y múltiplo de 5)
+ * Valida que la duración del servicio sea válida (> 0 y múltiplo de DURATION_STEP)
  */
 export function validateServiceDuration(durationMinutes: number): void {
     if (durationMinutes <= 0) {
         throw new AppError(ValidationErrorCodes.VALIDATION_ERROR, 'La duración debe ser mayor a 0 minutos', 400)
     }
 
-    // Validación de múltiplo de 5 min para slots consistentes
-    if (durationMinutes % 5 !== 0) {
-        throw new AppError(ValidationErrorCodes.VALIDATION_ERROR, 'La duración debe ser múltiplo de 5 minutos', 400)
+    // Validación de múltiplo de DURATION_STEP min para slots consistentes
+    if (durationMinutes % DURATION_STEP !== 0) {
+        throw new AppError(
+            ValidationErrorCodes.VALIDATION_ERROR,
+            `La duración debe ser múltiplo de ${DURATION_STEP} minutos`,
+            400
+        )
     }
 }
 

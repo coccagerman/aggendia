@@ -76,7 +76,8 @@ export const ResourceErrorCodes = {
  * Códigos de error estándar para servicios
  */
 export const ServiceErrorCodes = {
-    SERVICE_NOT_FOUND: 'SERVICE_NOT_FOUND'
+    SERVICE_NOT_FOUND: 'SERVICE_NOT_FOUND',
+    SERVICE_NAME_CONFLICT: 'SERVICE_NAME_CONFLICT'
 } as const
 
 /**

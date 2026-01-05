@@ -3,6 +3,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { findBusinessBySlug } from '@/data/repositories/business.repo'
 import { getActiveServicesByBusinessId } from '@/data/repositories/service.repo'
 import { prisma } from '@/data/prisma/prisma'
+import { Service } from '@/domain/services/service.types'
 
 type PageProps = {
     params: Promise<{ slug: string }>
@@ -25,7 +26,7 @@ export default async function PublicBusinessPage({ params }: PageProps) {
     }
 
     // Obtener servicios activos
-    let services
+    let services: Service[]
     try {
         services = await getActiveServicesByBusinessId(prisma, business.id)
     } catch (error) {
