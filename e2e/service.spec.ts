@@ -129,8 +129,12 @@ test.describe('Service Creation E2E', () => {
             .last()
             .click()
 
-        // Debe mostrar error de nombre duplicado
-        await expect(page.getByText(/ya existe.*servicio.*ese nombre/i)).toBeVisible({ timeout: 10000 })
+        // Debe mostrar error de nombre duplicado (puede estar en el campo name o en error general)
+        await expect(
+            page
+                .getByText(/ya existe.*servicio.*ese nombre/i)
+                .or(page.getByText('Ya existe un servicio con ese nombre en este negocio.'))
+        ).toBeVisible({ timeout: 10000 })
     })
 
     test('validates duration is multiple of 5', async ({ page }) => {
@@ -330,7 +334,7 @@ test.describe('Service Edit E2E', () => {
         await expect(page.getByText(/servicio creado/i)).toBeVisible({ timeout: 10000 })
 
         // Verificar valores iniciales
-        await expect(page.getByText('30 min')).toBeVisible()
+        await expect(page.getByText(/^⏱️ 30 min$/)).toBeVisible()
         await expect(page.getByText(/\$.*100/)).toBeVisible()
 
         // Editar duración y precio
@@ -502,5 +506,185 @@ test.describe('Service Edit E2E', () => {
         await expect(page.getByText(updatedName)).toBeVisible()
         await expect(page.getByText(/\$.*200/)).toBeVisible()
         await expect(page.getByText(originalName)).not.toBeVisible()
+    })
+})
+
+test.describe('Service Toggle Active E2E', () => {
+    test('deactivate service removes it from public page', async ({ page }) => {
+        const email = generateTestEmail()
+        const password = 'TestPassword123!'
+        const businessName = `Business ${Date.now()}`
+        const serviceName = `Toggle Service ${Date.now()}`
+
+        // Setup: signup + crear negocio + servicio
+        await signupUser(page, email, password)
+        await createBusiness(page, businessName)
+
+        await page
+            .getByRole('link', { name: /gestionar/i })
+            .first()
+            .click()
+        await page.getByRole('button', { name: /crear servicio/i }).click()
+        await page.getByLabel(/nombre del servicio/i).fill(serviceName)
+        await page
+            .getByRole('button', { name: /crear servicio/i })
+            .last()
+            .click()
+        await expect(page.getByText(/servicio creado/i)).toBeVisible({ timeout: 10000 })
+        await expect(page.getByText(serviceName)).toBeVisible({ timeout: 10000 })
+
+        // Obtener slug
+        await page.goto('/dashboard')
+        const publicLink = page.locator('code').filter({ hasText: '/b/' })
+        await expect(publicLink).toBeVisible()
+        const publicLinkText = (await publicLink.textContent())?.trim() ?? ''
+        const publicUrl = publicLinkText.startsWith('http')
+            ? publicLinkText
+            : new URL(publicLinkText, page.url()).toString()
+        const slug = new URL(publicUrl).pathname.replace(/^\/b\//, '')
+
+        // Verificar que el servicio aparece en página pública
+        await page.goto(`/b/${slug}`)
+        await expect(page.getByText(serviceName)).toBeVisible()
+
+        // Desactivar servicio
+        await page.goto('/dashboard')
+        await page
+            .getByRole('link', { name: /gestionar/i })
+            .first()
+            .click()
+        await expect(page.getByText(serviceName)).toBeVisible({ timeout: 10000 })
+        await page.getByRole('button', { name: /abrir menú/i }).click()
+        await page.getByRole('menuitem', { name: /desactivar/i }).click()
+
+        // Confirmar en el modal
+        await expect(page.getByText(/dejará de aparecer en tu página pública/i)).toBeVisible()
+        await page.getByRole('button', { name: /^desactivar$/i }).click()
+
+        // Esperar toast de éxito (confirma que PATCH completó)
+        await expect(page.getByText(/servicio desactivado/i)).toBeVisible({ timeout: 10000 })
+
+        // Recargar la página para ver el cambio
+        await page.reload()
+        await expect(page.getByText(serviceName)).toBeVisible({ timeout: 10000 })
+        await expect(page.getByText('Inactivo', { exact: true })).toBeVisible()
+
+        // Verificar que NO aparece en página pública
+        await page.goto(`/b/${slug}`)
+        await expect(page.getByText(serviceName)).not.toBeVisible()
+        await expect(page.getByText(/estamos configurando los servicios/i)).toBeVisible()
+    })
+
+    test('reactivate service shows it in public page', async ({ page }) => {
+        const email = generateTestEmail()
+        const password = 'TestPassword123!'
+        const businessName = `Business ${Date.now()}`
+        const serviceName = `Reactivate Service ${Date.now()}`
+
+        // Setup: crear servicio y desactivarlo
+        await signupUser(page, email, password)
+        await createBusiness(page, businessName)
+
+        await page
+            .getByRole('link', { name: /gestionar/i })
+            .first()
+            .click()
+        await page.getByRole('button', { name: /crear servicio/i }).click()
+        await page.getByLabel(/nombre del servicio/i).fill(serviceName)
+        await page
+            .getByRole('button', { name: /crear servicio/i })
+            .last()
+            .click()
+        await expect(page.getByText(/servicio creado/i)).toBeVisible({ timeout: 10000 })
+
+        // Desactivar
+        await expect(page.getByText(serviceName)).toBeVisible({ timeout: 10000 })
+        await page.getByRole('button', { name: /abrir menú/i }).click()
+        await page.getByRole('menuitem', { name: /desactivar/i }).click()
+        await expect(page.getByText(/dejará de aparecer/i)).toBeVisible()
+        await page.getByRole('button', { name: /^desactivar$/i }).click()
+
+        // Esperar toast de éxito (confirma que PATCH completó)
+        await expect(page.getByText(/servicio desactivado/i)).toBeVisible({ timeout: 10000 })
+
+        // Recargar la página para ver el cambio
+        await page.reload()
+        await expect(page.getByText(serviceName)).toBeVisible({ timeout: 10000 })
+        await expect(page.getByText('Inactivo', { exact: true })).toBeVisible()
+
+        // Obtener slug
+        await page.goto('/dashboard')
+        const publicLink = page.locator('code').filter({ hasText: '/b/' })
+        const publicLinkText = (await publicLink.textContent())?.trim() ?? ''
+        const publicUrl = publicLinkText.startsWith('http')
+            ? publicLinkText
+            : new URL(publicLinkText, page.url()).toString()
+        const slug = new URL(publicUrl).pathname.replace(/^\/b\//, '')
+
+        // Verificar que NO aparece
+        await page.goto(`/b/${slug}`)
+        await expect(page.getByText(serviceName)).not.toBeVisible()
+
+        // Reactivar servicio
+        await page.goto('/dashboard')
+        await page
+            .getByRole('link', { name: /gestionar/i })
+            .first()
+            .click()
+        await expect(page.getByText(serviceName)).toBeVisible({ timeout: 10000 })
+        await page.getByRole('button', { name: /abrir menú/i }).click()
+        await page.getByRole('menuitem', { name: /activar/i }).click()
+
+        // Confirmar
+        await expect(page.getByText(/volverá a estar disponible/i)).toBeVisible()
+        await page.getByRole('button', { name: /^activar$/i }).click()
+
+        // Esperar toast de éxito (confirma que PATCH completó)
+        await expect(page.getByText(/servicio activado/i)).toBeVisible({ timeout: 10000 })
+
+        // Recargar la página para ver el cambio
+        await page.reload()
+        await expect(page.getByText(serviceName)).toBeVisible({ timeout: 10000 })
+
+        // Verificar badge
+        await expect(page.getByText('Activo', { exact: true })).toBeVisible()
+
+        // Verificar que SÍ aparece en página pública
+        await page.goto(`/b/${slug}`)
+        await expect(page.getByText(serviceName)).toBeVisible()
+    })
+
+    test('cancel toggle does not change service status', async ({ page }) => {
+        const email = generateTestEmail()
+        const password = 'TestPassword123!'
+        const businessName = `Business ${Date.now()}`
+        const serviceName = `Cancel Toggle ${Date.now()}`
+
+        // Setup
+        await signupUser(page, email, password)
+        await createBusiness(page, businessName)
+
+        await page
+            .getByRole('link', { name: /gestionar/i })
+            .first()
+            .click()
+        await page.getByRole('button', { name: /crear servicio/i }).click()
+        await page.getByLabel(/nombre del servicio/i).fill(serviceName)
+        await page
+            .getByRole('button', { name: /crear servicio/i })
+            .last()
+            .click()
+        await expect(page.getByText(/servicio creado/i)).toBeVisible({ timeout: 10000 })
+
+        // Abrir modal de desactivar pero cancelar
+        await expect(page.getByText(serviceName)).toBeVisible({ timeout: 10000 })
+        await page.getByRole('button', { name: /abrir menú/i }).click()
+        await page.getByRole('menuitem', { name: /desactivar/i }).click()
+        await expect(page.getByText(/dejará de aparecer/i)).toBeVisible()
+        await page.getByRole('button', { name: /cancelar/i }).click()
+
+        // Verificar que sigue activo
+        await expect(page.getByText('Activo', { exact: true })).toBeVisible()
+        await expect(page.getByText('Inactivo', { exact: true })).not.toBeVisible()
     })
 })

@@ -16,7 +16,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
-import { MoreHorizontal, Pencil } from 'lucide-react'
+import { MoreHorizontal, Pencil, Power, PowerOff } from 'lucide-react'
 import { type Service, DURATION_STEP, DURATION_OPTIONS } from '@/domain/services/service.types'
 
 interface ServiceActionsProps {
@@ -34,7 +34,9 @@ interface FormErrors {
 export function ServiceActions({ service }: ServiceActionsProps) {
     const router = useRouter()
     const [isEditOpen, setIsEditOpen] = useState(false)
+    const [isToggleOpen, setIsToggleOpen] = useState(false)
     const [isSubmitting, setIsSubmitting] = useState(false)
+    const [isToggling, setIsToggling] = useState(false)
     const [errors, setErrors] = useState<FormErrors>({})
     const [useCustomDuration, setUseCustomDuration] = useState(false)
 
@@ -62,6 +64,37 @@ export function ServiceActions({ service }: ServiceActionsProps) {
     const handleOpenEdit = () => {
         resetForm()
         setIsEditOpen(true)
+    }
+
+    const handleToggleActive = async () => {
+        setIsToggling(true)
+
+        try {
+            const response = await fetch(`/api/v1/businesses/${service.businessId}/services/${service.id}`, {
+                method: 'PATCH',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ active: !service.active })
+            })
+
+            if (!response.ok) {
+                const data = await response.json()
+                toast.error(data.error?.message || 'Ocurrió un error al cambiar el estado del servicio.')
+                setIsToggling(false)
+                return
+            }
+
+            // Cerrar modal primero, luego mostrar toast y refrescar
+            setIsToggleOpen(false)
+            setIsToggling(false)
+            toast.success(service.active ? 'Servicio desactivado' : 'Servicio activado')
+            router.refresh()
+        } catch (error) {
+            console.error('Error al cambiar estado del servicio:', error)
+            toast.error('Error de conexión. Intentá nuevamente.')
+            setIsToggling(false)
+        }
     }
 
     const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -192,6 +225,24 @@ export function ServiceActions({ service }: ServiceActionsProps) {
                     <DropdownMenuItem onClick={handleOpenEdit} className='cursor-pointer'>
                         <Pencil className='mr-2 h-4 w-4' />
                         Editar
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                        onClick={() => setIsToggleOpen(true)}
+                        className={`cursor-pointer ${
+                            service.active ? 'text-red-600 dark:text-red-400' : 'text-green-600 dark:text-green-400'
+                        }`}
+                    >
+                        {service.active ? (
+                            <>
+                                <PowerOff className='mr-2 h-4 w-4' />
+                                Desactivar
+                            </>
+                        ) : (
+                            <>
+                                <Power className='mr-2 h-4 w-4' />
+                                Activar
+                            </>
+                        )}
                     </DropdownMenuItem>
                 </DropdownMenuContent>
             </DropdownMenu>
@@ -395,6 +446,46 @@ export function ServiceActions({ service }: ServiceActionsProps) {
                             </Button>
                         </DialogFooter>
                     </form>
+                </DialogContent>
+            </Dialog>
+
+            {/* Modal de confirmación para toggle activo/inactivo */}
+            <Dialog open={isToggleOpen} onOpenChange={setIsToggleOpen}>
+                <DialogContent className='sm:max-w-md'>
+                    <DialogHeader>
+                        <DialogTitle>{service.active ? 'Desactivar servicio' : 'Activar servicio'}</DialogTitle>
+                        <DialogDescription>
+                            {service.active
+                                ? 'El servicio dejará de aparecer en tu página pública y no podrá ser reservado. Los turnos ya creados no se verán afectados.'
+                                : 'El servicio volverá a estar disponible para reservas en tu página pública.'}
+                        </DialogDescription>
+                    </DialogHeader>
+                    <DialogFooter className='gap-3 pt-4'>
+                        <Button
+                            type='button'
+                            variant='outline'
+                            onClick={() => setIsToggleOpen(false)}
+                            disabled={isToggling}
+                            className='cursor-pointer'
+                        >
+                            Cancelar
+                        </Button>
+                        <Button
+                            type='button'
+                            onClick={handleToggleActive}
+                            disabled={isToggling}
+                            variant={service.active ? 'destructive' : 'default'}
+                            className='cursor-pointer'
+                        >
+                            {isToggling
+                                ? service.active
+                                    ? 'Desactivando...'
+                                    : 'Activando...'
+                                : service.active
+                                ? 'Desactivar'
+                                : 'Activar'}
+                        </Button>
+                    </DialogFooter>
                 </DialogContent>
             </Dialog>
         </>
