@@ -71,6 +71,7 @@ model Resource {
 
   business          Business           @relation(fields: [businessId], references: [id], onDelete: Cascade)
   availabilityRules AvailabilityRule[]
+  blocks            ResourceBlock[]
 
   @@unique([businessId, name])
   @@index([businessId])
@@ -110,4 +111,19 @@ model Service {
   @@unique([businessId, name])
   @@index([businessId])
   @@index([businessId, active])
+}
+
+model ResourceBlock {
+  id         String   @id @default(uuid())
+  resourceId String
+  startAt    DateTime // timestamptz - inicio del bloqueo (UTC)
+  endAt      DateTime // timestamptz - fin del bloqueo (UTC)
+  reason     String?  // motivo opcional
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  resource   Resource @relation(fields: [resourceId], references: [id], onDelete: Cascade)
+
+  @@index([resourceId])
+  @@index([resourceId, startAt, endAt])
 }

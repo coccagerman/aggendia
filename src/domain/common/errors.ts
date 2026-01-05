@@ -98,3 +98,13 @@ export const AvailabilityErrorCodes = {
     AVAILABILITY_OVERLAP: 'AVAILABILITY_OVERLAP',
     AVAILABILITY_TOO_MANY_RANGES: 'AVAILABILITY_TOO_MANY_RANGES'
 } as const
+
+/**
+ * Códigos de error estándar para bloqueos de recursos
+ */
+export const BlockErrorCodes = {
+    BLOCK_NOT_FOUND: 'BLOCK_NOT_FOUND',
+    BLOCK_INVALID_RANGE: 'BLOCK_INVALID_RANGE',
+    BLOCK_RANGE_TOO_LONG: 'BLOCK_RANGE_TOO_LONG',
+    BLOCK_OVERLAP: 'BLOCK_OVERLAP'
+} as const

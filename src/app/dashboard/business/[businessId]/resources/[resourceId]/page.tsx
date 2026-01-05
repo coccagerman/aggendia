@@ -5,11 +5,14 @@ import { prisma } from '@/data/prisma/prisma'
 import { getBusinessById } from '@/data/repositories/business.repo'
 import { getResourceById } from '@/data/repositories/resource.repo'
 import { getAvailabilityByResourceId } from '@/data/repositories/availability.repo'
+import { getBlocksByResourceId } from '@/data/repositories/block.repo'
 import type { AvailabilityRule } from '@/domain/availability/availability.types'
+import type { ResourceBlock } from '@/domain/blocks/block.types'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { AvailabilityEditor } from '@/components/dashboard/availability-editor'
+import { BlockEditor } from '@/components/dashboard/block-editor'
 
 interface PageProps {
     params: Promise<{ businessId: string; resourceId: string }>
@@ -73,6 +76,15 @@ export default async function ResourceDetailPage({ params }: PageProps) {
         // Keep empty array on error
     }
 
+    // Obtener bloqueos
+    let blocks: ResourceBlock[] = []
+    try {
+        blocks = await getBlocksByResourceId(prisma, { resourceId })
+    } catch (error) {
+        console.error('Error al obtener bloqueos:', error instanceof Error ? error.message : 'UNKNOWN')
+        // Keep empty array on error
+    }
+
     const statusLabels: Record<string, { label: string; className: string }> = {
         ACTIVE: {
             label: 'Activo',
@@ -114,6 +126,9 @@ export default async function ResourceDetailPage({ params }: PageProps) {
                                 </TabsTrigger>
                                 <TabsTrigger value='availability' className='cursor-pointer'>
                                     Disponibilidad
+                                </TabsTrigger>
+                                <TabsTrigger value='blocks' className='cursor-pointer'>
+                                    Bloqueos
                                 </TabsTrigger>
                             </TabsList>
 
@@ -173,6 +188,33 @@ export default async function ResourceDetailPage({ params }: PageProps) {
                                                 startMinutes: r.startMinutes,
                                                 endMinutes: r.endMinutes
                                             }))}
+                                        />
+                                    </CardContent>
+                                </Card>
+                            </TabsContent>
+
+                            <TabsContent value='blocks'>
+                                <Card>
+                                    <CardHeader>
+                                        <CardTitle>Bloqueos puntuales</CardTitle>
+                                        <CardDescription>
+                                            Bloqueá períodos específicos (feriados, mantenimiento, vacaciones) en que
+                                            este {business.resourceLabel.toLowerCase()} no estará disponible.
+                                        </CardDescription>
+                                    </CardHeader>
+                                    <CardContent>
+                                        <BlockEditor
+                                            businessId={businessId}
+                                            resourceId={resourceId}
+                                            initialBlocks={blocks.map(b => ({
+                                                id: b.id,
+                                                resourceId: b.resourceId,
+                                                startAt: b.startAt.toISOString(),
+                                                endAt: b.endAt.toISOString(),
+                                                reason: b.reason,
+                                                createdAt: b.createdAt.toISOString()
+                                            }))}
+                                            timezone={business.timezone}
                                         />
                                     </CardContent>
                                 </Card>
