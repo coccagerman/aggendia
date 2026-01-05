@@ -5,6 +5,9 @@ import { getActiveServicesByBusinessId } from '@/data/repositories/service.repo'
 import { prisma } from '@/data/prisma/prisma'
 import { Service } from '@/domain/services/service.types'
 
+// Forzar renderizado dinámico para mostrar datos actualizados
+export const dynamic = 'force-dynamic'
+
 type PageProps = {
     params: Promise<{ slug: string }>
 }

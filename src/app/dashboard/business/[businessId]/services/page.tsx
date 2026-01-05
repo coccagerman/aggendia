@@ -7,6 +7,8 @@ import { getServicesByBusinessId } from '@/data/repositories/service.repo'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { CreateServiceDialog } from '@/components/dashboard/create-service-dialog'
+import { ServiceActions } from '@/components/dashboard/service-actions'
+import { Service } from '@/domain/services/service.types'
 
 interface PageProps {
     params: Promise<{ businessId: string }>
@@ -50,16 +52,7 @@ export default async function ServicesPage({ params }: PageProps) {
     }
 
     // Obtener servicios
-    let services: Array<{
-        id: string
-        name: string
-        description: string | null
-        durationMinutes: number
-        bufferMinutes: number
-        priceCents: number | null
-        currency: string | null
-        active: boolean
-    }> = []
+    let services: Service[] = []
 
     try {
         services = await getServicesByBusinessId(prisma, businessId)
@@ -185,6 +178,7 @@ export default async function ServicesPage({ params }: PageProps) {
                                                             )}
                                                         </div>
                                                     </div>
+                                                    <ServiceActions service={service} />
                                                 </div>
                                             </div>
                                         ))}

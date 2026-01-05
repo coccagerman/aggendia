@@ -16,6 +16,7 @@ import {
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
+import { DURATION_STEP, DURATION_OPTIONS } from '@/domain/services/service.types'
 
 interface CreateServiceDialogProps {
     businessId: string
@@ -28,15 +29,6 @@ interface FormErrors {
     priceCents?: string
     general?: string
 }
-
-const DURATION_OPTIONS = [
-    { value: 15, label: '15 min' },
-    { value: 30, label: '30 min' },
-    { value: 45, label: '45 min' },
-    { value: 60, label: '1 hora' },
-    { value: 90, label: '1.5 horas' },
-    { value: 120, label: '2 horas' }
-]
 
 export function CreateServiceDialog({ businessId }: CreateServiceDialogProps) {
     const router = useRouter()
@@ -70,9 +62,9 @@ export function CreateServiceDialog({ businessId }: CreateServiceDialogProps) {
         setIsSubmitting(true)
         setErrors({})
 
-        // Validación local de duración múltiplo de 5
-        if (formData.durationMinutes % 5 !== 0) {
-            setErrors({ durationMinutes: 'La duración debe ser múltiplo de 5 minutos' })
+        // Validación local de duración múltiplo de DURATION_STEP
+        if (formData.durationMinutes % DURATION_STEP !== 0) {
+            setErrors({ durationMinutes: `La duración debe ser múltiplo de ${DURATION_STEP} minutos` })
             setIsSubmitting(false)
             return
         }
