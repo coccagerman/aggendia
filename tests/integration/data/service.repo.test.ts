@@ -9,7 +9,7 @@ import {
     getServicesByBusinessId,
     createService,
     updateService,
-    deactivateService
+    deleteService
 } from '@/data/repositories/service.repo'
 import { createBusinessWithOwner } from '@/data/repositories/business.repo'
 
@@ -45,7 +45,7 @@ describe('Service Repository - Integration Tests', () => {
 
     describe('getActiveServicesByBusinessId', () => {
         it('devuelve solo servicios activos del negocio', async () => {
-            // Crear servicios: 2 activos, 1 inactivo
+            // Crear servicios: 2 activos, 1 eliminado
             const service1 = await createService(prisma, businessId1, {
                 name: 'Servicio Activo 1',
                 durationMinutes: 30
@@ -57,10 +57,10 @@ describe('Service Repository - Integration Tests', () => {
             })
 
             const service3 = await createService(prisma, businessId1, {
-                name: 'Servicio Inactivo',
+                name: 'Servicio Eliminado',
                 durationMinutes: 60
             })
-            await deactivateService(prisma, businessId1, service3.id)
+            await deleteService(prisma, businessId1, service3.id)
 
             const activeServices = await getActiveServicesByBusinessId(prisma, businessId1)
 
@@ -93,7 +93,7 @@ describe('Service Repository - Integration Tests', () => {
             // Limpiar servicios previos
             const existingServices = await getServicesByBusinessId(prisma, businessId2)
             for (const s of existingServices) {
-                await deactivateService(prisma, businessId2, s.id)
+                await deleteService(prisma, businessId2, s.id)
             }
 
             // Crear servicios en orden no alfabético
@@ -120,16 +120,17 @@ describe('Service Repository - Integration Tests', () => {
     })
 
     describe('getServicesByBusinessId', () => {
-        it('devuelve todos los servicios (activos e inactivos)', async () => {
+        it('devuelve todos los servicios (activos e inactivos, excluyendo eliminados)', async () => {
             const allServices = await getServicesByBusinessId(prisma, businessId1)
 
-            // Debe incluir tanto activos como inactivos
-            const activeCount = allServices.filter(s => s.active).length
-            const inactiveCount = allServices.filter(s => !s.active).length
+            // Debe incluir tanto activos como inactivos, pero no eliminados
+            const activeCount = allServices.filter(s => s.status === 'ACTIVE').length
+            const deletedCount = allServices.filter(s => s.status === 'DELETED').length
 
             expect(allServices.length).toBeGreaterThan(0)
             expect(activeCount).toBeGreaterThan(0)
-            expect(inactiveCount).toBeGreaterThan(0)
+            // Los DELETED no deberían aparecer
+            expect(deletedCount).toBe(0)
         })
 
         it('ordena por fecha de creación descendente', async () => {
@@ -153,7 +154,7 @@ describe('Service Repository - Integration Tests', () => {
             expect(service.name).toBe('Servicio Mínimo')
             expect(service.durationMinutes).toBe(30)
             expect(service.bufferMinutes).toBe(0)
-            expect(service.active).toBe(true)
+            expect(service.status).toBe('ACTIVE')
             expect(service.currency).toBe('ARS')
         })
 
@@ -206,7 +207,7 @@ describe('Service Repository - Integration Tests', () => {
             expect(updated.durationMinutes).toBe(30) // No cambió
         })
 
-        it('actualiza múltiples campos', async () => {
+        it('actualiza múltiples campos incluyendo status', async () => {
             const service = await createService(prisma, businessId1, {
                 name: 'Multi Update',
                 durationMinutes: 30
@@ -216,29 +217,41 @@ describe('Service Repository - Integration Tests', () => {
                 durationMinutes: 60,
                 bufferMinutes: 10,
                 priceCents: 3000,
-                active: false
+                status: 'INACTIVE'
             })
 
             expect(updated.durationMinutes).toBe(60)
             expect(updated.bufferMinutes).toBe(10)
             expect(updated.priceCents).toBe(3000)
-            expect(updated.active).toBe(false)
+            expect(updated.status).toBe('INACTIVE')
         })
     })
 
-    describe('deactivateService', () => {
-        it('desactiva un servicio activo', async () => {
+    describe('deleteService', () => {
+        it('elimina un servicio (soft delete con status DELETED)', async () => {
             const service = await createService(prisma, businessId1, {
-                name: 'Para Desactivar',
+                name: 'Para Eliminar',
                 durationMinutes: 30
             })
 
-            expect(service.active).toBe(true)
+            expect(service.status).toBe('ACTIVE')
 
-            const deactivated = await deactivateService(prisma, businessId1, service.id)
+            const deleted = await deleteService(prisma, businessId1, service.id)
 
-            expect(deactivated.active).toBe(false)
-            expect(deactivated.id).toBe(service.id)
+            expect(deleted.status).toBe('DELETED')
+            expect(deleted.id).toBe(service.id)
+        })
+
+        it('no aparece en getServicesByBusinessId después de eliminar', async () => {
+            const service = await createService(prisma, businessId1, {
+                name: 'Para Eliminar y Verificar',
+                durationMinutes: 30
+            })
+
+            await deleteService(prisma, businessId1, service.id)
+
+            const services = await getServicesByBusinessId(prisma, businessId1)
+            expect(services.map(s => s.id)).not.toContain(service.id)
         })
     })
 })

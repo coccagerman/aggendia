@@ -17,7 +17,7 @@ export async function getActiveServicesByBusinessId(prisma: PrismaClient, busine
     return prisma.service.findMany({
         where: {
             businessId,
-            active: true
+            status: 'ACTIVE'
         },
         orderBy: { name: 'asc' }
     })
@@ -25,19 +25,24 @@ export async function getActiveServicesByBusinessId(prisma: PrismaClient, busine
 
 /**
  * Obtiene todos los servicios de un negocio (admin view)
+ * Excluye servicios DELETED
  * @param prisma - Prisma client
  * @param businessId - ID del negocio
- * @returns Lista de todos los servicios (activos e inactivos)
+ * @returns Lista de todos los servicios (activos e inactivos, no eliminados)
  */
 export async function getServicesByBusinessId(prisma: PrismaClient, businessId: string): Promise<Service[]> {
     return prisma.service.findMany({
-        where: { businessId },
+        where: {
+            businessId,
+            status: { not: 'DELETED' }
+        },
         orderBy: { createdAt: 'desc' }
     })
 }
 
 /**
  * Obtiene servicios de múltiples negocios en una sola query (batch)
+ * Excluye servicios DELETED
  * @param prisma - Prisma client
  * @param businessIds - IDs de los negocios
  * @returns Lista de servicios de todos los negocios
@@ -45,7 +50,10 @@ export async function getServicesByBusinessId(prisma: PrismaClient, businessId: 
 export async function getServicesByBusinessIds(prisma: PrismaClient, businessIds: string[]): Promise<Service[]> {
     if (businessIds.length === 0) return []
     return prisma.service.findMany({
-        where: { businessId: { in: businessIds } },
+        where: {
+            businessId: { in: businessIds },
+            status: { not: 'DELETED' }
+        },
         orderBy: { name: 'asc' }
     })
 }
@@ -70,6 +78,7 @@ export async function getServicesByBusinessIdsMap(
 
 /**
  * Obtiene un servicio por ID
+ * Excluye servicios DELETED
  * @param prisma - Prisma client
  * @param businessId - ID del negocio
  * @param serviceId - ID del servicio
@@ -81,7 +90,11 @@ export async function getServiceById(
     serviceId: string
 ): Promise<Service | null> {
     return prisma.service.findFirst({
-        where: { id: serviceId, businessId }
+        where: {
+            id: serviceId,
+            businessId,
+            status: { not: 'DELETED' }
+        }
     })
 }
 
@@ -90,7 +103,7 @@ export async function getServiceById(
  * @param prisma - Prisma client
  * @param businessId - ID del negocio
  * @param serviceId - ID del servicio
- * @returns Servicio activo o null si no existe o está inactivo
+ * @returns Servicio activo o null si no existe o está inactivo/eliminado
  */
 export async function getActiveServiceById(
     prisma: PrismaClient,
@@ -98,7 +111,7 @@ export async function getActiveServiceById(
     serviceId: string
 ): Promise<Service | null> {
     return prisma.service.findFirst({
-        where: { id: serviceId, businessId, active: true }
+        where: { id: serviceId, businessId, status: 'ACTIVE' }
     })
 }
 
@@ -152,9 +165,11 @@ export async function updateService(
     if (input.bufferMinutes !== undefined) updateData.bufferMinutes = input.bufferMinutes
     if (input.priceCents !== undefined) updateData.priceCents = input.priceCents
     if (input.currency !== undefined) updateData.currency = input.currency
-    if (input.active !== undefined) updateData.active = input.active
+    if (input.status !== undefined) updateData.status = input.status
 
-    const existing = await prisma.service.findFirst({ where: { id: serviceId, businessId } })
+    const existing = await prisma.service.findFirst({
+        where: { id: serviceId, businessId, status: { not: 'DELETED' } }
+    })
     if (!existing) {
         throw new AppError(ServiceErrorCodes.SERVICE_NOT_FOUND, 'Servicio no encontrado para este negocio', 404)
     }
@@ -166,19 +181,21 @@ export async function updateService(
 }
 
 /**
- * Desactiva un servicio (soft delete)
+ * Elimina un servicio (soft delete - marca como DELETED)
  * @param prisma - Prisma client
- * @param serviceId - ID del servicio a desactivar
- * @returns Servicio desactivado
+ * @param serviceId - ID del servicio a eliminar
+ * @returns Servicio eliminado
  */
-export async function deactivateService(prisma: PrismaClient, businessId: string, serviceId: string): Promise<Service> {
-    const existing = await prisma.service.findFirst({ where: { id: serviceId, businessId } })
+export async function deleteService(prisma: PrismaClient, businessId: string, serviceId: string): Promise<Service> {
+    const existing = await prisma.service.findFirst({
+        where: { id: serviceId, businessId, status: { not: 'DELETED' } }
+    })
     if (!existing) {
         throw new AppError(ServiceErrorCodes.SERVICE_NOT_FOUND, 'Servicio no encontrado para este negocio', 404)
     }
 
     return prisma.service.update({
         where: { id: serviceId },
-        data: { active: false }
+        data: { status: 'DELETED' }
     })
 }

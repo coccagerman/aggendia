@@ -4,7 +4,9 @@
 
 -   Multi-tenant por `business_id`.
 -   Entidad genérica “Recurso” (persona o activo).
--   Disponibilidad semanal + bloqueos puntuales.
+-   Catálogo de **Servicios** (duración/buffer/precio).
+-   **Relación explícita Service ↔ Resource** desde el inicio (qué recursos ofrecen qué servicios).
+-   Disponibilidad semanal + bloqueos puntuales por recurso.
 -   Turnos con **anti double-booking** fuerte (ideal: constraint en DB).
 -   Notificaciones para confirmaciones/recordatorios con idempotencia.
 
@@ -13,7 +15,7 @@
 -   IDs: `uuid`
 -   Timestamps: `timestamptz`
 -   Fechas guardadas en UTC. `business.timezone` define cómo se muestran/calculan slots.
--   Soft delete preferido (status/flags) en entidades operativas.
+-   Soft delete preferido (timestamp/flags) en entidades operativas.
 
 ---
 
@@ -50,15 +52,22 @@ Representa el usuario app (vinculado a Supabase Auth).
 -   unique `(business_id, user_id)`
 -   `created_at`
 
+---
+
 ### `resources`
 
 -   `id` (uuid, PK)
 -   `business_id` (uuid, FK -> businesses.id)
 -   `name` (text, required)
 -   `type` (enum nullable: `PERSON | ASSET`)
--   `status` (enum: `ACTIVE | INACTIVE | DELETED`)
+-   `status` (enum: `ACTIVE | INACTIVE`)
+-   `deleted_at` (timestamptz, nullable) — soft delete
 -   unique `(business_id, name)`
 -   `created_at`, `updated_at`
+
+> Nota: `deleted_at != null` implica que no debe aparecer en listados (admin por default) ni en público.
+
+---
 
 ### `services`
 
@@ -69,21 +78,41 @@ Representa el usuario app (vinculado a Supabase Auth).
 -   `buffer_minutes` (int, default 0, >= 0)
 -   `price_cents` (int, nullable)
 -   `currency` (text, nullable)
--   `active` (bool, default true)
--   (opcional) unique `(business_id, name)`
+-   `status` (enum: `ACTIVE | INACTIVE`, default `ACTIVE`)
+-   `deleted_at` (timestamptz, nullable) — soft delete (opcional para V1, recomendado por consistencia)
+-   unique `(business_id, name)`
 -   `created_at`, `updated_at`
 
-### `resource_services` (opcional)
+---
 
-Si no todos los recursos ofrecen todos los servicios.
+### `service_resources` (OBLIGATORIO en MVP)
 
--   `resource_id` (uuid, FK -> resources.id)
+Define qué recursos ofrecen qué servicios (many-to-many).
+
+-   `id` (uuid, PK) _(opcional; también puede ser PK compuesta)_
+-   `business_id` (uuid, FK -> businesses.id)
 -   `service_id` (uuid, FK -> services.id)
--   PK `(resource_id, service_id)`
+-   `resource_id` (uuid, FK -> resources.id)
+-   unique `(service_id, resource_id)`
+-   índices:
+    -   `(business_id, service_id)`
+    -   `(business_id, resource_id)`
+
+**Reglas:**
+
+-   Un servicio es “reservable” públicamente si:
+    -   `services.status = ACTIVE` AND `deleted_at is null`
+    -   existe al menos un vínculo en `service_resources`
+    -   y al menos un recurso vinculado está `ACTIVE` y `deleted_at is null`
+-   Validación multi-tenant:
+    -   En dominio, garantizar que `service.business_id = resource.business_id = service_resources.business_id`.
+    -   (Opcional futuro) reforzar a nivel DB con constraints/triggers si se desea.
+
+---
 
 ### `availability_rules`
 
-Disponibilidad semanal por recurso.
+Disponibilidad semanal por recurso (múltiples rangos por día).
 
 -   `id` (uuid, PK)
 -   `resource_id` (uuid, FK -> resources.id)
@@ -92,6 +121,10 @@ Disponibilidad semanal por recurso.
 -   `end_time` (time)
 -   `active` (bool, default true)
 -   checks: `day_of_week in 0..6`, `start_time < end_time`
+
+> Nota: si un recurso no tiene reglas activas, no ofrece slots.
+
+---
 
 ### `resource_blocks`
 
@@ -104,6 +137,8 @@ Bloqueos puntuales (excepciones).
 -   `reason` (text, nullable)
 -   check: `start_at < end_at`
 -   `created_at`
+
+---
 
 ### `customers`
 
@@ -118,6 +153,8 @@ Clientes del negocio.
 -   índices: `(business_id, email)`, `(business_id, phone)`
 -   `created_at`
 
+---
+
 ### `appointments`
 
 Turnos.
@@ -129,15 +166,23 @@ Turnos.
 -   `customer_id` (uuid, FK -> customers.id)
 -   `status` (enum: `SCHEDULED | CANCELLED | RESCHEDULED | COMPLETED`)
 -   `start_at` (timestamptz)
--   `end_at` (timestamptz) — start + duration
--   `occupied_end_at` (timestamptz) — end + buffer
+-   `end_at` (timestamptz) — start + duration (al momento de crear)
+-   `occupied_end_at` (timestamptz) — end + buffer (al momento de crear)
 -   `notes` (text, nullable)
 -   `cancellation_reason` (text, nullable)
 -   `created_by_user_id` (uuid, nullable)
 -   `rescheduled_from_id` (uuid, nullable, FK -> appointments.id)
 -   checks: `start_at < end_at`, `end_at <= occupied_end_at`
 -   índices: `(business_id, start_at)`, `(resource_id, start_at)`, `(customer_id, start_at)`
--   Nota: para anti-overlap, se considera “ocupado” hasta `occupied_end_at`.
+
+**Regla clave por mapping (dominio):**
+
+-   Al crear un turno (dashboard o público) validar que existe relación en `service_resources`
+    -   y que `service` y `resource` están `ACTIVE` y no deleted.
+-   Los turnos ya creados NO se recalculan retroactivamente si cambia el servicio:
+    -   se mantiene `end_at` y `occupied_end_at` persistidos.
+
+---
 
 ### `notifications`
 
@@ -166,6 +211,7 @@ Confirmaciones y recordatorios.
 -   customer 1—N appointments
 -   appointment 1—N notifications
 -   profile N—N business vía business_members
+-   **service N—N resource vía service_resources**
 
 ---
 
@@ -186,7 +232,10 @@ Nota: Esto suele implementarse con SQL en migración (no siempre es expresable e
 
 Mínimo:
 
--   Todas las tablas operativas tienen `business_id`.
+-   Todas las tablas operativas tienen `business_id` cuando aporta valor de integridad/consulta.
 -   Backend filtra por `business_id` según el usuario autenticado (via business_members).
-    Opcional:
+-   La tabla `service_resources` incluye `business_id` para facilitar enforcement y queries.
+
+Opcional:
+
 -   RLS en Supabase como capa extra de seguridad.

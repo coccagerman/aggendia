@@ -30,6 +30,12 @@ enum ResourceStatus {
   DELETED
 }
 
+enum ServiceStatus {
+  ACTIVE
+  INACTIVE
+  DELETED
+}
+
 model Business {
   id            String   @id @default(uuid())
   name          String
@@ -41,9 +47,10 @@ model Business {
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
-  members       BusinessMember[]
-  resources     Resource[]
-  services      Service[]
+  members           BusinessMember[]
+  resources         Resource[]
+  services          Service[]
+  serviceResources  ServiceResource[]
 }
 
 model BusinessMember {
@@ -72,6 +79,7 @@ model Resource {
   business          Business           @relation(fields: [businessId], references: [id], onDelete: Cascade)
   availabilityRules AvailabilityRule[]
   blocks            ResourceBlock[]
+  serviceResources  ServiceResource[]
 
   @@unique([businessId, name])
   @@index([businessId])
@@ -94,23 +102,24 @@ model AvailabilityRule {
 }
 
 model Service {
-  id              String   @id @default(uuid())
+  id              String        @id @default(uuid())
   businessId      String
   name            String
   description     String?
   durationMinutes Int
-  bufferMinutes   Int      @default(0)
+  bufferMinutes   Int           @default(0)
   priceCents      Int?
-  currency        String?  @default("ARS")
-  active          Boolean  @default(true)
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  currency        String?       @default("ARS")
+  status          ServiceStatus @default(ACTIVE)
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
 
-  business        Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  business         Business          @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  serviceResources ServiceResource[]
 
   @@unique([businessId, name])
   @@index([businessId])
-  @@index([businessId, active])
+  @@index([businessId, status])
 }
 
 model ResourceBlock {
@@ -126,4 +135,20 @@ model ResourceBlock {
 
   @@index([resourceId])
   @@index([resourceId, startAt, endAt])
+}
+
+model ServiceResource {
+  id         String   @id @default(uuid())
+  businessId String
+  serviceId  String
+  resourceId String
+  createdAt  DateTime @default(now())
+
+  business Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  service  Service  @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  resource Resource @relation(fields: [resourceId], references: [id], onDelete: Cascade)
+
+  @@unique([serviceId, resourceId])
+  @@index([businessId, serviceId])
+  @@index([businessId, resourceId])
 }

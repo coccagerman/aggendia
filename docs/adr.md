@@ -8,8 +8,10 @@
 Construimos una app de turnos/reservas multi-tenant con:
 
 -   UI pública (clientes) + dashboard (negocios)
--   Recursos reservables (persona/activo)
--   Disponibilidad semanal, bloqueos, turnos
+-   **Servicios** (catálogo: duración/buffer/precio)
+-   **Recursos reservables** (persona/activo)
+-   **Relación Service ↔ Resource** (un servicio puede ser ofrecido por uno o varios recursos; y un recurso puede ofrecer varios servicios)
+-   Disponibilidad semanal por recurso, bloqueos puntuales, turnos/reservas
 -   Anti double-booking y notificaciones por email (MVP)
 
 Prioridades:
@@ -59,7 +61,7 @@ Prioridades:
 ### Autorización / Multi-tenant
 
 -   `business_members` con roles `OWNER|ADMIN|STAFF`
--   Todas las entidades incluyen `business_id`
+-   Todas las entidades incluyen `business_id` (incluyendo servicios, recursos y sus relaciones)
 -   Backend filtra/valida `business_id` según usuario
 -   (Opcional) RLS en Supabase como capa extra
 

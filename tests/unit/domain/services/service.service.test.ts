@@ -169,7 +169,7 @@ describe('Service Domain - validateUpdateServiceInput', () => {
 
         expect(() =>
             validateUpdateServiceInput({
-                active: false
+                status: 'INACTIVE'
             })
         ).not.toThrow()
     })

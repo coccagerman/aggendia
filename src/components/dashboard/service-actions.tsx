@@ -69,13 +69,15 @@ export function ServiceActions({ service }: ServiceActionsProps) {
     const handleToggleActive = async () => {
         setIsToggling(true)
 
+        const newStatus = service.status === 'ACTIVE' ? 'INACTIVE' : 'ACTIVE'
+
         try {
             const response = await fetch(`/api/v1/businesses/${service.businessId}/services/${service.id}`, {
                 method: 'PATCH',
                 headers: {
                     'Content-Type': 'application/json'
                 },
-                body: JSON.stringify({ active: !service.active })
+                body: JSON.stringify({ status: newStatus })
             })
 
             if (!response.ok) {
@@ -88,7 +90,7 @@ export function ServiceActions({ service }: ServiceActionsProps) {
             // Cerrar modal primero, luego mostrar toast y refrescar
             setIsToggleOpen(false)
             setIsToggling(false)
-            toast.success(service.active ? 'Servicio desactivado' : 'Servicio activado')
+            toast.success(service.status === 'ACTIVE' ? 'Servicio desactivado' : 'Servicio activado')
             router.refresh()
         } catch (error) {
             console.error('Error al cambiar estado del servicio:', error)
@@ -229,10 +231,12 @@ export function ServiceActions({ service }: ServiceActionsProps) {
                     <DropdownMenuItem
                         onClick={() => setIsToggleOpen(true)}
                         className={`cursor-pointer ${
-                            service.active ? 'text-red-600 dark:text-red-400' : 'text-green-600 dark:text-green-400'
+                            service.status === 'ACTIVE'
+                                ? 'text-red-600 dark:text-red-400'
+                                : 'text-green-600 dark:text-green-400'
                         }`}
                     >
-                        {service.active ? (
+                        {service.status === 'ACTIVE' ? (
                             <>
                                 <PowerOff className='mr-2 h-4 w-4' />
                                 Desactivar
@@ -453,9 +457,11 @@ export function ServiceActions({ service }: ServiceActionsProps) {
             <Dialog open={isToggleOpen} onOpenChange={setIsToggleOpen}>
                 <DialogContent className='sm:max-w-md'>
                     <DialogHeader>
-                        <DialogTitle>{service.active ? 'Desactivar servicio' : 'Activar servicio'}</DialogTitle>
+                        <DialogTitle>
+                            {service.status === 'ACTIVE' ? 'Desactivar servicio' : 'Activar servicio'}
+                        </DialogTitle>
                         <DialogDescription>
-                            {service.active
+                            {service.status === 'ACTIVE'
                                 ? 'El servicio dejará de aparecer en tu página pública y no podrá ser reservado. Los turnos ya creados no se verán afectados.'
                                 : 'El servicio volverá a estar disponible para reservas en tu página pública.'}
                         </DialogDescription>
@@ -474,14 +480,14 @@ export function ServiceActions({ service }: ServiceActionsProps) {
                             type='button'
                             onClick={handleToggleActive}
                             disabled={isToggling}
-                            variant={service.active ? 'destructive' : 'default'}
+                            variant={service.status === 'ACTIVE' ? 'destructive' : 'default'}
                             className='cursor-pointer'
                         >
                             {isToggling
-                                ? service.active
+                                ? service.status === 'ACTIVE'
                                     ? 'Desactivando...'
                                     : 'Activando...'
-                                : service.active
+                                : service.status === 'ACTIVE'
                                 ? 'Desactivar'
                                 : 'Activar'}
                         </Button>

@@ -37,7 +37,7 @@ interface Service {
     durationMinutes: number
     priceCents: number | null
     currency: string | null
-    active: boolean
+    status: string
     businessId: string
 }
 
@@ -99,7 +99,10 @@ export default async function DashboardPage() {
     }))
 
     const totalResources = businessesWithData.reduce((acc, b) => acc + b.resources.length, 0)
-    const totalActiveServices = businessesWithData.reduce((acc, b) => acc + b.services.filter(s => s.active).length, 0)
+    const totalActiveServices = businessesWithData.reduce(
+        (acc, b) => acc + b.services.filter(s => s.status === 'ACTIVE').length,
+        0
+    )
 
     return (
         <div className='flex min-h-screen flex-col bg-zinc-50 dark:bg-zinc-950'>
@@ -362,7 +365,7 @@ export default async function DashboardPage() {
                                                                             >
                                                                                 <span
                                                                                     className={`h-1.5 w-1.5 rounded-full ${
-                                                                                        service.active
+                                                                                        service.status === 'ACTIVE'
                                                                                             ? 'bg-green-500'
                                                                                             : 'bg-zinc-400'
                                                                                     }`}

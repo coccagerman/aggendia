@@ -6,13 +6,17 @@ import { getBusinessById } from '@/data/repositories/business.repo'
 import { getResourceById } from '@/data/repositories/resource.repo'
 import { getAvailabilityByResourceId } from '@/data/repositories/availability.repo'
 import { getBlocksByResourceId } from '@/data/repositories/block.repo'
+import { getServicesByBusinessId } from '@/data/repositories/service.repo'
+import { getServiceIdsByResourceId } from '@/data/repositories/serviceResource.repo'
 import type { AvailabilityRule } from '@/domain/availability/availability.types'
 import type { ResourceBlock } from '@/domain/blocks/block.types'
+import type { Service } from '@/domain/services/service.types'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { AvailabilityEditor } from '@/components/dashboard/availability-editor'
 import { BlockEditor } from '@/components/dashboard/block-editor'
+import { ServiceAssignmentEditor } from '@/components/dashboard/service-assignment-editor'
 
 interface PageProps {
     params: Promise<{ businessId: string; resourceId: string }>
@@ -85,6 +89,21 @@ export default async function ResourceDetailPage({ params }: PageProps) {
         // Keep empty array on error
     }
 
+    // Obtener servicios del negocio y los asignados al recurso
+    let allServices: Service[] = []
+    let assignedServiceIds: string[] = []
+    try {
+        const [services, serviceIds] = await Promise.all([
+            getServicesByBusinessId(prisma, businessId),
+            getServiceIdsByResourceId(prisma, businessId, resourceId)
+        ])
+        allServices = services
+        assignedServiceIds = serviceIds
+    } catch (error) {
+        console.error('Error al obtener servicios:', error instanceof Error ? error.message : 'UNKNOWN')
+        // Keep empty arrays on error
+    }
+
     const statusLabels: Record<string, { label: string; className: string }> = {
         ACTIVE: {
             label: 'Activo',
@@ -119,7 +138,7 @@ export default async function ResourceDetailPage({ params }: PageProps) {
             <main className='flex-1 py-8'>
                 <div className='container mx-auto px-4 sm:px-6 lg:px-8'>
                     <div className='mx-auto max-w-3xl'>
-                        <Tabs defaultValue='availability' className='w-full'>
+                        <Tabs defaultValue='general' className='w-full'>
                             <TabsList className='mb-6'>
                                 <TabsTrigger value='general' className='cursor-pointer'>
                                     General
@@ -129,6 +148,9 @@ export default async function ResourceDetailPage({ params }: PageProps) {
                                 </TabsTrigger>
                                 <TabsTrigger value='blocks' className='cursor-pointer'>
                                     Bloqueos
+                                </TabsTrigger>
+                                <TabsTrigger value='services' className='cursor-pointer'>
+                                    Servicios
                                 </TabsTrigger>
                             </TabsList>
 
@@ -215,6 +237,27 @@ export default async function ResourceDetailPage({ params }: PageProps) {
                                                 createdAt: b.createdAt.toISOString()
                                             }))}
                                             timezone={business.timezone}
+                                        />
+                                    </CardContent>
+                                </Card>
+                            </TabsContent>
+
+                            <TabsContent value='services'>
+                                <Card>
+                                    <CardHeader>
+                                        <CardTitle>Servicios asignados</CardTitle>
+                                        <CardDescription>
+                                            Seleccioná los servicios que puede ofrecer este{' '}
+                                            {business.resourceLabel.toLowerCase()}. Solo aparecerá disponible para
+                                            reservas de los servicios seleccionados.
+                                        </CardDescription>
+                                    </CardHeader>
+                                    <CardContent>
+                                        <ServiceAssignmentEditor
+                                            businessId={businessId}
+                                            resourceId={resourceId}
+                                            allServices={allServices}
+                                            assignedServiceIds={assignedServiceIds}
                                         />
                                     </CardContent>
                                 </Card>

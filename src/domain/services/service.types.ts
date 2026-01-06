@@ -21,6 +21,11 @@ export const DURATION_OPTIONS = [
     { value: 120, label: '2 horas' }
 ] as const
 
+/**
+ * Estados posibles de un servicio
+ */
+export type ServiceStatus = 'ACTIVE' | 'INACTIVE' | 'DELETED'
+
 export type Service = {
     id: string
     businessId: string
@@ -30,7 +35,7 @@ export type Service = {
     bufferMinutes: number
     priceCents: number | null
     currency: string | null
-    active: boolean
+    status: ServiceStatus
     createdAt: Date
     updatedAt: Date
 }
@@ -45,5 +50,5 @@ export type CreateServiceInput = {
 }
 
 export type UpdateServiceInput = Partial<CreateServiceInput> & {
-    active?: boolean
+    status?: ServiceStatus
 }

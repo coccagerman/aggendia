@@ -11,6 +11,7 @@ Este documento define convenciones de arquitectura, estructura y estilo para con
 -   **Consistencia fuerte:** evitar double-booking (DB + validación).
 -   **DX alta y código predecible:** tipado fuerte, validaciones y errores uniformes.
 -   **Evolución simple:** permitir separar backend en el futuro sin reescribir dominio.
+-   **MVP con catálogo real:** servicios y recursos existen por separado y se **mapean** (Service ↔ Resource).
 
 ---
 
@@ -30,6 +31,7 @@ src/
         businesses/
         resources/
         services/
+        service-resources/    # mapping Service ↔ Resource (admin)
         availability/
         appointments/
         customers/
@@ -37,43 +39,47 @@ src/
   domain/
     businesses/
       business.types.ts
-      business.service.ts      # reglas de negocio
+      business.service.ts
     resources/
       resource.types.ts
       resource.service.ts
     services/
       service.types.ts
       service.service.ts
+    serviceResources/
+      serviceResources.types.ts
+      serviceResources.service.ts   # reglas de mapeo
     availability/
       availability.types.ts
-      availability.service.ts  # cálculo de slots
+      availability.service.ts       # cálculo de slots
     appointments/
       appointment.types.ts
-      appointment.service.ts   # create/cancel/reschedule
-      appointment.policy.ts    # políticas (cancelación, buffers, etc.)
+      appointment.service.ts
+      appointment.policy.ts
     common/
-      errors.ts                # AppError + codes
-      result.ts                # Result helpers (opcional)
-      time.ts                  # helpers de timezone/UTC
+      errors.ts
+      result.ts
+      time.ts
   data/
     prisma/
-      prisma.ts                # singleton Prisma client
+      prisma.ts
       repositories/
         business.repo.ts
         resource.repo.ts
         service.repo.ts
+        serviceResources.repo.ts     # mapping Service ↔ Resource
         availability.repo.ts
         appointment.repo.ts
         customer.repo.ts
         notification.repo.ts
   lib/
-    http.ts                    # axios instance
+    http.ts
     supabase/
       client.ts
       server.ts
-    env.ts                     # zod env validation (recomendado)
+    env.ts
   components/
-    ui/                        # shadcn/ui
+    ui/
     shared/
   styles/
   types/
@@ -84,19 +90,18 @@ docs/
   flows.md
   adr-0001-stack.md
   conventions.md
-Reglas
+Reglas base
 Route Handlers (src/app/api/...) solo hacen:
 
 auth + tenant resolution
 
 parse/validate input (DTO)
 
-llamar servicios del domain
+llamar servicios de domain
 
 mapear errores a HTTP
 
 domain/ no importa Next ni Prisma.
-
 data/ no contiene reglas de negocio; solo persistencia.
 
 3) Convención REST (endpoints, routes y DTOs)
@@ -107,21 +112,19 @@ JSON siempre (Content-Type: application/json)
 
 Paginación y filtros por query params
 
-IDs siempre UUID
+IDs siempre UUID (excepto slug en público)
 
 Recursos principales
 Businesses
-
 GET /api/v1/businesses (lista negocios del usuario)
 
-POST /api/v1/businesses (crear)
+POST /api/v1/businesses
 
 GET /api/v1/businesses/:businessId
 
 PATCH /api/v1/businesses/:businessId
 
 Resources (Recurso)
-
 GET /api/v1/businesses/:businessId/resources
 
 POST /api/v1/businesses/:businessId/resources
@@ -132,8 +135,7 @@ PATCH /api/v1/businesses/:businessId/resources/:resourceId
 
 DELETE /api/v1/businesses/:businessId/resources/:resourceId (soft delete)
 
-Services
-
+Services (Servicio)
 GET /api/v1/businesses/:businessId/services
 
 POST /api/v1/businesses/:businessId/services
@@ -142,8 +144,28 @@ PATCH /api/v1/businesses/:businessId/services/:serviceId
 
 DELETE /api/v1/businesses/:businessId/services/:serviceId (soft deactivate/delete)
 
-Availability
+Mapping Service ↔ Resource (MVP: explícito desde el inicio)
+Objetivo: un servicio puede ofrecerse por uno o varios recursos, y un recurso puede ofrecer varios servicios.
 
+GET /api/v1/businesses/:businessId/services/:serviceId/resources
+
+lista recursos asignados a ese servicio (admin)
+
+PUT /api/v1/businesses/:businessId/services/:serviceId/resources
+
+reemplaza el set completo (idempotente)
+
+body: { resourceIds: string[] }
+
+Opcional (si resulta más cómodo para UI):
+
+GET /api/v1/businesses/:businessId/resources/:resourceId/services
+
+PUT /api/v1/businesses/:businessId/resources/:resourceId/services con { serviceIds: string[] }
+
+Regla de dominio: al crear turnos/slots públicos con serviceId + resourceId, validar siempre que ese recurso ofrezca ese servicio.
+
+Availability
 GET /api/v1/businesses/:businessId/resources/:resourceId/availability
 
 PUT /api/v1/businesses/:businessId/resources/:resourceId/availability (reemplaza set semanal)
@@ -153,7 +175,6 @@ POST /api/v1/businesses/:businessId/resources/:resourceId/blocks
 DELETE /api/v1/businesses/:businessId/resources/:resourceId/blocks/:blockId
 
 Appointments
-
 GET /api/v1/businesses/:businessId/appointments?date=YYYY-MM-DD&resourceId=...
 
 POST /api/v1/businesses/:businessId/appointments (crear desde dashboard)
@@ -165,18 +186,21 @@ PATCH /api/v1/businesses/:businessId/appointments/:appointmentId/cancel
 PATCH /api/v1/businesses/:businessId/appointments/:appointmentId/reschedule
 
 Public (cliente)
-
 GET /api/v1/public/businesses/:slug (datos públicos)
 
-GET /api/v1/public/businesses/:slug/services
+GET /api/v1/public/businesses/:slug/services (solo ACTIVE)
 
-GET /api/v1/public/businesses/:slug/resources
+GET /api/v1/public/businesses/:slug/resources?serviceId=...
+
+devuelve recursos activos que ofrecen ese servicio (y no deleted)
 
 GET /api/v1/public/slots?slug=...&serviceId=...&resourceId=...&from=...&to=...
 
-Nota: En UI pública se recomienda usar slug y no exponer businessId si no hace falta.
+debe validar: servicio activo + recurso activo + mapping existe
 
-DTOs (Data Transfer Objects)
+Nota: en UI pública se recomienda usar slug y no exponer businessId si no hace falta.
+
+4) DTOs (Data Transfer Objects)
 Los DTOs son contratos de API, distintos a los modelos de DB.
 
 Validación en la frontera con Zod.
@@ -185,25 +209,25 @@ Convención:
 
 src/domain/<feature>/<feature>.types.ts → tipos de dominio
 
-src/app/api/v1/.../dto.ts o src/types/dto/... → DTOs de API
+src/app/api/v1/.../dto.ts (o src/types/dto/...) → DTOs de API
 
-Ejemplo:
+Ejemplos:
 
 CreateServiceRequestDTO
 
-CreateServiceResponseDTO
+UpdateResourceRequestDTO
+
+SetServiceResourcesRequestDTO
 
 ErrorResponseDTO
 
-Respuestas: forma estándar
-Éxito:
-
+5) Respuestas: forma estándar
+Éxito
 200 OK con { data: ... }
 
 201 Created con { data: ... }
 
-Listas:
-
+Listas
 { data: [...], meta: { page, pageSize, total } }
 
 o cursor pagination { data: [...], meta: { nextCursor } }
@@ -213,9 +237,9 @@ page, pageSize (default 1/20)
 
 sort (ej: startAt:asc)
 
-Filtros: resourceId, serviceId, status, from, to
+filtros típicos: resourceId, serviceId, status, from, to
 
-4) Autenticación, autorización y multi-tenant
+6) Autenticación, autorización y multi-tenant
 Auth
 Supabase Auth para usuarios internos (admin/staff).
 
@@ -232,9 +256,9 @@ Regla: para rutas privadas, validar que el usuario tenga membresía en business_
 
 Funciones sugeridas:
 
-requireUser() → devuelve userId
+requireUser() -> userId
 
-requireBusinessAccess(userId, businessId) → devuelve rol y permite/niega
+requireBusinessAccess(userId, businessId) -> role
 
 Roles
 OWNER: todo
@@ -243,7 +267,7 @@ ADMIN: todo excepto acciones críticas (opcional)
 
 STAFF: agenda + turnos (según definas)
 
-5) Convención de errores y códigos
+7) Convención de errores y códigos
 Respuesta de error (estándar)
 Siempre:
 
@@ -257,7 +281,7 @@ Copy code
   }
 }
 AppError
-Definir una clase AppError con:
+AppError con:
 
 code (string)
 
@@ -294,6 +318,10 @@ SERVICE_NOT_FOUND (404)
 
 RESOURCE_INACTIVE (409)
 
+SERVICE_INACTIVE (409)
+
+SERVICE_RESOURCE_NOT_LINKED (409) ← resource no ofrece ese service
+
 Appointments
 
 APPOINTMENT_NOT_FOUND (404)
@@ -319,7 +347,7 @@ HTTP mapping (regla)
 
 404: entidad no existe o no accesible
 
-409: conflicto de negocio (slot tomado, estado inválido)
+409: conflicto de negocio (slot tomado, estado inválido, mapping inexistente)
 
 500: error inesperado
 
@@ -328,17 +356,11 @@ Loguear code + details para diagnosticar (sin PII sensible).
 
 Nunca loguear tokens/keys.
 
-6) Timezone policy (crítica)
+8) Timezone policy (crítica)
 Principios
 Guardar timestamps en UTC en DB (timestamptz).
 
 Cada business tiene un timezone IANA (ej: America/Argentina/Buenos_Aires).
-
-Mostrar horarios al usuario según:
-
-UI pública: timezone del negocio (claro para clientes)
-
-dashboard: timezone del negocio (consistente)
 
 Input de fechas
 Cuando el cliente elige “fecha/hora” en UI (local del negocio), el backend:
@@ -347,7 +369,7 @@ interpreta ese input en business.timezone
 
 lo convierte a UTC (start_at, end_at, occupied_end_at)
 
-guarda en DB
+lo guarda en DB
 
 Output de fechas
 API devuelve siempre timestamptz (ISO 8601).
@@ -359,17 +381,15 @@ El cálculo de slots debe hacerse en timezone del negocio:
 
 construir intervalos de disponibilidad (día + start_time/end_time) en esa TZ
 
-convertir a UTC para comparar con appointments y resource_blocks
+convertir a UTC para comparar con appointments y blocks
 
-Considerar cambios de DST: usar librería con timezone (no usar Date “a pelo”).
+considerar DST: usar librería con timezone (no usar Date “a pelo”)
 
 Recomendación:
 
-usar date-fns-tz o luxon para conversiones.
+date-fns-tz o luxon.
 
-evitar manejar horarios con strings sin validación.
-
-7) Reglas de consistencia (double-booking)
+9) Reglas de consistencia (double-booking)
 Requisito
 Prohibir turnos solapados para el mismo resource_id considerando buffer.
 
@@ -380,6 +400,8 @@ slot dentro de disponibilidad
 
 no cae en bloqueos
 
+(y si aplica) resource ofrece service (SERVICE_RESOURCE_NOT_LINKED)
+
 Proteger en DB:
 
 constraint anti-overlap (EXCLUDE constraint por resource_id y rango start_at–occupied_end_at para estados activos)
@@ -388,7 +410,7 @@ Si DB rechaza:
 
 mapear a 409 APPOINTMENT_SLOT_TAKEN
 
-8) Seguridad y PII
+10) Seguridad y PII
 Minimizar PII: cliente = nombre + email/teléfono.
 
 Nunca exponer claves server-only en cliente.
@@ -397,20 +419,24 @@ Sanitizar logs.
 
 Rate limiting (futuro): endpoints públicos de slots/reserva pueden requerir throttling.
 
-9) Performance y buenas prácticas
-Consultas siempre con índices:
-
+11) Performance y buenas prácticas
+Índices recomendados
 appointments(resource_id, start_at)
 
 appointments(business_id, start_at)
 
+service_resources(service_id, resource_id) con unique (evitar duplicados)
+
+(si se consulta mucho) service_resources(resource_id, service_id)
+
+Otras buenas prácticas
 Paginación en listas.
 
 No recalcular slots para rangos enormes: limitar from/to (ej: máximo 30 días).
 
 Evitar N+1: usar queries adecuadas en repositorios.
 
-10) Estilo de código y calidad
+12) Estilo de código y calidad
 TypeScript estricto.
 
 Zod para validar:
@@ -429,22 +455,16 @@ businessId, resourceId, serviceId, appointmentId
 
 startAt, endAt, occupiedEndAt
 
-**Botones con cursor pointer:** todos los botones (componente Button de shadcn/ui y botones HTML nativos) deben incluir `cursor-pointer` en su className para indicar interactividad al hacer hover.
+Botones con cursor pointer: todos los botones (shadcn/ui Button y botones HTML nativos) deben incluir cursor-pointer en su className para indicar interactividad al hacer hover.
 
-Tests (cuando empecemos):
-
-unit tests para domain (cálculo de slots, reglas de conflicto)
-
-integration tests para endpoints críticos (create appointment)
-
-11) Convención de commits y ramas (recomendado)
+13) Convención de commits y ramas (recomendado)
 Commits: feat: ..., fix: ..., chore: ..., docs: ...
 
 PRs pequeños: una feature coherente por PR.
 
 Cambios de API deben actualizar DTOs y docs relevantes.
 
-12) Checklist para nuevas features (para Copilot y humanos)
+14) Checklist para nuevas features (para Copilot y humanos)
  DTO validado con Zod
 
  Auth + tenant check aplicado
@@ -457,7 +477,9 @@ Cambios de API deben actualizar DTOs y docs relevantes.
 
  Timezone correcto (input/output)
 
- Caso de conflicto (409) contemplado en turnos
+ Caso de conflicto (409) contemplado
 
  UI maneja estados loading/error/empty
+
+ Si aplica reserva pública: validar service ACTIVE, resource ACTIVE, y mapping Service↔Resource
 ```

@@ -68,7 +68,7 @@ export const updateServiceSchema = z.object({
         .optional()
         .nullable(),
     currency: z.string().trim().length(3, 'La moneda debe tener 3 caracteres (ej: ARS)').optional(),
-    active: z.boolean().optional()
+    status: z.enum(['ACTIVE', 'INACTIVE']).optional()
 })
 
 export type UpdateServiceRequest = z.infer<typeof updateServiceSchema>

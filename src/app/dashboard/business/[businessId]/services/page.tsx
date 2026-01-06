@@ -4,11 +4,16 @@ import Link from 'next/link'
 import { prisma } from '@/data/prisma/prisma'
 import { getBusinessById } from '@/data/repositories/business.repo'
 import { getServicesByBusinessId } from '@/data/repositories/service.repo'
+import { getResourcesByBusinessId } from '@/data/repositories/resource.repo'
+import { countResourcesByServiceIds, getResourceIdsByServiceIds } from '@/data/repositories/serviceResource.repo'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { CreateServiceDialog } from '@/components/dashboard/create-service-dialog'
 import { ServiceActions } from '@/components/dashboard/service-actions'
+import { AssignResourcesDialog } from '@/components/dashboard/assign-resources-dialog'
 import { Service } from '@/domain/services/service.types'
+import { Resource } from '@/domain/resources/resource.types'
+import { Users } from 'lucide-react'
 
 interface PageProps {
     params: Promise<{ businessId: string }>
@@ -53,6 +58,9 @@ export default async function ServicesPage({ params }: PageProps) {
 
     // Obtener servicios
     let services: Service[] = []
+    let allResources: Resource[] = []
+    let resourceCountsByService = new Map<string, number>()
+    const assignedResourceIdsByService = new Map<string, string[]>()
 
     try {
         services = await getServicesByBusinessId(prisma, businessId)
@@ -60,8 +68,37 @@ export default async function ServicesPage({ params }: PageProps) {
         console.error('Error al obtener servicios:', error instanceof Error ? error.message : 'UNKNOWN')
     }
 
-    const activeServices = services.filter(s => s.active)
-    const inactiveServices = services.filter(s => !s.active)
+    // Obtener recursos del negocio
+    try {
+        allResources = await getResourcesByBusinessId(prisma, businessId)
+    } catch (error) {
+        console.error('Error al obtener recursos:', error instanceof Error ? error.message : 'UNKNOWN')
+    }
+
+    // Obtener conteo de recursos por servicio
+    if (services.length > 0) {
+        try {
+            const serviceIds = services.map(s => s.id)
+
+            // Batch queries para evitar N+1
+            const [counts, resourceIdsByService] = await Promise.all([
+                countResourcesByServiceIds(prisma, businessId, serviceIds),
+                getResourceIdsByServiceIds(prisma, businessId, serviceIds)
+            ])
+
+            resourceCountsByService = counts
+
+            // Copiar resultados al Map
+            for (const [serviceId, resourceIds] of resourceIdsByService) {
+                assignedResourceIdsByService.set(serviceId, resourceIds)
+            }
+        } catch (error) {
+            console.error('Error al obtener recursos asignados:', error instanceof Error ? error.message : 'UNKNOWN')
+        }
+    }
+
+    const activeServices = services.filter(s => s.status === 'ACTIVE')
+    const inactiveServices = services.filter(s => s.status === 'INACTIVE')
 
     return (
         <div className='flex min-h-screen flex-col bg-zinc-50 dark:bg-zinc-950'>
@@ -133,55 +170,87 @@ export default async function ServicesPage({ params }: PageProps) {
                                     </div>
                                 ) : (
                                     <div className='space-y-4'>
-                                        {services.map(service => (
-                                            <div
-                                                key={service.id}
-                                                className='rounded-lg border border-zinc-200 p-4 dark:border-zinc-800'
-                                            >
-                                                <div className='flex items-start justify-between'>
-                                                    <div className='flex-1'>
-                                                        <div className='flex items-center gap-2'>
-                                                            <h3 className='font-medium text-zinc-900 dark:text-zinc-50'>
-                                                                {service.name}
-                                                            </h3>
-                                                            <span
-                                                                className={`rounded px-1.5 py-0.5 text-xs font-medium ${
-                                                                    service.active
-                                                                        ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300'
-                                                                        : 'bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400'
-                                                                }`}
-                                                            >
-                                                                {service.active ? 'Activo' : 'Inactivo'}
-                                                            </span>
-                                                        </div>
-                                                        {service.description && (
-                                                            <p className='mt-1 text-sm text-zinc-600 dark:text-zinc-400'>
-                                                                {service.description}
-                                                            </p>
-                                                        )}
-                                                        <div className='mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-zinc-500 dark:text-zinc-400'>
-                                                            <span>⏱️ {service.durationMinutes} min</span>
-                                                            {service.bufferMinutes > 0 && (
-                                                                <span>🔄 {service.bufferMinutes} min buffer</span>
-                                                            )}
-                                                            {service.priceCents !== null && (
-                                                                <span>
-                                                                    💰 $
-                                                                    {(service.priceCents / 100).toLocaleString(
-                                                                        'es-AR',
-                                                                        {
-                                                                            minimumFractionDigits: 2
-                                                                        }
-                                                                    )}{' '}
-                                                                    {service.currency}
+                                        {services.map(service => {
+                                            const resourceCount = resourceCountsByService.get(service.id) ?? 0
+                                            const assignedIds = assignedResourceIdsByService.get(service.id) ?? []
+
+                                            return (
+                                                <div
+                                                    key={service.id}
+                                                    className='rounded-lg border border-zinc-200 p-4 dark:border-zinc-800'
+                                                >
+                                                    <div className='flex items-start justify-between'>
+                                                        <div className='flex-1'>
+                                                            <div className='flex items-center gap-2'>
+                                                                <h3 className='font-medium text-zinc-900 dark:text-zinc-50'>
+                                                                    {service.name}
+                                                                </h3>
+                                                                <span
+                                                                    className={`rounded px-1.5 py-0.5 text-xs font-medium ${
+                                                                        service.status === 'ACTIVE'
+                                                                            ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300'
+                                                                            : 'bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400'
+                                                                    }`}
+                                                                >
+                                                                    {service.status === 'ACTIVE'
+                                                                        ? 'Activo'
+                                                                        : 'Inactivo'}
                                                                 </span>
+                                                            </div>
+                                                            {service.description && (
+                                                                <p className='mt-1 text-sm text-zinc-600 dark:text-zinc-400'>
+                                                                    {service.description}
+                                                                </p>
                                                             )}
+                                                            <div className='mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-zinc-500 dark:text-zinc-400'>
+                                                                <span>⏱️ {service.durationMinutes} min</span>
+                                                                {service.bufferMinutes > 0 && (
+                                                                    <span>🔄 {service.bufferMinutes} min buffer</span>
+                                                                )}
+                                                                {service.priceCents !== null && (
+                                                                    <span>
+                                                                        💰 $
+                                                                        {(service.priceCents / 100).toLocaleString(
+                                                                            'es-AR',
+                                                                            {
+                                                                                minimumFractionDigits: 2
+                                                                            }
+                                                                        )}{' '}
+                                                                        {service.currency}
+                                                                    </span>
+                                                                )}
+                                                            </div>
+                                                            {/* Badge de recursos */}
+                                                            <div className='mt-3 flex items-center gap-2'>
+                                                                <AssignResourcesDialog
+                                                                    service={service}
+                                                                    allResources={allResources}
+                                                                    assignedResourceIds={assignedIds}
+                                                                    trigger={
+                                                                        <button
+                                                                            type='button'
+                                                                            className={`inline-flex cursor-pointer items-center gap-1.5 rounded-md px-2 py-1 text-xs font-medium transition-colors ${
+                                                                                resourceCount > 0
+                                                                                    ? 'bg-blue-100 text-blue-800 hover:bg-blue-200 dark:bg-blue-900/30 dark:text-blue-300 dark:hover:bg-blue-900/50'
+                                                                                    : 'bg-amber-100 text-amber-800 hover:bg-amber-200 dark:bg-amber-900/30 dark:text-amber-300 dark:hover:bg-amber-900/50'
+                                                                            }`}
+                                                                        >
+                                                                            <Users className='h-3 w-3' />
+                                                                            {resourceCount > 0
+                                                                                ? `${resourceCount} recurso${
+                                                                                      resourceCount !== 1 ? 's' : ''
+                                                                                  }`
+                                                                                : 'Sin recursos'}
+                                                                        </button>
+                                                                    }
+                                                                />
+                                                            </div>
                                                         </div>
+                                                        <ServiceActions service={service} />
                                                     </div>
-                                                    <ServiceActions service={service} />
                                                 </div>
-                                            </div>
-                                        ))}
+                                            )
+                                        })}
                                     </div>
                                 )}
                             </CardContent>

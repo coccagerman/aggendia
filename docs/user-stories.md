@@ -3,6 +3,7 @@
 ## Convenciones
 
 -   “Recurso” = entidad reservable (persona o activo).
+-   “Servicio” = lo que el cliente reserva (duración/buffer/precio).
 -   “Negocio” = tenant.
 -   Estados de turno mínimos: `SCHEDULED`, `CANCELLED`, `RESCHEDULED` (opcional `COMPLETED`).
 
@@ -131,6 +132,21 @@
 -   Servicio desactivado no aparece públicamente.
 -   Turnos existentes se mantienen visibles en agenda.
 
+### US-3.4 Asignar recursos a un servicio (Service ↔ Resource)
+
+**Como** admin  
+**Quiero** asignar qué recursos atienden cada servicio  
+**Para** controlar con quién/dónde se puede reservar ese servicio.
+
+**Aceptación**
+
+-   Desde el detalle o listado de servicios, puedo definir el set de recursos asignados (multi-select).
+-   Solo permite asignar recursos del mismo negocio y en estado `ACTIVE` (y no deleted).
+-   La asignación es idempotente (reemplaza el set completo).
+-   Si un servicio `ACTIVE` queda sin recursos asignados:
+    -   En la UI pública no debe permitir avanzar a reserva (estado vacío o mensaje “no hay recursos disponibles para este servicio”).
+-   Cambios impactan solo a futuro (no alteran turnos ya creados).
+
 ---
 
 ## Épica 4 — Disponibilidad por recurso
@@ -173,18 +189,26 @@
 -   Lista de servicios activos con nombre/duración/precio (si existe).
 -   Estado vacío si no hay servicios activos.
 
-### US-5.2 Elegir recurso (si aplica)
+> Nota: con mapping Service↔Resource, un servicio “reservable” debería tener al menos 1 recurso ACTIVE asignado.
+> Si el producto decide mostrar servicios aunque no tengan recursos, entonces al entrar debe mostrar estado vacío al intentar avanzar.
+> (Preferencia UX recomendada: no mostrar servicios sin recursos disponibles).
+
+### US-5.2 Elegir recurso (refactor: filtrar por servicio)
 
 **Como** cliente  
-**Quiero** elegir un recurso  
+**Quiero** elegir un recurso disponible para el servicio elegido  
 **Para** decidir con quién/dónde reservar.
 
 **Aceptación**
 
--   Si hay 1 recurso activo: se omite el paso.
+-   La lista de recursos se filtra por:
+    -   recursos `ACTIVE` y no deleted
+    -   **asignados al servicio elegido (Service ↔ Resource)**
+-   Si hay 1 recurso disponible para ese servicio: se omite el paso (auto-selección).
 -   Si hay >1: se muestra listado usando `resource_label`.
+-   Si hay 0 recursos disponibles: estado vacío claro (“No hay {resource_label} disponibles para este servicio”).
 
-### US-5.3 Ver slots disponibles
+### US-5.3 Ver slots disponibles (service + resource)
 
 **Como** cliente  
 **Quiero** ver horarios disponibles reales  
@@ -192,8 +216,11 @@
 
 **Aceptación**
 
--   Slots calculados por disponibilidad semanal y bloqueos.
--   Excluye turnos ya ocupados (considera duración+buffer).
+-   Slots calculados para el par `(serviceId, resourceId)`:
+    -   disponibilidad semanal del recurso
+    -   menos bloqueos puntuales del recurso
+    -   menos turnos ya ocupados (considera duración+buffer del servicio y `occupied_end_at`)
+-   Si el recurso no ofrece el servicio (mapping inexistente): no devuelve slots (error controlado o lista vacía según convención).
 -   Zona horaria consistente (del negocio) y visible.
 
 ### US-5.4 Confirmar reserva (crear turno)
@@ -205,6 +232,11 @@
 **Aceptación**
 
 -   Requiere nombre + (email o teléfono).
+-   Valida antes de crear:
+    -   `service` ACTIVE
+    -   `resource` ACTIVE
+    -   mapping Service ↔ Resource existe
+    -   slot sigue libre
 -   Crea `appointment` `SCHEDULED` si el slot sigue libre.
 -   Si el slot se ocupó entre selección y confirmación: error “ya no disponible”.
 
@@ -234,6 +266,7 @@
 -   Vista día (hoy por defecto), filtro por recurso/todos.
 -   Lista ordenada por hora con datos mínimos.
 -   Solo muestra turnos del negocio.
+-   Turnos existentes se muestran aunque el servicio o recurso se desactiven luego.
 
 ### US-6.2 Cancelar turno
 
@@ -255,7 +288,7 @@
 
 **Aceptación**
 
--   Selector de slots válidos.
+-   Selector de slots válidos (considerando service + resource).
 -   DB impide double-booking en el nuevo slot.
 -   Guarda referencia (ej: `rescheduled_from_id`).
 -   Envía email con nuevo horario.
