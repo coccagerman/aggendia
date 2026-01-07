@@ -32,6 +32,15 @@ export interface LinkedResourceSummary {
 }
 
 /**
+ * Summary of a resource for public UI (minimal data)
+ */
+export interface PublicResourceSummary {
+    id: string
+    name: string
+    type: 'PERSON' | 'ASSET' | null
+}
+
+/**
  * Input for creating a service-resource link
  */
 export interface CreateServiceResourceInput {

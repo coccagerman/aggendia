@@ -2,6 +2,7 @@ import { notFound } from 'next/navigation'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { findBusinessBySlug } from '@/data/repositories/business.repo'
 import { getActiveServicesByBusinessId } from '@/data/repositories/service.repo'
+import { getServiceIdsWithActiveResources } from '@/data/repositories/serviceResource.repo'
 import { prisma } from '@/data/prisma/prisma'
 import { Service } from '@/domain/services/service.types'
 import { formatPrice } from '@/lib/format'
@@ -31,12 +32,17 @@ export default async function PublicBusinessPage({ params }: PageProps) {
     }
 
     // Obtener servicios activos
-    let services: Service[]
-    try {
-        services = await getActiveServicesByBusinessId(prisma, business.id)
-    } catch (error) {
-        console.error('Error al buscar servicios:', error instanceof Error ? error.message : 'UNKNOWN')
-        services = []
+    const services = await getActiveServicesByBusinessId(prisma, business.id)
+
+    // Filtrar servicios que tienen al menos un recurso ACTIVE asignado
+    let bookableServices: Service[] = []
+    if (services.length > 0) {
+        const serviceIdsWithResources = await getServiceIdsWithActiveResources(
+            prisma,
+            business.id,
+            services.map(s => s.id)
+        )
+        bookableServices = services.filter(s => serviceIdsWithResources.has(s.id))
     }
     return (
         <div className='flex min-h-screen flex-col bg-zinc-50 dark:bg-zinc-950'>
@@ -90,7 +96,7 @@ export default async function PublicBusinessPage({ params }: PageProps) {
                                 <CardDescription>Seleccioná el servicio que querés reservar</CardDescription>
                             </CardHeader>
                             <CardContent>
-                                {services.length === 0 ? (
+                                {bookableServices.length === 0 ? (
                                     <div className='flex flex-col items-center justify-center py-12 text-center'>
                                         <div className='rounded-full bg-zinc-100 p-3 dark:bg-zinc-800'>
                                             <svg
@@ -117,9 +123,11 @@ export default async function PublicBusinessPage({ params }: PageProps) {
                                     </div>
                                 ) : (
                                     <div className='space-y-4'>
-                                        {services.map(service => (
+                                        {bookableServices.map(service => (
                                             <ServiceCard
                                                 key={service.id}
+                                                id={service.id}
+                                                slug={slug}
                                                 name={service.name}
                                                 description={service.description}
                                                 durationMinutes={service.durationMinutes}

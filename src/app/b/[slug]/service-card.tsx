@@ -1,16 +1,16 @@
-'use client'
-
+import Link from 'next/link'
 import { Button } from '@/components/ui/button'
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 
 interface ServiceCardProps {
+    id: string
+    slug: string
     name: string
     description: string | null
     durationMinutes: number
     formattedPrice: string
 }
 
-export function ServiceCard({ name, description, durationMinutes, formattedPrice }: ServiceCardProps) {
+export function ServiceCard({ id, slug, name, description, durationMinutes, formattedPrice }: ServiceCardProps) {
     return (
         <div
             className='rounded-lg border border-zinc-200 p-4 transition-colors dark:border-zinc-800'
@@ -28,23 +28,11 @@ export function ServiceCard({ name, description, durationMinutes, formattedPrice
                     </div>
                 </div>
                 <div className='shrink-0'>
-                    <Tooltip>
-                        <TooltipTrigger asChild>
-                            <span tabIndex={0}>
-                                <Button
-                                    variant='default'
-                                    size='sm'
-                                    disabled
-                                    aria-label={`Reservar ${name} - Próximamente`}
-                                >
-                                    Reservar
-                                </Button>
-                            </span>
-                        </TooltipTrigger>
-                        <TooltipContent>
-                            <p>Próximamente</p>
-                        </TooltipContent>
-                    </Tooltip>
+                    <Button asChild variant='default' size='sm' className='cursor-pointer'>
+                        <Link href={`/b/${slug}/service/${id}`} aria-label={`Reservar ${name}`}>
+                            Reservar
+                        </Link>
+                    </Button>
                 </div>
             </div>
         </div>

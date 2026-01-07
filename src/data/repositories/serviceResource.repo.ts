@@ -6,7 +6,8 @@ import { PrismaClient } from '@prisma/client'
 import type {
     ServiceResource,
     ServiceResourceWithResource,
-    LinkedResourceSummary
+    LinkedResourceSummary,
+    PublicResourceSummary
 } from '@/domain/serviceResources/serviceResource.types'
 import { AppError, ServiceResourceErrorCodes, ServiceErrorCodes, ResourceErrorCodes } from '@/domain/common/errors'
 
@@ -429,4 +430,80 @@ export async function setResourceServices(
             where: { businessId, resourceId }
         })
     })
+}
+
+/**
+ * Obtiene recursos ACTIVE asignados a un servicio (para UI pública)
+ * Solo devuelve recursos con status ACTIVE (no INACTIVE ni DELETED)
+ * @param prisma - Prisma client
+ * @param businessId - ID del negocio
+ * @param serviceId - ID del servicio
+ * @returns Lista de PublicResourceSummary ordenada por nombre
+ */
+export async function getActiveResourcesByServiceId(
+    prisma: PrismaClient,
+    businessId: string,
+    serviceId: string
+): Promise<PublicResourceSummary[]> {
+    const links = await prisma.serviceResource.findMany({
+        where: {
+            businessId,
+            serviceId,
+            resource: {
+                status: 'ACTIVE'
+            }
+        },
+        include: {
+            resource: {
+                select: {
+                    id: true,
+                    name: true,
+                    type: true
+                }
+            }
+        },
+        orderBy: {
+            resource: {
+                name: 'asc'
+            }
+        }
+    })
+
+    return links.map(link => ({
+        id: link.resource.id,
+        name: link.resource.name,
+        type: link.resource.type
+    }))
+}
+
+/**
+ * Cuenta servicios que tienen al menos un recurso ACTIVE asignado
+ * Útil para filtrar servicios "reservables" en la UI pública
+ * @param prisma - Prisma client
+ * @param businessId - ID del negocio
+ * @param serviceIds - Lista de IDs de servicios a verificar
+ * @returns Set de serviceIds que tienen recursos activos
+ */
+export async function getServiceIdsWithActiveResources(
+    prisma: PrismaClient,
+    businessId: string,
+    serviceIds: string[]
+): Promise<Set<string>> {
+    if (serviceIds.length === 0) {
+        return new Set()
+    }
+
+    const links = await prisma.serviceResource.findMany({
+        where: {
+            businessId,
+            serviceId: { in: serviceIds },
+            resource: {
+                status: 'ACTIVE'
+            }
+        },
+        select: { serviceId: true },
+        distinct: ['serviceId']
+    })
+
+    return new Set(links.map(link => link.serviceId))
 }

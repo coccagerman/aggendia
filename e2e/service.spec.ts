@@ -178,6 +178,7 @@ test.describe('Service Creation E2E', () => {
         const password = 'TestPassword123!'
         const businessName = `Business ${Date.now()}`
         const serviceName = `Servicio Público ${Date.now()}`
+        const resourceName = `Recurso ${Date.now()}`
 
         // Setup: signup + crear negocio
         await signupUser(page, email, password)
@@ -191,6 +192,15 @@ test.describe('Service Creation E2E', () => {
         const slug = slugMatch ? slugMatch[1] : null
         expect(slug).toBeTruthy()
 
+        // Crear un recurso primero (servicios sin recursos no aparecen en pública)
+        await page
+            .getByRole('link', { name: /crear.*recurso/i })
+            .first()
+            .click()
+        await page.getByLabel(/nombre/i).fill(resourceName)
+        await page.getByRole('button', { name: /crear/i }).click()
+        await expect(page).toHaveURL('/dashboard', { timeout: 10000 })
+
         // Navegar a servicios y crear servicio
         await page
             .getByRole('link', { name: /gestionar/i })
@@ -203,6 +213,13 @@ test.describe('Service Creation E2E', () => {
             .last()
             .click()
         await expect(page.getByText(/servicio creado/i)).toBeVisible({ timeout: 10000 })
+
+        // Asignar recurso al servicio via el badge "Sin recursos"
+        await page.getByRole('button', { name: /sin recursos/i }).click()
+        await expect(page.getByRole('dialog')).toBeVisible({ timeout: 5000 })
+        await page.getByRole('checkbox').first().click()
+        await page.getByRole('button', { name: /guardar/i }).click()
+        await expect(page.getByText(/recursos actualizados/i)).toBeVisible({ timeout: 10000 })
 
         // Ir a la página pública
         await page.goto(`/b/${slug}`)
@@ -450,10 +467,20 @@ test.describe('Service Edit E2E', () => {
         const businessName = `Business ${Date.now()}`
         const originalName = `Public Service ${Date.now()}`
         const updatedName = `Updated Public ${Date.now()}`
+        const resourceName = `Recurso ${Date.now()}`
 
         // Setup
         await signupUser(page, email, password)
         await createBusiness(page, businessName)
+
+        // Crear un recurso primero (servicios sin recursos no aparecen en pública)
+        await page
+            .getByRole('link', { name: /crear.*recurso/i })
+            .first()
+            .click()
+        await page.getByLabel(/nombre/i).fill(resourceName)
+        await page.getByRole('button', { name: /crear/i }).click()
+        await expect(page).toHaveURL('/dashboard', { timeout: 10000 })
 
         // Crear servicio
         await page
@@ -469,8 +496,12 @@ test.describe('Service Edit E2E', () => {
             .click()
         await expect(page.getByText(/servicio creado/i)).toBeVisible({ timeout: 10000 })
 
-        // Esperar a que el servicio aparezca en el listado del dashboard
-        await expect(page.getByText(originalName)).toBeVisible({ timeout: 10000 })
+        // Asignar recurso al servicio via el badge "Sin recursos"
+        await page.getByRole('button', { name: /sin recursos/i }).click()
+        await expect(page.getByRole('dialog')).toBeVisible({ timeout: 5000 })
+        await page.getByRole('checkbox').first().click()
+        await page.getByRole('button', { name: /guardar/i }).click()
+        await expect(page.getByText(/recursos actualizados/i)).toBeVisible({ timeout: 10000 })
 
         // Obtener slug del negocio desde el link público
         await page.goto('/dashboard')
@@ -493,8 +524,11 @@ test.describe('Service Edit E2E', () => {
             .getByRole('link', { name: /gestionar/i })
             .first()
             .click()
+        // Esperar a que la página termine de cargar para evitar re-renders
+        await page.waitForLoadState('networkidle')
         await page.getByRole('button', { name: /abrir menú/i }).click()
         await page.getByRole('menuitem', { name: /editar/i }).click()
+        await expect(page.getByRole('dialog')).toBeVisible({ timeout: 5000 })
         await page.getByLabel(/nombre del servicio/i).fill(updatedName)
         await page.getByLabel(/precio/i).clear()
         await page.getByLabel(/precio/i).fill('200')
@@ -515,11 +549,22 @@ test.describe('Service Toggle Active E2E', () => {
         const password = 'TestPassword123!'
         const businessName = `Business ${Date.now()}`
         const serviceName = `Toggle Service ${Date.now()}`
+        const resourceName = `Recurso ${Date.now()}`
 
-        // Setup: signup + crear negocio + servicio
+        // Setup: signup + crear negocio
         await signupUser(page, email, password)
         await createBusiness(page, businessName)
 
+        // Crear un recurso primero (servicios sin recursos no aparecen en pública)
+        await page
+            .getByRole('link', { name: /crear.*recurso/i })
+            .first()
+            .click()
+        await page.getByLabel(/nombre/i).fill(resourceName)
+        await page.getByRole('button', { name: /crear/i }).click()
+        await expect(page).toHaveURL('/dashboard', { timeout: 10000 })
+
+        // Crear servicio
         await page
             .getByRole('link', { name: /gestionar/i })
             .first()
@@ -531,7 +576,13 @@ test.describe('Service Toggle Active E2E', () => {
             .last()
             .click()
         await expect(page.getByText(/servicio creado/i)).toBeVisible({ timeout: 10000 })
-        await expect(page.getByText(serviceName)).toBeVisible({ timeout: 10000 })
+
+        // Asignar recurso al servicio via el badge "Sin recursos"
+        await page.getByRole('button', { name: /sin recursos/i }).click()
+        await expect(page.getByRole('dialog')).toBeVisible({ timeout: 5000 })
+        await page.getByRole('checkbox').first().click()
+        await page.getByRole('button', { name: /guardar/i }).click()
+        await expect(page.getByText(/recursos actualizados/i)).toBeVisible({ timeout: 10000 })
 
         // Obtener slug
         await page.goto('/dashboard')
@@ -553,6 +604,8 @@ test.describe('Service Toggle Active E2E', () => {
             .getByRole('link', { name: /gestionar/i })
             .first()
             .click()
+        // Esperar a que la página termine de cargar para evitar re-renders
+        await page.waitForLoadState('networkidle')
         await expect(page.getByText(serviceName)).toBeVisible({ timeout: 10000 })
         await page.getByRole('button', { name: /abrir menú/i }).click()
         await page.getByRole('menuitem', { name: /desactivar/i }).click()
@@ -580,11 +633,22 @@ test.describe('Service Toggle Active E2E', () => {
         const password = 'TestPassword123!'
         const businessName = `Business ${Date.now()}`
         const serviceName = `Reactivate Service ${Date.now()}`
+        const resourceName = `Recurso ${Date.now()}`
 
-        // Setup: crear servicio y desactivarlo
+        // Setup: crear negocio
         await signupUser(page, email, password)
         await createBusiness(page, businessName)
 
+        // Crear un recurso primero (servicios sin recursos no aparecen en pública)
+        await page
+            .getByRole('link', { name: /crear.*recurso/i })
+            .first()
+            .click()
+        await page.getByLabel(/nombre/i).fill(resourceName)
+        await page.getByRole('button', { name: /crear/i }).click()
+        await expect(page).toHaveURL('/dashboard', { timeout: 10000 })
+
+        // Crear servicio
         await page
             .getByRole('link', { name: /gestionar/i })
             .first()
@@ -597,8 +661,14 @@ test.describe('Service Toggle Active E2E', () => {
             .click()
         await expect(page.getByText(/servicio creado/i)).toBeVisible({ timeout: 10000 })
 
-        // Desactivar
-        await expect(page.getByText(serviceName)).toBeVisible({ timeout: 10000 })
+        // Asignar recurso al servicio via el badge "Sin recursos"
+        await page.getByRole('button', { name: /sin recursos/i }).click()
+        await expect(page.getByRole('dialog')).toBeVisible({ timeout: 5000 })
+        await page.getByRole('checkbox').first().click()
+        await page.getByRole('button', { name: /guardar/i }).click()
+        await expect(page.getByText(/recursos actualizados/i)).toBeVisible({ timeout: 10000 })
+
+        // Volver al listado de servicios y desactivar
         await page.getByRole('button', { name: /abrir menú/i }).click()
         await page.getByRole('menuitem', { name: /desactivar/i }).click()
         await expect(page.getByText(/dejará de aparecer/i)).toBeVisible()
@@ -631,6 +701,8 @@ test.describe('Service Toggle Active E2E', () => {
             .getByRole('link', { name: /gestionar/i })
             .first()
             .click()
+        // Esperar a que la página termine de cargar para evitar re-renders
+        await page.waitForLoadState('networkidle')
         await expect(page.getByText(serviceName)).toBeVisible({ timeout: 10000 })
         await page.getByRole('button', { name: /abrir menú/i }).click()
         await page.getByRole('menuitem', { name: /activar/i }).click()
