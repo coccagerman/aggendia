@@ -1,18 +1,26 @@
-# ADR-0001 — Stack tecnológico del MVP
+# ADR-0001 — Stack tecnológico y modelo base de turnos del MVP
 
 **Estado:** Aprobado  
 **Fecha:** 2026-01-01
 
 ## Contexto
 
-Construimos una app de turnos/reservas multi-tenant con:
+Construimos una aplicación web de turnos/reservas **multi-tenant**, orientada a pequeños y medianos negocios, con:
 
--   UI pública (clientes) + dashboard (negocios)
--   **Servicios** (catálogo: duración/buffer/precio)
--   **Recursos reservables** (persona/activo)
--   **Relación Service ↔ Resource** (un servicio puede ser ofrecido por uno o varios recursos; y un recurso puede ofrecer varios servicios)
--   Disponibilidad semanal por recurso, bloqueos puntuales, turnos/reservas
--   Anti double-booking y notificaciones por email (MVP)
+-   UI pública (clientes) + dashboard privado (negocios)
+-   **Servicios** (catálogo: duración, periodicidad de turnos y precio)
+-   **Recursos reservables** (persona o activo)
+-   **Relación Service ↔ Resource**  
+    (un servicio puede ser ofrecido por uno o varios recursos; y un recurso puede ofrecer varios servicios)
+-   Disponibilidad semanal por recurso, bloqueos puntuales y turnos/reservas
+-   Prevención de double-booking y notificaciones por email (MVP)
+
+Los **servicios** definen:
+
+-   la **duración efectiva** del turno
+-   la **periodicidad de turnos**, es decir, cada cuánto tiempo se ofrece un nuevo inicio de turno
+
+Este enfoque prioriza un modelo operativo **simple, explícito y predecible**, evitando configuraciones técnicas difíciles de razonar para los negocios.
 
 Prioridades:
 
@@ -50,7 +58,8 @@ Prioridades:
 
 ### ORM
 
--   **Prisma** (migrations + cliente tipado)
+-   **Prisma**
+    -   Migrations + cliente tipado
 -   Constraints avanzadas (anti double-booking) via **SQL en migrations** si aplica
 
 ### Auth
@@ -72,9 +81,12 @@ Prioridades:
 -   Menos piezas: un repo/deploy para UI+API.
 -   DX alto: TS end-to-end, Prisma, componentes rápidos.
 -   Supabase Auth reduce riesgo y tiempo en seguridad.
+-   Modelo de turnos basado en **slots discretos**, con cálculo de disponibilidad más simple y comportamiento predecible.
 
 ### Trade-offs
 
+-   Se adopta una **periodicidad fija por servicio** para la oferta de turnos.
+-   No se modelan buffers variables arbitrarios entre turnos en el MVP.
 -   Jobs/recordatorios requieren estrategia (cron/worker).
 -   Cuidar conexiones y performance DB con serverless.
 

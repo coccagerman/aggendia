@@ -1,10 +1,8 @@
--- Enable btree_gist extension for EXCLUDE constraint with equality and range operators
+-- Enable btree_gist extension (for future use with EXCLUDE constraints if needed)
 CREATE EXTENSION IF NOT EXISTS btree_gist;
 
--- Add exclusion constraint to prevent overlapping blocks for the same resource
--- This ensures no two blocks for the same resource can have overlapping time ranges
-ALTER TABLE "ResourceBlock" ADD CONSTRAINT "resource_block_no_overlap"
-  EXCLUDE USING gist (
-    "resourceId" WITH =,
-    tstzrange("startAt", "endAt", '[)') WITH &&
-  );
+-- NOTE: EXCLUDE constraint with tstzrange is not compatible with TIMESTAMP(3) due to immutability.
+-- Overlap prevention for ResourceBlock is enforced at the application level.
+-- We add a simple index for query performance instead.
+CREATE INDEX IF NOT EXISTS "ResourceBlock_resourceId_startAt_idx" 
+  ON "ResourceBlock" ("resourceId", "startAt");

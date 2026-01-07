@@ -240,16 +240,27 @@
 -   Crea `appointment` `SCHEDULED` si el slot sigue libre.
 -   Si el slot se ocupó entre selección y confirmación: error “ya no disponible”.
 
-### US-5.5 Confirmación por email
+### US-5.5 Refactor de modelo de turnos: periodicidad en lugar de buffer
 
-**Como** cliente  
-**Quiero** recibir confirmación por email  
-**Para** tener el turno registrado.
+**Como** sistema  
+**Quiero** que los turnos se calculen usando una periodicidad fija por servicio  
+**Para** ofrecer horarios claros, predecibles y alineados al modelo mental del negocio.
 
 **Aceptación**
 
--   Email con resumen: negocio, servicio, recurso, fecha/hora, dirección/instrucciones.
--   Si falla envío: el turno queda creado, se registra error para reintento.
+-   El servicio define:
+    -   duración del turno
+    -   periodicidad de turnos (intervalo entre inicios)
+-   Por defecto:
+    -   `periodicidad = duración`
+-   Los slots disponibles:
+    -   se generan avanzando de a `periodicidad`
+    -   ocupan el intervalo `[start_at, start_at + periodicidad)`
+-   Se elimina el concepto de _buffer_ como configuración principal.
+-   Turnos ya creados:
+    -   no se recalculan
+    -   conservan `end_at` y `occupied_end_at` persistidos.
+-   El anti double-booking sigue funcionando usando `occupied_end_at`.
 
 ---
 
@@ -276,9 +287,8 @@
 
 **Aceptación**
 
--   Cambia estado a `CANCELLED` (con motivo opcional).
--   Envía email de cancelación.
--   Slot queda disponible nuevamente.
+-   Cambia estado a `CANCELLED`.
+-   El slot vuelve a estar disponible.
 
 ### US-6.3 Reprogramar turno
 
@@ -288,10 +298,9 @@
 
 **Aceptación**
 
--   Selector de slots válidos (considerando service + resource).
+-   Selector de slots válidos.
 -   DB impide double-booking en el nuevo slot.
--   Guarda referencia (ej: `rescheduled_from_id`).
--   Envía email con nuevo horario.
+-   Guarda referencia (`rescheduled_from_id`).
 
 ### US-6.4 Marcar completado (opcional V1)
 
@@ -306,9 +315,27 @@
 
 ---
 
-## Épica 7 — Recordatorios
+## Épica 7 — Notificaciones y mailing
 
-### US-7.1 Configurar recordatorios
+### US-7.1 Confirmación de reserva por email
+
+**Como** cliente  
+**Quiero** recibir una confirmación por email  
+**Para** tener el turno registrado.
+
+**Aceptación**
+
+-   Email con resumen:
+    -   negocio
+    -   servicio
+    -   recurso
+    -   fecha/hora
+    -   dirección/instrucciones
+-   Si falla el envío:
+    -   el turno queda creado
+    -   se registra el error para reintento.
+
+### US-7.2 Configurar recordatorios
 
 **Como** admin  
 **Quiero** activar/desactivar recordatorios y offsets  
@@ -319,7 +346,7 @@
 -   Toggle enabled.
 -   Selección simple: 24h y/o 2h.
 
-### US-7.2 Enviar recordatorios (sistema)
+### US-7.3 Enviar recordatorios automáticos (sistema)
 
 **Como** sistema  
 **Quiero** enviar recordatorios automáticos  
@@ -329,7 +356,7 @@
 
 -   Solo a turnos `SCHEDULED`.
 -   No duplicar envíos (idempotencia).
--   Registrar `SENT/FAILED` para monitoreo.
+-   Registrar `SENT` / `FAILED` para monitoreo.
 
 ---
 

@@ -51,6 +51,8 @@ model Business {
   resources         Resource[]
   services          Service[]
   serviceResources  ServiceResource[]
+  customers         Customer[]
+  appointments      Appointment[]
 }
 
 model BusinessMember {
@@ -80,6 +82,7 @@ model Resource {
   availabilityRules AvailabilityRule[]
   blocks            ResourceBlock[]
   serviceResources  ServiceResource[]
+  appointments      Appointment[]
 
   @@unique([businessId, name])
   @@index([businessId])
@@ -116,6 +119,7 @@ model Service {
 
   business         Business          @relation(fields: [businessId], references: [id], onDelete: Cascade)
   serviceResources ServiceResource[]
+  appointments     Appointment[]
 
   @@unique([businessId, name])
   @@index([businessId])
@@ -151,4 +155,64 @@ model ServiceResource {
   @@unique([serviceId, resourceId])
   @@index([businessId, serviceId])
   @@index([businessId, resourceId])
+}
+
+// ============================================================================
+// US-5.4: Customers & Appointments
+// ============================================================================
+
+enum AppointmentStatus {
+  SCHEDULED
+  CANCELLED
+  RESCHEDULED
+  COMPLETED
+}
+
+model Customer {
+  id         String   @id @default(uuid())
+  businessId String
+  fullName   String
+  email      String?
+  phone      String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  business     Business      @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  appointments Appointment[]
+
+  @@index([businessId])
+  @@index([businessId, email])
+  @@index([businessId, phone])
+  // Note: Unique constraint on (businessId, email) WHERE email IS NOT NULL
+  // is defined in migration 20260107100000_customer_unique_email
+}
+
+model Appointment {
+  id                 String            @id @default(uuid())
+  businessId         String
+  resourceId         String
+  serviceId          String
+  customerId         String
+  status             AppointmentStatus @default(SCHEDULED)
+  startAt            DateTime          // timestamptz - inicio del turno (UTC)
+  endAt              DateTime          // timestamptz - fin del turno (UTC) = startAt + duration
+  occupiedEndAt      DateTime          // timestamptz - fin ocupación (UTC) = endAt + buffer
+  notes              String?
+  cancellationReason String?
+  createdByUserId    String?           // null si fue creado por cliente público
+  rescheduledFromId  String?           // referencia a appointment original si fue reprogramado
+  createdAt          DateTime          @default(now())
+  updatedAt          DateTime          @updatedAt
+
+  business         Business     @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  resource         Resource     @relation(fields: [resourceId], references: [id], onDelete: Cascade)
+  service          Service      @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  customer         Customer     @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  rescheduledFrom  Appointment? @relation("RescheduledAppointments", fields: [rescheduledFromId], references: [id])
+  rescheduledTo    Appointment[] @relation("RescheduledAppointments")
+
+  @@index([businessId, startAt])
+  @@index([resourceId, startAt])
+  @@index([customerId])
+  @@index([status])
 }

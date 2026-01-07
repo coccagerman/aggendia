@@ -12,6 +12,7 @@ import {
     MAX_RANGES_PER_DAY
 } from './availability.types'
 import { AppError, AvailabilityErrorCodes } from '@/domain/common/errors'
+import { toZonedTime } from 'date-fns-tz'
 
 export interface ValidationResult {
     valid: boolean
@@ -110,4 +111,56 @@ export function validateAndNormalizeRanges(ranges: AvailabilityRangeInput[]): Av
     }
 
     return normalized
+}
+
+/**
+ * Check if a time range falls within availability rules
+ * Used to validate bookings against resource availability
+ *
+ * @param rules - Availability rules for the resource
+ * @param startAt - Appointment start time (Date)
+ * @param endAt - Appointment end time (Date)
+ * @param timezone - Business timezone for day-of-week calculation
+ * @returns true if the entire appointment fits within availability
+ */
+export function isWithinAvailability(
+    rules: AvailabilityRangeInput[],
+    startAt: Date,
+    endAt: Date,
+    timezone: string
+): boolean {
+    // Convert to business timezone to get correct day of week
+    const zonedStart = toZonedTime(startAt, timezone)
+    const zonedEnd = toZonedTime(endAt, timezone)
+
+    // Get day of week (0-6, Sunday=0)
+    const dayOfWeek = zonedStart.getDay() as DayOfWeek
+
+    // Get minutes since midnight in business timezone
+    const startMinutes = zonedStart.getHours() * 60 + zonedStart.getMinutes()
+    const endMinutes = zonedEnd.getHours() * 60 + zonedEnd.getMinutes()
+
+    // Handle cross-midnight appointments (not supported for now - must be same day)
+    if (zonedStart.toDateString() !== zonedEnd.toDateString()) {
+        // For simplicity, reject cross-midnight appointments
+        // This could be enhanced in the future
+        return false
+    }
+
+    // Find rules for this day
+    const dayRules = rules.filter(r => r.dayOfWeek === dayOfWeek)
+
+    if (dayRules.length === 0) {
+        // No availability on this day
+        return false
+    }
+
+    // Check if the entire appointment fits within any availability window
+    for (const rule of dayRules) {
+        if (startMinutes >= rule.startMinutes && endMinutes <= rule.endMinutes) {
+            return true
+        }
+    }
+
+    return false
 }

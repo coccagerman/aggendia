@@ -39,15 +39,22 @@ Pequeños negocios coordinan turnos por WhatsApp/llamadas/Instagram y sufren:
 
 Lo que el cliente “elige reservar”. Define:
 
--   duración
--   buffer (minutos entre turnos)
+-   **duración del turno**
+-   **periodicidad de turnos** (cada cuánto tiempo se ofrece un nuevo turno)
 -   precio (opcional)
 
+Por defecto, la periodicidad es igual a la duración del servicio, aunque puede configurarse de forma independiente.
+
 Ejemplos: “Corte”, “Color”, “Consulta”, “Cambio de aceite”.
+
+Este modelo refleja cómo los negocios organizan su agenda en la práctica:
+
+> “Atiendo turnos cada 30 / 45 / 60 minutos”.
 
 ### Recurso
 
 Cualquier cosa “reservable” con agenda propia (persona o activo).
+
 Ejemplos:
 
 -   Peluquería: “Peluquero 1”, “Peluquero 2”
@@ -55,7 +62,8 @@ Ejemplos:
 -   Consultorio: “Consultorio 3”
 -   Taller: “Box 1”, “Elevador 1”
 
-UX: cada negocio define un **nombre visible** para “Recurso” (ej: “Profesional”, “Cancha”, “Consultorio”, “Box”).
+UX: cada negocio define un **nombre visible** para “Recurso”  
+(ej: “Profesional”, “Cancha”, “Consultorio”, “Box”).
 
 ### Relación Servicio ↔ Recurso (MVP)
 
@@ -71,17 +79,22 @@ Regla: un servicio solo se ofrece públicamente si está activo **y** tiene al m
 -   Reservas simples en pocos pasos: servicio → recurso (si aplica) → fecha/hora → confirmar.
 -   Link público compartible del negocio.
 -   Agenda clara por recurso (día/semana).
--   Reglas simples (duración/buffer/política de cancelación).
+-   Reglas simples y comprensibles:
+    -   duración del turno
+    -   periodicidad de turnos
+    -   política de cancelación
 -   Recordatorios automáticos (MVP: email).
--   Configuración flexible sin complejidad: asignar servicios a recursos con un selector simple.
+-   Configuración flexible sin complejidad técnica:
+    -   asignar servicios a recursos con un selector simple
+    -   definir cómo se organiza la agenda en intervalos claros
 
 ## 6. Objetivos del MVP
 
 1. Un negocio configura y publica turnos sin ayuda técnica.
-2. Un cliente reserva online simple y rápido.
-3. Evitar **double-booking** (dos reservas para mismo recurso y horario).
+2. Un cliente reserva online de forma simple y rápida.
+3. Evitar **double-booking** (dos reservas para el mismo recurso y horario).
 4. El negocio puede cancelar/reprogramar y el cliente queda notificado.
-5. Agenda usable desde el celular.
+5. Agenda usable y clara desde el celular.
 
 ## 7. Alcance V1
 
@@ -97,7 +110,11 @@ Regla: un servicio solo se ofrece públicamente si está activo **y** tiene al m
 
 ### C) Servicios
 
--   CRUD de servicios (duración, buffer opcional, precio opcional).
+-   CRUD de servicios:
+    -   duración del turno
+    -   periodicidad de turnos
+    -   precio opcional
+-   La periodicidad de turnos es configurable y, por defecto, igual a la duración.
 -   Servicios activos visibles públicamente **solo si** tienen recursos activos asignados.
 
 ### D) Asignación Servicio ↔ Recurso (MVP)
@@ -116,7 +133,11 @@ Regla: un servicio solo se ofrece públicamente si está activo **y** tiene al m
 
 ### F) Reservas (cliente)
 
--   Página pública: elegir servicio → recurso (si aplica) → slot → confirmar datos.
+-   Página pública: elegir servicio → recurso (si aplica) → horario disponible → confirmar datos.
+-   Los horarios ofrecidos respetan:
+    -   la disponibilidad del recurso
+    -   la duración del servicio
+    -   la periodicidad definida para ese servicio
 -   Reglas:
     -   recursos ofrecidos = activos y asignados al servicio elegido
     -   si hay 1 recurso disponible para ese servicio, se omite el paso (auto-selección)
@@ -126,12 +147,13 @@ Regla: un servicio solo se ofrece públicamente si está activo **y** tiene al m
 ### G) Agenda (negocio)
 
 -   Vista de agenda por día con filtro por recurso.
--   Acciones: cancelar, reprogramar (confirmar opcional).
+-   Turnos mostrados en intervalos claros y consistentes.
+-   Acciones: cancelar, reprogramar (confirmación opcional).
 
 ### H) Notificaciones
 
 -   Email de confirmación.
--   Recordatorios 24h/2h antes (config simple on/off y offsets).
+-   Recordatorios 24h y/o 2h antes (config simple on/off y offsets).
 
 ## 8. Fuera de alcance (por ahora)
 
@@ -143,14 +165,16 @@ Regla: un servicio solo se ofrece públicamente si está activo **y** tiene al m
 -   Clases grupales con cupos (capacidad > 1).
 -   Automatizaciones avanzadas (cobro no-show, reglas por cliente).
 -   WhatsApp automático si frena el MVP por costos/aprobaciones.
--   Reglas avanzadas de asignación (skills por recurso, precios distintos por recurso, etc.). _(Podría venir después, sobre la misma relación Service↔Resource.)_
+-   Reglas avanzadas de asignación  
+    (skills por recurso, precios distintos por recurso, etc.).  
+    _(Podrían incorporarse más adelante sobre la misma relación Servicio ↔ Recurso.)_
 
 ## 9. Requisitos no funcionales
 
 -   Mobile-first.
 -   Confiable: impedir double-booking (idealmente a nivel DB).
 -   Seguro: aislamiento multi-tenant por negocio.
--   Observabilidad mínima: logging + tracking de errores.
+-   Observabilidad mínima: logging y tracking de errores.
 
 ## 10. Métricas de éxito (MVP)
 
@@ -158,4 +182,4 @@ Regla: un servicio solo se ofrece públicamente si está activo **y** tiene al m
 -   Conversión del link público a reserva.
 -   No-show rate.
 -   Retención mensual de negocios.
--   Baja fricción en onboarding (pocas consultas/errores).
+-   Baja fricción en onboarding (pocas consultas y errores).
