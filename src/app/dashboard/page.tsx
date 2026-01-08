@@ -386,6 +386,33 @@ export default async function DashboardPage() {
                                                                     </ul>
                                                                 )}
                                                             </div>
+
+                                                            {/* Acceso rápido a Agenda */}
+                                                            <div className='mt-4 border-t border-zinc-200 pt-4 dark:border-zinc-700'>
+                                                                <div className='flex items-center justify-between'>
+                                                                    <h4 className='text-sm font-medium text-zinc-700 dark:text-zinc-300'>
+                                                                        Agenda
+                                                                    </h4>
+                                                                    <Tooltip>
+                                                                        <TooltipTrigger asChild>
+                                                                            <Button asChild size='sm' variant='outline'>
+                                                                                <Link
+                                                                                    href={`/dashboard/business/${business.id}/agenda`}
+                                                                                >
+                                                                                    Ver Agenda
+                                                                                </Link>
+                                                                            </Button>
+                                                                        </TooltipTrigger>
+                                                                        <TooltipContent>
+                                                                            <p>Mirá los turnos del día</p>
+                                                                        </TooltipContent>
+                                                                    </Tooltip>
+                                                                </div>
+                                                                <p className='mt-2 text-sm text-zinc-500 dark:text-zinc-400'>
+                                                                    Visualizá y organizá los turnos por día y{' '}
+                                                                    {business.resourceLabel.toLowerCase()}.
+                                                                </p>
+                                                            </div>
                                                         </div>
                                                         <span className='rounded-full bg-blue-100 px-2 py-1 text-xs font-medium text-blue-800 dark:bg-blue-900/30 dark:text-blue-300'>
                                                             {business.role}

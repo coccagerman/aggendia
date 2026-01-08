@@ -89,3 +89,61 @@ export function formatDateTimeInTimezone(isoString: string, timezone: string): s
         minute: '2-digit'
     })
 }
+
+/**
+ * Gets the start and end of a day in UTC, given a local date string and timezone.
+ * Useful for querying appointments that fall within a specific day in the business timezone.
+ *
+ * @param dateStr - Date string in YYYY-MM-DD format
+ * @param timezone - IANA timezone string (e.g., 'America/Argentina/Buenos_Aires')
+ * @returns Object with start and end Date objects in UTC
+ */
+export function getDayRangeInUTC(dateStr: string, timezone: string): { start: Date; end: Date } {
+    const [year, month, day] = dateStr.split('-').map(Number)
+
+    // Create approximate dates for start (00:00) and end (23:59:59.999)
+    const startApprox = new Date(Date.UTC(year, month - 1, day, 0, 0, 0))
+    const endApprox = new Date(Date.UTC(year, month - 1, day, 23, 59, 59, 999))
+
+    // Get offsets for both start and end of day (may differ due to DST)
+    const startOffset = getTimezoneOffsetMinutes(timezone, startApprox)
+    const endOffset = getTimezoneOffsetMinutes(timezone, endApprox)
+
+    // Calculate UTC times: local time - offset
+    const startUTC = new Date(Date.UTC(year, month - 1, day, 0, 0, 0) - startOffset * 60 * 1000)
+    const endUTC = new Date(Date.UTC(year, month - 1, day + 1, 0, 0, 0) - endOffset * 60 * 1000)
+
+    return { start: startUTC, end: endUTC }
+}
+
+/**
+ * Gets today's date string in YYYY-MM-DD format for a given timezone.
+ *
+ * @param timezone - IANA timezone string
+ * @returns Date string in YYYY-MM-DD format
+ */
+export function getTodayInTimezone(timezone: string): string {
+    const now = new Date()
+    const formatter = new Intl.DateTimeFormat('en-CA', {
+        timeZone: timezone,
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit'
+    })
+    return formatter.format(now)
+}
+
+/**
+ * Validates a date string is in YYYY-MM-DD format and represents a valid date.
+ *
+ * @param dateStr - Date string to validate
+ * @returns True if valid, false otherwise
+ */
+export function isValidDateString(dateStr: string): boolean {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+        return false
+    }
+    const [year, month, day] = dateStr.split('-').map(Number)
+    const date = new Date(year, month - 1, day)
+    return date.getFullYear() === year && date.getMonth() === month - 1 && date.getDate() === day
+}

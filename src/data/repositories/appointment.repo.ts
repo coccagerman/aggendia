@@ -211,3 +211,54 @@ export async function updateAppointmentStatus(
         }
     })
 }
+
+/**
+ * Get appointments for a business on a specific day
+ * Optionally filter by resourceId
+ * Returns all statuses (SCHEDULED, CANCELLED, etc.) for admin visibility
+ * Excludes appointments with soft-deleted resources or services
+ *
+ * @param prisma - Prisma client
+ * @param businessId - Business ID (multi-tenant filter)
+ * @param dayStart - Start of day in UTC
+ * @param dayEnd - End of day in UTC (exclusive)
+ * @param resourceId - Optional resource ID filter
+ * @returns Appointments with relations
+ */
+export async function getAppointmentsByBusinessAndDay(
+    prisma: PrismaClient,
+    businessId: string,
+    dayStart: Date,
+    dayEnd: Date,
+    resourceId?: string
+): Promise<AppointmentWithRelations[]> {
+    return prisma.appointment.findMany({
+        where: {
+            businessId,
+            startAt: { gte: dayStart, lt: dayEnd },
+            ...(resourceId ? { resourceId } : {}),
+            // Exclude appointments with soft-deleted resources or services
+            resource: {
+                status: { not: 'DELETED' }
+            },
+            service: {
+                status: { not: 'DELETED' }
+            }
+        },
+        include: {
+            service: {
+                select: { id: true, name: true }
+            },
+            resource: {
+                select: { id: true, name: true }
+            },
+            customer: {
+                select: { id: true, fullName: true, email: true, phone: true }
+            },
+            business: {
+                select: { id: true, name: true, timezone: true }
+            }
+        },
+        orderBy: { startAt: 'asc' }
+    })
+}

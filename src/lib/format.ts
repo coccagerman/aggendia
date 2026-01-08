@@ -3,6 +3,46 @@
  */
 
 /**
+ * Formats a time range from two Date objects in a specific timezone.
+ * Output format: "HH:mm - HH:mm"
+ *
+ * @param startAt - Start Date object (UTC)
+ * @param endAt - End Date object (UTC)
+ * @param timezone - IANA timezone string
+ * @returns Formatted time range string (e.g., "09:00 - 10:00")
+ */
+export function formatAppointmentTime(startAt: Date, endAt: Date, timezone: string): string {
+    const formatTime = (date: Date) =>
+        date.toLocaleTimeString('es-AR', {
+            timeZone: timezone,
+            hour: '2-digit',
+            minute: '2-digit',
+            hour12: false
+        })
+
+    return `${formatTime(startAt)} - ${formatTime(endAt)}`
+}
+
+/**
+ * Formats a date to a readable day string in a specific timezone.
+ * Output format: "Miércoles 8 de enero de 2026"
+ *
+ * @param date - Date object (UTC) or ISO string
+ * @param timezone - IANA timezone string
+ * @returns Formatted date string
+ */
+export function formatDateForAgenda(date: Date | string, timezone: string): string {
+    const d = typeof date === 'string' ? new Date(date) : date
+    return d.toLocaleDateString('es-AR', {
+        timeZone: timezone,
+        weekday: 'long',
+        day: 'numeric',
+        month: 'long',
+        year: 'numeric'
+    })
+}
+
+/**
  * Formatea un precio en centavos a string legible.
  *
  * @param priceCents - Precio en centavos (ej: 15050 para $150.50). Si es null, retorna texto alternativo.

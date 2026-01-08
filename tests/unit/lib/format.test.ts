@@ -1,10 +1,10 @@
 /**
  * Unit tests for format utility functions.
- * Tests formatPrice with various inputs.
+ * Tests formatPrice and formatAppointmentTime with various inputs.
  */
 
 import { describe, it, expect } from 'vitest'
-import { formatPrice } from '@/lib/format'
+import { formatPrice, formatAppointmentTime, formatDateForAgenda } from '@/lib/format'
 
 describe('formatPrice', () => {
     describe('with valid price', () => {
@@ -88,6 +88,94 @@ describe('formatPrice', () => {
             expect(result).toContain('100')
             expect(result).toContain('000')
             expect(result).toContain('ARS')
+        })
+    })
+})
+
+describe('formatAppointmentTime', () => {
+    describe('basic formatting', () => {
+        it('should format time range in Argentina timezone', () => {
+            // 12:00 UTC to 13:00 UTC = 09:00 to 10:00 in Argentina (UTC-3)
+            const startAt = new Date('2026-01-15T12:00:00Z')
+            const endAt = new Date('2026-01-15T13:00:00Z')
+            const result = formatAppointmentTime(startAt, endAt, 'America/Argentina/Buenos_Aires')
+
+            expect(result).toBe('09:00 - 10:00')
+        })
+
+        it('should format time range in UTC', () => {
+            const startAt = new Date('2026-01-15T09:00:00Z')
+            const endAt = new Date('2026-01-15T10:30:00Z')
+            const result = formatAppointmentTime(startAt, endAt, 'UTC')
+
+            expect(result).toBe('09:00 - 10:30')
+        })
+
+        it('should format time range in positive offset timezone (Madrid)', () => {
+            // 08:00 UTC to 09:00 UTC = 09:00 to 10:00 in Madrid (UTC+1 in winter)
+            const startAt = new Date('2026-01-15T08:00:00Z')
+            const endAt = new Date('2026-01-15T09:00:00Z')
+            const result = formatAppointmentTime(startAt, endAt, 'Europe/Madrid')
+
+            expect(result).toBe('09:00 - 10:00')
+        })
+
+        it('should handle time range crossing midnight in display timezone', () => {
+            // 02:00 UTC to 03:00 UTC = 23:00 to 00:00 in Argentina (UTC-3)
+            const startAt = new Date('2026-01-15T02:00:00Z')
+            const endAt = new Date('2026-01-15T03:00:00Z')
+            const result = formatAppointmentTime(startAt, endAt, 'America/Argentina/Buenos_Aires')
+
+            expect(result).toBe('23:00 - 00:00')
+        })
+
+        it('should handle half-hour slots', () => {
+            const startAt = new Date('2026-01-15T12:30:00Z')
+            const endAt = new Date('2026-01-15T13:00:00Z')
+            const result = formatAppointmentTime(startAt, endAt, 'America/Argentina/Buenos_Aires')
+
+            expect(result).toBe('09:30 - 10:00')
+        })
+    })
+})
+
+describe('formatDateForAgenda', () => {
+    describe('basic formatting', () => {
+        it('should format date with weekday, day, month and year', () => {
+            const date = new Date('2026-01-15T12:00:00Z')
+            const result = formatDateForAgenda(date, 'America/Argentina/Buenos_Aires')
+
+            // Should contain day name (jueves), day number (15), month (enero), year (2026)
+            expect(result.toLowerCase()).toContain('jueves')
+            expect(result).toContain('15')
+            expect(result.toLowerCase()).toContain('enero')
+            expect(result).toContain('2026')
+        })
+
+        it('should handle string date input', () => {
+            const isoString = '2026-01-15T12:00:00Z'
+            const result = formatDateForAgenda(isoString, 'America/Argentina/Buenos_Aires')
+
+            expect(result.toLowerCase()).toContain('jueves')
+            expect(result).toContain('15')
+        })
+
+        it('should show correct day when date changes due to timezone', () => {
+            // 02:00 UTC on Jan 15 = 23:00 on Jan 14 in Argentina (UTC-3)
+            const date = new Date('2026-01-15T02:00:00Z')
+            const result = formatDateForAgenda(date, 'America/Argentina/Buenos_Aires')
+
+            // Should show January 14, not 15
+            expect(result).toContain('14')
+            expect(result.toLowerCase()).toContain('miércoles') // Wednesday
+        })
+
+        it('should handle UTC timezone', () => {
+            const date = new Date('2026-01-15T12:00:00Z')
+            const result = formatDateForAgenda(date, 'UTC')
+
+            expect(result).toContain('15')
+            expect(result.toLowerCase()).toContain('enero')
         })
     })
 })

@@ -4,7 +4,14 @@
  */
 
 import { describe, it, expect } from 'vitest'
-import { localInputToISO, getTimezoneOffsetMinutes, formatDateTimeInTimezone } from '@/lib/timezone'
+import {
+    localInputToISO,
+    getTimezoneOffsetMinutes,
+    formatDateTimeInTimezone,
+    getDayRangeInUTC,
+    getTodayInTimezone,
+    isValidDateString
+} from '@/lib/timezone'
 
 describe('timezone utilities', () => {
     describe('getTimezoneOffsetMinutes', () => {
@@ -202,6 +209,115 @@ describe('timezone utilities', () => {
             expect(formatted).toMatch(/02:30/)
             expect(formatted).toMatch(/p\.\s*m\./)
             expect(formatted).toContain('15')
+        })
+    })
+
+    describe('getDayRangeInUTC', () => {
+        it('should return correct UTC range for Argentina timezone', () => {
+            // Day 2026-01-15 in Argentina (UTC-3) starts at 03:00 UTC on Jan 15
+            // and ends at 03:00 UTC on Jan 16
+            const { start, end } = getDayRangeInUTC('2026-01-15', 'America/Argentina/Buenos_Aires')
+
+            expect(start.getUTCHours()).toBe(3)
+            expect(start.getUTCDate()).toBe(15)
+            expect(start.getUTCMonth()).toBe(0)
+
+            expect(end.getUTCHours()).toBe(3)
+            expect(end.getUTCDate()).toBe(16)
+            expect(end.getUTCMonth()).toBe(0)
+        })
+
+        it('should return correct UTC range for UTC timezone', () => {
+            const { start, end } = getDayRangeInUTC('2026-01-15', 'UTC')
+
+            expect(start.getUTCHours()).toBe(0)
+            expect(start.getUTCMinutes()).toBe(0)
+            expect(start.getUTCDate()).toBe(15)
+
+            expect(end.getUTCHours()).toBe(0)
+            expect(end.getUTCMinutes()).toBe(0)
+            expect(end.getUTCDate()).toBe(16)
+        })
+
+        it('should return correct UTC range for positive offset timezone (Madrid winter)', () => {
+            // Day 2026-01-15 in Madrid (UTC+1) starts at 23:00 UTC on Jan 14
+            // and ends at 23:00 UTC on Jan 15
+            const { start, end } = getDayRangeInUTC('2026-01-15', 'Europe/Madrid')
+
+            expect(start.getUTCHours()).toBe(23)
+            expect(start.getUTCDate()).toBe(14)
+
+            expect(end.getUTCHours()).toBe(23)
+            expect(end.getUTCDate()).toBe(15)
+        })
+
+        it('should return correct UTC range for New York winter (UTC-5)', () => {
+            // Day 2026-01-15 in New York (UTC-5) starts at 05:00 UTC on Jan 15
+            const { start, end } = getDayRangeInUTC('2026-01-15', 'America/New_York')
+
+            expect(start.getUTCHours()).toBe(5)
+            expect(start.getUTCDate()).toBe(15)
+
+            expect(end.getUTCHours()).toBe(5)
+            expect(end.getUTCDate()).toBe(16)
+        })
+
+        it('should handle DST transitions correctly (summer in New York)', () => {
+            // Day 2026-07-15 in New York (UTC-4 during DST) starts at 04:00 UTC
+            const { start, end } = getDayRangeInUTC('2026-07-15', 'America/New_York')
+
+            expect(start.getUTCHours()).toBe(4)
+            expect(start.getUTCDate()).toBe(15)
+
+            expect(end.getUTCHours()).toBe(4)
+            expect(end.getUTCDate()).toBe(16)
+        })
+    })
+
+    describe('getTodayInTimezone', () => {
+        it('should return date in YYYY-MM-DD format', () => {
+            const today = getTodayInTimezone('America/Argentina/Buenos_Aires')
+            expect(today).toMatch(/^\d{4}-\d{2}-\d{2}$/)
+        })
+
+        it('should return valid date string', () => {
+            const today = getTodayInTimezone('UTC')
+            const [year, month, day] = today.split('-').map(Number)
+
+            expect(year).toBeGreaterThanOrEqual(2026)
+            expect(month).toBeGreaterThanOrEqual(1)
+            expect(month).toBeLessThanOrEqual(12)
+            expect(day).toBeGreaterThanOrEqual(1)
+            expect(day).toBeLessThanOrEqual(31)
+        })
+    })
+
+    describe('isValidDateString', () => {
+        it('should return true for valid date strings', () => {
+            expect(isValidDateString('2026-01-15')).toBe(true)
+            expect(isValidDateString('2026-12-31')).toBe(true)
+            expect(isValidDateString('2026-02-28')).toBe(true)
+        })
+
+        it('should return false for invalid formats', () => {
+            expect(isValidDateString('01-15-2026')).toBe(false)
+            expect(isValidDateString('2026/01/15')).toBe(false)
+            expect(isValidDateString('2026-1-15')).toBe(false)
+            expect(isValidDateString('2026-01-5')).toBe(false)
+            expect(isValidDateString('not-a-date')).toBe(false)
+            expect(isValidDateString('')).toBe(false)
+        })
+
+        it('should return false for invalid dates', () => {
+            expect(isValidDateString('2026-02-30')).toBe(false) // Feb 30 doesn't exist
+            expect(isValidDateString('2026-13-01')).toBe(false) // Month 13 doesn't exist
+            expect(isValidDateString('2026-00-15')).toBe(false) // Month 0 doesn't exist
+            expect(isValidDateString('2026-01-32')).toBe(false) // Day 32 doesn't exist
+        })
+
+        it('should handle leap years correctly', () => {
+            expect(isValidDateString('2024-02-29')).toBe(true) // 2024 is leap year
+            expect(isValidDateString('2026-02-29')).toBe(false) // 2026 is not leap year
         })
     })
 })
