@@ -84,8 +84,10 @@ export async function createPublicAppointment(
     }
 
     // 6. Calculate endAt and occupiedEndAt
+    // endAt = startAt + duration (when the appointment actually ends)
+    // occupiedEndAt = startAt + slotInterval (the time block occupied for scheduling)
     const endAt = addMinutes(startAt, service.durationMinutes)
-    const occupiedEndAt = addMinutes(endAt, service.bufferMinutes)
+    const occupiedEndAt = addMinutes(startAt, service.slotIntervalMinutes)
 
     // 7. Validate appointment falls within resource availability
     const availabilityRules = await getAvailabilityByResourceId(prisma, input.resourceId)

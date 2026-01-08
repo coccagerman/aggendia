@@ -1,5 +1,6 @@
 /**
  * Unit tests for slots calculation algorithm
+ * Updated for US-5.5: uses slotIntervalMinutes instead of bufferMinutes
  */
 
 import { describe, it, expect } from 'vitest'
@@ -19,7 +20,7 @@ describe('calculateSlots', () => {
             fromDate: baseDate,
             toDate: addDays(baseDate, 1),
             durationMinutes: 30,
-            bufferMinutes: 0,
+            slotIntervalMinutes: 30,
             availabilityRules: [], // No rules
             blocks: [],
             appointments: []
@@ -29,7 +30,7 @@ describe('calculateSlots', () => {
         expect(result).toEqual([])
     })
 
-    it('should generate slots respecting availability rules', () => {
+    it('should generate slots respecting availability rules and slotIntervalMinutes', () => {
         // Friday 2026-01-16 in Buenos Aires
         const baseDate = fromZonedTime('2026-01-16T00:00:00', TIMEZONE)
 
@@ -38,7 +39,7 @@ describe('calculateSlots', () => {
             fromDate: baseDate,
             toDate: addDays(baseDate, 1),
             durationMinutes: 30,
-            bufferMinutes: 0,
+            slotIntervalMinutes: 30, // Slots offered every 30 minutes
             availabilityRules: [
                 {
                     dayOfWeek: 5, // Friday
@@ -52,16 +53,14 @@ describe('calculateSlots', () => {
 
         const result = calculateSlots(input)
 
-        // Should generate slots at 09:00, 09:05, 09:10, 09:15, 09:20, 09:25
-        // (09:30 + 30min = 10:00, which is exactly at the end, so it should fit)
-        expect(result.length).toBeGreaterThan(0)
-        expect(result.length).toBeLessThanOrEqual(12) // Max 12 slots in 1 hour with 5min step
-
-        // Check first slot
+        // With slotInterval=30, should generate slots at 09:00, 09:30
+        // (10:00 + 30min = 10:30, which exceeds the end, so excluded)
+        expect(result.length).toBe(2)
         expect(result[0].displayTime).toBe('09:00')
+        expect(result[1].displayTime).toBe('09:30')
     })
 
-    it('should respect service duration + buffer when generating slots', () => {
+    it('should advance by slotIntervalMinutes when generating slots', () => {
         const baseDate = fromZonedTime('2026-01-16T00:00:00', TIMEZONE)
 
         const input: CalculateSlotsInput = {
@@ -69,12 +68,12 @@ describe('calculateSlots', () => {
             fromDate: baseDate,
             toDate: addDays(baseDate, 1),
             durationMinutes: 30,
-            bufferMinutes: 10, // 10min buffer
+            slotIntervalMinutes: 45, // 45min periodicity with 30min duration
             availabilityRules: [
                 {
                     dayOfWeek: 5, // Friday
                     startMinutes: 9 * 60, // 09:00
-                    endMinutes: 10 * 60 // 10:00
+                    endMinutes: 11 * 60 // 11:00 (2 hour window)
                 }
             ],
             blocks: [],
@@ -83,83 +82,79 @@ describe('calculateSlots', () => {
 
         const result = calculateSlots(input)
 
-        // With 30min duration + 10min buffer = 40min total
-        // Last possible slot that fits: 09:20 (09:20 + 40min = 10:00)
-        const lastSlot = result[result.length - 1]
-        expect(lastSlot.displayTime).toBe('09:20')
+        // With slotInterval=45:
+        // 09:00 -> occupied until 09:45
+        // 09:45 -> occupied until 10:30
+        // 10:30 -> occupied until 11:15 (exceeds 11:00, excluded)
+        expect(result.length).toBe(2)
+        expect(result[0].displayTime).toBe('09:00')
+        expect(result[1].displayTime).toBe('09:45')
     })
 
     it('should subtract blocks from available windows', () => {
         const baseDate = fromZonedTime('2026-01-16T00:00:00', TIMEZONE)
         const blockStart = fromZonedTime('2026-01-16T09:30:00', TIMEZONE)
-        const blockEnd = fromZonedTime('2026-01-16T09:45:00', TIMEZONE)
+        const blockEnd = fromZonedTime('2026-01-16T10:00:00', TIMEZONE)
 
         const input: CalculateSlotsInput = {
             businessTimezone: TIMEZONE,
             fromDate: baseDate,
             toDate: addDays(baseDate, 1),
-            durationMinutes: 15,
-            bufferMinutes: 0,
+            durationMinutes: 30,
+            slotIntervalMinutes: 30,
             availabilityRules: [
                 {
                     dayOfWeek: 5, // Friday
                     startMinutes: 9 * 60, // 09:00
-                    endMinutes: 10 * 60 // 10:00
+                    endMinutes: 11 * 60 // 11:00
                 }
             ],
             blocks: [
                 {
                     startAt: blockStart,
-                    endAt: blockEnd // Blocks 09:30-09:45
+                    endAt: blockEnd // Blocks 09:30-10:00
                 }
             ],
             appointments: []
         }
 
         const result = calculateSlots(input)
-
-        // Slots before block: 09:00, 09:05, 09:10, 09:15
-        // (09:20 + 15min = 09:35 would overlap with block 09:30-09:45, so excluded)
-        // (09:25 + 15min = 09:40 would overlap with block 09:30-09:45, so excluded)
-        // (09:30 + 15min = 09:45 would overlap with block 09:30-09:45, so excluded)
-        // Slots after block: 09:45, 09:50, 09:55
         const displayTimes = result.map(s => s.displayTime)
 
+        // Available: 09:00-09:30 (one slot: 09:00)
+        // Blocked: 09:30-10:00
+        // Available: 10:00-11:00 (slots: 10:00, 10:30)
         expect(displayTimes).toContain('09:00')
-        expect(displayTimes).toContain('09:15')
-        expect(displayTimes).toContain('09:45')
+        expect(displayTimes).toContain('10:00')
+        expect(displayTimes).toContain('10:30')
 
-        // 09:20, 09:25, 09:30, 09:35, 09:40 should be blocked (would overlap with block)
-        expect(displayTimes).not.toContain('09:20')
-        expect(displayTimes).not.toContain('09:25')
+        // 09:30 is blocked
         expect(displayTimes).not.toContain('09:30')
-        expect(displayTimes).not.toContain('09:35')
-        expect(displayTimes).not.toContain('09:40')
     })
 
     it('should subtract appointments (using occupiedEndAt) from available windows', () => {
         const baseDate = fromZonedTime('2026-01-16T00:00:00', TIMEZONE)
-        const apptStart = fromZonedTime('2026-01-16T09:15:00', TIMEZONE)
-        const apptOccupiedEnd = fromZonedTime('2026-01-16T09:30:00', TIMEZONE)
+        const apptStart = fromZonedTime('2026-01-16T09:30:00', TIMEZONE)
+        const apptOccupiedEnd = fromZonedTime('2026-01-16T10:15:00', TIMEZONE) // 45min slot interval
 
         const input: CalculateSlotsInput = {
             businessTimezone: TIMEZONE,
             fromDate: baseDate,
             toDate: addDays(baseDate, 1),
-            durationMinutes: 15,
-            bufferMinutes: 0,
+            durationMinutes: 30,
+            slotIntervalMinutes: 45,
             availabilityRules: [
                 {
                     dayOfWeek: 5,
                     startMinutes: 9 * 60,
-                    endMinutes: 10 * 60
+                    endMinutes: 12 * 60 // 09:00-12:00
                 }
             ],
             blocks: [],
             appointments: [
                 {
                     startAt: apptStart,
-                    occupiedEndAt: apptOccupiedEnd // Appointment occupies 09:15-09:30
+                    occupiedEndAt: apptOccupiedEnd // Appointment occupies 09:30-10:15
                 }
             ]
         }
@@ -167,14 +162,18 @@ describe('calculateSlots', () => {
         const result = calculateSlots(input)
         const displayTimes = result.map(s => s.displayTime)
 
-        // 09:15 should be blocked by appointment
-        expect(displayTimes).not.toContain('09:15')
+        // Free windows after subtracting appointment: [09:00-09:30] and [10:15-12:00]
+        // 09:00 -> occupiedEnd=09:45, but window ends at 09:30 → doesn't fit!
+        // 10:15 -> occupiedEnd=11:00 → fits in [10:15-12:00]
+        // 11:00 -> occupiedEnd=11:45 → fits in [10:15-12:00]
+        expect(displayTimes).toContain('10:15')
+        expect(displayTimes).toContain('11:00')
+        expect(displayTimes).toHaveLength(2)
 
-        // Slots before appointment should be available
-        expect(displayTimes).toContain('09:00')
-
-        // Slots after appointment should be available
-        expect(displayTimes).toContain('09:30')
+        // 09:00 doesn't fit because occupied range (09:00-09:45) exceeds the free window (09:00-09:30)
+        expect(displayTimes).not.toContain('09:00')
+        // 09:45 would start inside the appointment's occupied range
+        expect(displayTimes).not.toContain('09:45')
     })
 
     it('should handle multiple availability rules for the same day', () => {
@@ -185,7 +184,7 @@ describe('calculateSlots', () => {
             fromDate: baseDate,
             toDate: addDays(baseDate, 1),
             durationMinutes: 30,
-            bufferMinutes: 0,
+            slotIntervalMinutes: 30,
             availabilityRules: [
                 {
                     dayOfWeek: 5,
@@ -221,7 +220,7 @@ describe('calculateSlots', () => {
             fromDate: baseDate,
             toDate: addDays(baseDate, 1),
             durationMinutes: 30,
-            bufferMinutes: 0,
+            slotIntervalMinutes: 30,
             availabilityRules: [
                 {
                     dayOfWeek: 5,
@@ -242,7 +241,7 @@ describe('calculateSlots', () => {
         expect(firstSlot.startAt).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/)
         expect(firstSlot.endAt).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/)
 
-        // endAt should be startAt + durationMinutes
+        // endAt should be startAt + durationMinutes (not slotInterval)
         const start = new Date(firstSlot.startAt)
         const end = new Date(firstSlot.endAt)
         const diff = (end.getTime() - start.getTime()) / 1000 / 60
@@ -257,17 +256,17 @@ describe('calculateSlots', () => {
             fromDate: baseDate,
             toDate: addDays(baseDate, 3), // Thu, Fri, Sat
             durationMinutes: 60,
-            bufferMinutes: 0,
+            slotIntervalMinutes: 60,
             availabilityRules: [
                 {
                     dayOfWeek: 4, // Thursday
                     startMinutes: 10 * 60,
-                    endMinutes: 11 * 60
+                    endMinutes: 12 * 60 // 2 hour window
                 },
                 {
                     dayOfWeek: 5, // Friday
                     startMinutes: 10 * 60,
-                    endMinutes: 11 * 60
+                    endMinutes: 12 * 60 // 2 hour window
                 }
             ],
             blocks: [],
@@ -276,12 +275,49 @@ describe('calculateSlots', () => {
 
         const result = calculateSlots(input)
 
-        // Should have slots from both days (Thursday and Friday)
-        // Each day has 1 hour window with 60min duration = 1 slot per day (10:00-11:00)
-        expect(result.length).toBeGreaterThanOrEqual(2)
+        // Each day has 2 hour window with 60min interval = 2 slots per day (10:00, 11:00)
+        // Total: 4 slots
+        expect(result.length).toBe(4)
 
-        // All slots should have 10:00 displayTime
+        // All slots should be 10:00 or 11:00
         const displayTimes = result.map(s => s.displayTime)
-        expect(displayTimes.every(t => t === '10:00' || t === '10:05')).toBe(true)
+        expect(displayTimes.filter(t => t === '10:00').length).toBe(2)
+        expect(displayTimes.filter(t => t === '11:00').length).toBe(2)
+    })
+
+    it('should work with slotIntervalMinutes > durationMinutes (spacing between appointments)', () => {
+        const baseDate = fromZonedTime('2026-01-16T00:00:00', TIMEZONE)
+
+        const input: CalculateSlotsInput = {
+            businessTimezone: TIMEZONE,
+            fromDate: baseDate,
+            toDate: addDays(baseDate, 1),
+            durationMinutes: 30, // Appointment lasts 30 min
+            slotIntervalMinutes: 60, // But slots offered every 60 min
+            availabilityRules: [
+                {
+                    dayOfWeek: 5,
+                    startMinutes: 9 * 60, // 09:00
+                    endMinutes: 12 * 60 // 12:00 (3 hour window)
+                }
+            ],
+            blocks: [],
+            appointments: []
+        }
+
+        const result = calculateSlots(input)
+
+        // With 60min interval: slots at 09:00, 10:00, 11:00
+        expect(result.length).toBe(3)
+        expect(result[0].displayTime).toBe('09:00')
+        expect(result[1].displayTime).toBe('10:00')
+        expect(result[2].displayTime).toBe('11:00')
+
+        // Each appointment duration is still 30 min
+        const firstSlot = result[0]
+        const start = new Date(firstSlot.startAt)
+        const end = new Date(firstSlot.endAt)
+        const diff = (end.getTime() - start.getTime()) / 1000 / 60
+        expect(diff).toBe(30)
     })
 })

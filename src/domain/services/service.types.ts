@@ -3,7 +3,7 @@
  */
 
 /**
- * Constante para el paso de duración en minutos.
+ * Constante para el paso de duración/periodicidad en minutos.
  * Los slots de servicio deben ser múltiplos de este valor.
  */
 export const DURATION_STEP = 5
@@ -32,7 +32,7 @@ export type Service = {
     name: string
     description: string | null
     durationMinutes: number
-    bufferMinutes: number
+    slotIntervalMinutes: number // Periodicidad: cada cuántos minutos se ofrece un nuevo turno
     priceCents: number | null
     currency: string | null
     status: ServiceStatus
@@ -44,7 +44,7 @@ export type CreateServiceInput = {
     name: string
     description?: string | null
     durationMinutes: number
-    bufferMinutes?: number
+    slotIntervalMinutes?: number // Si no se especifica, usa durationMinutes por defecto
     priceCents?: number | null
     currency?: string | null
 }

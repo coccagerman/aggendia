@@ -5,7 +5,7 @@
 import { describe, it, expect } from 'vitest'
 import {
     validateServiceDuration,
-    validateBufferMinutes,
+    validateSlotIntervalMinutes,
     validateCreateServiceInput,
     validateUpdateServiceInput
 } from '@/domain/services/service.service'
@@ -37,26 +37,31 @@ describe('Service Domain - validateServiceDuration', () => {
     })
 })
 
-describe('Service Domain - validateBufferMinutes', () => {
-    it('acepta buffer 0', () => {
-        expect(() => validateBufferMinutes(0)).not.toThrow()
+describe('Service Domain - validateSlotIntervalMinutes', () => {
+    it('acepta slotInterval igual a duración', () => {
+        expect(() => validateSlotIntervalMinutes(30, 30)).not.toThrow()
+        expect(() => validateSlotIntervalMinutes(60, 60)).not.toThrow()
     })
 
-    it('acepta buffer positivo', () => {
-        expect(() => validateBufferMinutes(5)).not.toThrow()
-        expect(() => validateBufferMinutes(10)).not.toThrow()
-        expect(() => validateBufferMinutes(30)).not.toThrow()
+    it('acepta slotInterval mayor a duración', () => {
+        expect(() => validateSlotIntervalMinutes(45, 30)).not.toThrow()
+        expect(() => validateSlotIntervalMinutes(60, 30)).not.toThrow()
+        expect(() => validateSlotIntervalMinutes(120, 60)).not.toThrow()
     })
 
-    it('rechaza buffer negativo', () => {
-        expect(() => validateBufferMinutes(-1)).toThrow(AppError)
-        expect(() => validateBufferMinutes(-10)).toThrow(AppError)
-        expect(() => validateBufferMinutes(-5)).toThrow('no puede ser negativo')
+    it('rechaza slotInterval menor a duración', () => {
+        expect(() => validateSlotIntervalMinutes(30, 45)).toThrow(AppError)
+        expect(() => validateSlotIntervalMinutes(30, 60)).toThrow('no puede ser menor que la duración')
+    })
+
+    it('rechaza slotInterval que no es múltiplo de 5', () => {
+        expect(() => validateSlotIntervalMinutes(33, 30)).toThrow(AppError)
+        expect(() => validateSlotIntervalMinutes(62, 60)).toThrow('múltiplo de 5')
     })
 })
 
 describe('Service Domain - validateCreateServiceInput', () => {
-    it('acepta input válido mínimo', () => {
+    it('acepta input válido mínimo (sin slotIntervalMinutes)', () => {
         expect(() =>
             validateCreateServiceInput({
                 name: 'Servicio Test',
@@ -65,15 +70,25 @@ describe('Service Domain - validateCreateServiceInput', () => {
         ).not.toThrow()
     })
 
-    it('acepta input válido completo', () => {
+    it('acepta input válido completo con slotIntervalMinutes', () => {
         expect(() =>
             validateCreateServiceInput({
                 name: 'Servicio Test',
                 description: 'Descripción del servicio',
                 durationMinutes: 60,
-                bufferMinutes: 10,
+                slotIntervalMinutes: 75,
                 priceCents: 5000,
                 currency: 'ARS'
+            })
+        ).not.toThrow()
+    })
+
+    it('acepta slotIntervalMinutes igual a duración', () => {
+        expect(() =>
+            validateCreateServiceInput({
+                name: 'Test',
+                durationMinutes: 30,
+                slotIntervalMinutes: 30
             })
         ).not.toThrow()
     })
@@ -115,14 +130,24 @@ describe('Service Domain - validateCreateServiceInput', () => {
         ).toThrow()
     })
 
-    it('rechaza buffer negativo', () => {
+    it('rechaza slotIntervalMinutes menor a duración', () => {
+        expect(() =>
+            validateCreateServiceInput({
+                name: 'Test',
+                durationMinutes: 60,
+                slotIntervalMinutes: 30
+            })
+        ).toThrow('no puede ser menor que la duración')
+    })
+
+    it('rechaza slotIntervalMinutes no múltiplo de 5', () => {
         expect(() =>
             validateCreateServiceInput({
                 name: 'Test',
                 durationMinutes: 30,
-                bufferMinutes: -5
+                slotIntervalMinutes: 37
             })
-        ).toThrow()
+        ).toThrow('múltiplo de 5')
     })
 
     it('rechaza precio negativo', () => {
@@ -190,12 +215,35 @@ describe('Service Domain - validateUpdateServiceInput', () => {
         ).toThrow()
     })
 
-    it('rechaza buffer negativo en update', () => {
+    it('valida slotIntervalMinutes con duración existente', () => {
+        // Cuando se pasa existingDuration, valida slotInterval >= existingDuration
         expect(() =>
-            validateUpdateServiceInput({
-                bufferMinutes: -10
-            })
-        ).toThrow()
+            validateUpdateServiceInput(
+                { slotIntervalMinutes: 60 },
+                30 // existingDuration
+            )
+        ).not.toThrow()
+
+        expect(() =>
+            validateUpdateServiceInput(
+                { slotIntervalMinutes: 30 },
+                60 // existingDuration
+            )
+        ).toThrow('no puede ser menor que la duración')
+    })
+
+    it('valida slotIntervalMinutes con nueva duración', () => {
+        // Cuando se actualiza duración y slotInterval juntos
+        expect(() =>
+            validateUpdateServiceInput(
+                { durationMinutes: 45, slotIntervalMinutes: 60 },
+                30 // existingDuration (ignorada porque viene nueva)
+            )
+        ).not.toThrow()
+
+        expect(() => validateUpdateServiceInput({ durationMinutes: 60, slotIntervalMinutes: 45 }, 30)).toThrow(
+            'no puede ser menor que la duración'
+        )
     })
 
     it('rechaza precio negativo en update', () => {

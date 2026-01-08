@@ -5,7 +5,7 @@
 
 import { fromZonedTime, toZonedTime, format } from 'date-fns-tz'
 import { addMinutes, startOfDay, isBefore, isAfter } from 'date-fns'
-import { CalculateSlotsInput, SlotOutput, DURATION_STEP, BlockInterval, AppointmentInterval } from './slots.types'
+import { CalculateSlotsInput, SlotOutput, BlockInterval, AppointmentInterval } from './slots.types'
 
 /**
  * Calculate available slots for a resource/service combination
@@ -15,7 +15,7 @@ import { CalculateSlotsInput, SlotOutput, DURATION_STEP, BlockInterval, Appointm
  * 3. Build time windows from availability rules (in business TZ)
  * 4. Subtract blocks (UTC intervals)
  * 5. Subtract appointments (UTC intervals)
- * 6. Generate discrete slots every DURATION_STEP minutes
+ * 6. Generate discrete slots every slotIntervalMinutes
  * 7. Return slots with UTC timestamps + display time in business TZ
  */
 export function calculateSlots(input: CalculateSlotsInput): SlotOutput[] {
@@ -24,7 +24,7 @@ export function calculateSlots(input: CalculateSlotsInput): SlotOutput[] {
         fromDate,
         toDate,
         durationMinutes,
-        bufferMinutes,
+        slotIntervalMinutes,
         availabilityRules,
         blocks,
         appointments
@@ -73,7 +73,7 @@ export function calculateSlots(input: CalculateSlotsInput): SlotOutput[] {
                     interval.start,
                     interval.end,
                     durationMinutes,
-                    bufferMinutes,
+                    slotIntervalMinutes,
                     businessTimezone
                 )
                 slots.push(...intervalSlots)
@@ -152,25 +152,25 @@ function subtractIntervals(
 
 /**
  * Generate discrete slots from a free interval
- * Slots start every DURATION_STEP minutes and must fit duration + buffer
+ * Slots start every slotIntervalMinutes and must fit within the interval
+ * The occupied range for each slot is [start, start + slotIntervalMinutes)
  */
 function generateDiscreteSlots(
     intervalStart: Date,
     intervalEnd: Date,
     durationMinutes: number,
-    bufferMinutes: number,
+    slotIntervalMinutes: number,
     businessTimezone: string
 ): SlotOutput[] {
     const slots: SlotOutput[] = []
-    const totalMinutes = durationMinutes + bufferMinutes
 
     let current = intervalStart
 
     while (true) {
         const slotEnd = addMinutes(current, durationMinutes)
-        const occupiedEnd = addMinutes(current, totalMinutes)
+        const occupiedEnd = addMinutes(current, slotIntervalMinutes)
 
-        // Check if slot + buffer fits in the interval
+        // Check if the occupied range fits in the interval
         if (isAfter(occupiedEnd, intervalEnd)) {
             break
         }
@@ -185,8 +185,8 @@ function generateDiscreteSlots(
             displayTime
         })
 
-        // Move to next slot (every DURATION_STEP minutes)
-        current = addMinutes(current, DURATION_STEP)
+        // Move to next slot (advance by slotIntervalMinutes)
+        current = addMinutes(current, slotIntervalMinutes)
     }
 
     return slots

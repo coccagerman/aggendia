@@ -74,8 +74,8 @@ test.describe('Service Creation E2E', () => {
             .first()
             .selectOption('60')
 
-        // Agregar buffer
-        await page.getByLabel(/tiempo entre turnos/i).fill('15')
+        // Agregar periodicidad (debe ser >= duración, 75 = turno cada 75 min)
+        await page.getByLabel(/periodicidad/i).fill('75')
 
         // Agregar precio
         await page.getByLabel(/precio/i).fill('1500')
@@ -92,7 +92,7 @@ test.describe('Service Creation E2E', () => {
         // Verificar datos en listado
         await expect(page.getByText(serviceName)).toBeVisible()
         await expect(page.getByText('60 min')).toBeVisible()
-        await expect(page.getByText('15 min buffer')).toBeVisible()
+        await expect(page.getByText(/Cada 75 min/)).toBeVisible() // Periodicidad > duración
         await expect(page.getByText(/\$.*1.*500/)).toBeVisible() // $1.500,00 o similar
     })
 

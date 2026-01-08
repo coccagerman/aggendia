@@ -204,8 +204,11 @@ export default async function ServicesPage({ params }: PageProps) {
                                                             )}
                                                             <div className='mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-zinc-500 dark:text-zinc-400'>
                                                                 <span>⏱️ {service.durationMinutes} min</span>
-                                                                {service.bufferMinutes > 0 && (
-                                                                    <span>🔄 {service.bufferMinutes} min buffer</span>
+                                                                {service.slotIntervalMinutes >
+                                                                    service.durationMinutes && (
+                                                                    <span>
+                                                                        🔄 Cada {service.slotIntervalMinutes} min
+                                                                    </span>
                                                                 )}
                                                                 {service.priceCents !== null && (
                                                                     <span>

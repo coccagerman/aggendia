@@ -27,8 +27,8 @@ export interface CalculateSlotsInput {
     businessTimezone: string // IANA timezone (e.g., "America/Argentina/Buenos_Aires")
     fromDate: Date // Start of range (UTC)
     toDate: Date // End of range (UTC)
-    durationMinutes: number // Service duration
-    bufferMinutes: number // Service buffer
+    durationMinutes: number // Service duration (how long the appointment lasts)
+    slotIntervalMinutes: number // Slot periodicity (how often slots are offered)
     availabilityRules: AvailabilityRuleInput[] // Weekly availability
     blocks: BlockInterval[] // Punctual blocks
     appointments: AppointmentInterval[] // Existing appointments (occupied_end_at)
@@ -47,11 +47,11 @@ export interface BlockInterval {
  */
 export interface AppointmentInterval {
     startAt: Date // UTC
-    occupiedEndAt: Date // UTC (endAt + buffer)
+    occupiedEndAt: Date // UTC (startAt + slotInterval)
 }
 
 /**
  * Constants
  */
-export const DURATION_STEP = 5 // Slots are generated every 5 minutes
+export const DURATION_STEP = 5 // Minimum granularity for slot intervals
 export const MAX_DAYS_AHEAD = 30 // Maximum range for slot calculation

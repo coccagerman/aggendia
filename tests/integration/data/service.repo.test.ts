@@ -144,7 +144,7 @@ describe('Service Repository - Integration Tests', () => {
     })
 
     describe('createService', () => {
-        it('crea servicio con datos mínimos', async () => {
+        it('crea servicio con datos mínimos (slotInterval = duration por defecto)', async () => {
             const service = await createService(prisma, businessId1, {
                 name: 'Servicio Mínimo',
                 durationMinutes: 30
@@ -153,17 +153,17 @@ describe('Service Repository - Integration Tests', () => {
             expect(service.id).toBeDefined()
             expect(service.name).toBe('Servicio Mínimo')
             expect(service.durationMinutes).toBe(30)
-            expect(service.bufferMinutes).toBe(0)
+            expect(service.slotIntervalMinutes).toBe(30) // default = duration
             expect(service.status).toBe('ACTIVE')
             expect(service.currency).toBe('ARS')
         })
 
-        it('crea servicio con todos los datos', async () => {
+        it('crea servicio con todos los datos incluyendo slotIntervalMinutes', async () => {
             const service = await createService(prisma, businessId1, {
                 name: 'Servicio Completo',
                 description: 'Descripción del servicio',
                 durationMinutes: 60,
-                bufferMinutes: 15,
+                slotIntervalMinutes: 75,
                 priceCents: 5000,
                 currency: 'USD'
             })
@@ -171,7 +171,7 @@ describe('Service Repository - Integration Tests', () => {
             expect(service.name).toBe('Servicio Completo')
             expect(service.description).toBe('Descripción del servicio')
             expect(service.durationMinutes).toBe(60)
-            expect(service.bufferMinutes).toBe(15)
+            expect(service.slotIntervalMinutes).toBe(75)
             expect(service.priceCents).toBe(5000)
             expect(service.currency).toBe('USD')
         })
@@ -215,15 +215,51 @@ describe('Service Repository - Integration Tests', () => {
 
             const updated = await updateService(prisma, businessId1, service.id, {
                 durationMinutes: 60,
-                bufferMinutes: 10,
+                slotIntervalMinutes: 75,
                 priceCents: 3000,
                 status: 'INACTIVE'
             })
 
             expect(updated.durationMinutes).toBe(60)
-            expect(updated.bufferMinutes).toBe(10)
+            expect(updated.slotIntervalMinutes).toBe(75)
             expect(updated.priceCents).toBe(3000)
             expect(updated.status).toBe('INACTIVE')
+        })
+
+        it('auto-ajusta slotIntervalMinutes cuando durationMinutes sube y supera el intervalo existente', async () => {
+            // Crear servicio con duration=30 y slotInterval=30 (default)
+            const service = await createService(prisma, businessId1, {
+                name: 'Auto Ajuste Test',
+                durationMinutes: 30
+            })
+            expect(service.slotIntervalMinutes).toBe(30)
+
+            // Actualizar solo durationMinutes a 60 (sin especificar slotInterval)
+            // El backend debe auto-ajustar slotInterval a 60 para cumplir constraint
+            const updated = await updateService(prisma, businessId1, service.id, {
+                durationMinutes: 60
+            })
+
+            expect(updated.durationMinutes).toBe(60)
+            expect(updated.slotIntervalMinutes).toBe(60) // Auto-ajustado
+        })
+
+        it('no modifica slotIntervalMinutes si ya es mayor o igual a la nueva duración', async () => {
+            // Crear servicio con duration=30 y slotInterval=90
+            const service = await createService(prisma, businessId1, {
+                name: 'No Ajuste Test',
+                durationMinutes: 30,
+                slotIntervalMinutes: 90
+            })
+            expect(service.slotIntervalMinutes).toBe(90)
+
+            // Actualizar durationMinutes a 60 (slotInterval 90 sigue siendo válido)
+            const updated = await updateService(prisma, businessId1, service.id, {
+                durationMinutes: 60
+            })
+
+            expect(updated.durationMinutes).toBe(60)
+            expect(updated.slotIntervalMinutes).toBe(90) // No cambió, sigue siendo válido
         })
     })
 

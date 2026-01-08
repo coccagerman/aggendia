@@ -105,17 +105,17 @@ model AvailabilityRule {
 }
 
 model Service {
-  id              String        @id @default(uuid())
-  businessId      String
-  name            String
-  description     String?
-  durationMinutes Int
-  bufferMinutes   Int           @default(0)
-  priceCents      Int?
-  currency        String?       @default("ARS")
-  status          ServiceStatus @default(ACTIVE)
-  createdAt       DateTime      @default(now())
-  updatedAt       DateTime      @updatedAt
+  id                  String        @id @default(uuid())
+  businessId          String
+  name                String
+  description         String?
+  durationMinutes     Int
+  slotIntervalMinutes Int           // Periodicidad: cada cuántos minutos se ofrece un nuevo turno
+  priceCents          Int?
+  currency            String?       @default("ARS")
+  status              ServiceStatus @default(ACTIVE)
+  createdAt           DateTime      @default(now())
+  updatedAt           DateTime      @updatedAt
 
   business         Business          @relation(fields: [businessId], references: [id], onDelete: Cascade)
   serviceResources ServiceResource[]
@@ -196,7 +196,7 @@ model Appointment {
   status             AppointmentStatus @default(SCHEDULED)
   startAt            DateTime          // timestamptz - inicio del turno (UTC)
   endAt              DateTime          // timestamptz - fin del turno (UTC) = startAt + duration
-  occupiedEndAt      DateTime          // timestamptz - fin ocupación (UTC) = endAt + buffer
+  occupiedEndAt      DateTime          // timestamptz - fin ocupación (UTC) = startAt + slotInterval
   notes              String?
   cancellationReason String?
   createdByUserId    String?           // null si fue creado por cliente público

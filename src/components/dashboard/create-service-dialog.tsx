@@ -25,7 +25,7 @@ interface CreateServiceDialogProps {
 interface FormErrors {
     name?: string
     durationMinutes?: string
-    bufferMinutes?: string
+    slotIntervalMinutes?: string
     priceCents?: string
     general?: string
 }
@@ -41,7 +41,7 @@ export function CreateServiceDialog({ businessId }: CreateServiceDialogProps) {
         name: '',
         description: '',
         durationMinutes: 30,
-        bufferMinutes: 0,
+        slotIntervalMinutes: 30, // Por defecto = durationMinutes
         priceAmount: '' // Input como string para manejar decimales
     })
 
@@ -50,7 +50,7 @@ export function CreateServiceDialog({ businessId }: CreateServiceDialogProps) {
             name: '',
             description: '',
             durationMinutes: 30,
-            bufferMinutes: 0,
+            slotIntervalMinutes: 30,
             priceAmount: ''
         })
         setErrors({})
@@ -91,7 +91,7 @@ export function CreateServiceDialog({ businessId }: CreateServiceDialogProps) {
                     name: formData.name,
                     description: formData.description || null,
                     durationMinutes: formData.durationMinutes,
-                    bufferMinutes: formData.bufferMinutes,
+                    slotIntervalMinutes: formData.slotIntervalMinutes,
                     priceCents
                 })
             })
@@ -113,8 +113,8 @@ export function CreateServiceDialog({ businessId }: CreateServiceDialogProps) {
                         if (fieldErrors.durationMinutes?.[0]) {
                             validationErrors.durationMinutes = fieldErrors.durationMinutes[0]
                         }
-                        if (fieldErrors.bufferMinutes?.[0]) {
-                            validationErrors.bufferMinutes = fieldErrors.bufferMinutes[0]
+                        if (fieldErrors.slotIntervalMinutes?.[0]) {
+                            validationErrors.slotIntervalMinutes = fieldErrors.slotIntervalMinutes[0]
                         }
                         if (fieldErrors.priceCents?.[0]) {
                             validationErrors.priceCents = fieldErrors.priceCents[0]
@@ -218,9 +218,14 @@ export function CreateServiceDialog({ businessId }: CreateServiceDialogProps) {
                                 <select
                                     id='service-duration'
                                     value={formData.durationMinutes}
-                                    onChange={e =>
-                                        setFormData({ ...formData, durationMinutes: parseInt(e.target.value) })
-                                    }
+                                    onChange={e => {
+                                        const newDuration = parseInt(e.target.value)
+                                        setFormData(prev => ({
+                                            ...prev,
+                                            durationMinutes: newDuration,
+                                            slotIntervalMinutes: newDuration
+                                        }))
+                                    }}
                                     disabled={isSubmitting}
                                     className='flex h-10 w-full rounded-md border border-zinc-200 bg-white px-3 py-2 text-sm ring-offset-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-950 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 dark:border-zinc-800 dark:bg-zinc-950 dark:ring-offset-zinc-950 dark:focus-visible:ring-zinc-300'
                                 >
@@ -248,9 +253,14 @@ export function CreateServiceDialog({ businessId }: CreateServiceDialogProps) {
                                         max='480'
                                         step='5'
                                         value={formData.durationMinutes}
-                                        onChange={e =>
-                                            setFormData({ ...formData, durationMinutes: parseInt(e.target.value) || 0 })
-                                        }
+                                        onChange={e => {
+                                            const newDuration = parseInt(e.target.value) || 0
+                                            setFormData(prev => ({
+                                                ...prev,
+                                                durationMinutes: newDuration,
+                                                slotIntervalMinutes: newDuration
+                                            }))
+                                        }}
                                         disabled={isSubmitting}
                                         className='w-24'
                                     />
@@ -276,19 +286,22 @@ export function CreateServiceDialog({ businessId }: CreateServiceDialogProps) {
                         )}
                     </div>
 
-                    {/* Buffer */}
+                    {/* Periodicidad de turnos */}
                     <div className='space-y-2'>
-                        <Label htmlFor='service-buffer'>Tiempo entre turnos (buffer)</Label>
+                        <Label htmlFor='service-interval'>Periodicidad de turnos</Label>
                         <div className='flex items-center gap-2'>
                             <Input
-                                id='service-buffer'
+                                id='service-interval'
                                 type='number'
-                                min='0'
-                                max='120'
+                                min={formData.durationMinutes}
+                                max='480'
                                 step='5'
-                                value={formData.bufferMinutes}
+                                value={formData.slotIntervalMinutes}
                                 onChange={e =>
-                                    setFormData({ ...formData, bufferMinutes: parseInt(e.target.value) || 0 })
+                                    setFormData({
+                                        ...formData,
+                                        slotIntervalMinutes: parseInt(e.target.value) || formData.durationMinutes
+                                    })
                                 }
                                 disabled={isSubmitting}
                                 className='w-24'
@@ -296,10 +309,10 @@ export function CreateServiceDialog({ businessId }: CreateServiceDialogProps) {
                             <span className='text-sm text-zinc-500'>minutos</span>
                         </div>
                         <p className='text-xs text-zinc-500 dark:text-zinc-400'>
-                            Tiempo de preparación entre un turno y el siguiente (por defecto 0)
+                            Cada cuántos minutos se ofrece un nuevo turno. Por defecto, igual a la duración.
                         </p>
-                        {errors.bufferMinutes && (
-                            <p className='text-sm text-red-600 dark:text-red-400'>{errors.bufferMinutes}</p>
+                        {errors.slotIntervalMinutes && (
+                            <p className='text-sm text-red-600 dark:text-red-400'>{errors.slotIntervalMinutes}</p>
                         )}
                     </div>
 

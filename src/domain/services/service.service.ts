@@ -24,11 +24,23 @@ export function validateServiceDuration(durationMinutes: number): void {
 }
 
 /**
- * Valida que el buffer de minutos sea válido (>= 0)
+ * Valida que slotIntervalMinutes sea válido (>= durationMinutes y múltiplo de DURATION_STEP)
  */
-export function validateBufferMinutes(bufferMinutes: number): void {
-    if (bufferMinutes < 0) {
-        throw new AppError(ValidationErrorCodes.VALIDATION_ERROR, 'El buffer no puede ser negativo', 400)
+export function validateSlotIntervalMinutes(slotIntervalMinutes: number, durationMinutes: number): void {
+    if (slotIntervalMinutes < durationMinutes) {
+        throw new AppError(
+            ValidationErrorCodes.VALIDATION_ERROR,
+            'La periodicidad no puede ser menor que la duración del turno',
+            400
+        )
+    }
+
+    if (slotIntervalMinutes % DURATION_STEP !== 0) {
+        throw new AppError(
+            ValidationErrorCodes.VALIDATION_ERROR,
+            `La periodicidad debe ser múltiplo de ${DURATION_STEP} minutos`,
+            400
+        )
     }
 }
 
@@ -50,8 +62,10 @@ export function validateCreateServiceInput(input: CreateServiceInput): void {
 
     validateServiceDuration(input.durationMinutes)
 
-    if (input.bufferMinutes !== undefined) {
-        validateBufferMinutes(input.bufferMinutes)
+    // Si se especifica slotIntervalMinutes, validar
+    // Si no se especifica, se usará durationMinutes como default (en repo)
+    if (input.slotIntervalMinutes !== undefined) {
+        validateSlotIntervalMinutes(input.slotIntervalMinutes, input.durationMinutes)
     }
 
     if (input.priceCents !== undefined && input.priceCents !== null && input.priceCents < 0) {
@@ -62,7 +76,7 @@ export function validateCreateServiceInput(input: CreateServiceInput): void {
 /**
  * Valida el input completo de actualización de servicio
  */
-export function validateUpdateServiceInput(input: UpdateServiceInput): void {
+export function validateUpdateServiceInput(input: UpdateServiceInput, existingDuration?: number): void {
     if (input.name !== undefined) {
         if (!input.name || input.name.trim().length === 0) {
             throw new AppError(ValidationErrorCodes.VALIDATION_ERROR, 'El nombre del servicio es requerido', 400)
@@ -80,8 +94,13 @@ export function validateUpdateServiceInput(input: UpdateServiceInput): void {
         validateServiceDuration(input.durationMinutes)
     }
 
-    if (input.bufferMinutes !== undefined) {
-        validateBufferMinutes(input.bufferMinutes)
+    // Para validar slotIntervalMinutes necesitamos saber la duración final
+    // (puede ser la nueva o la existente)
+    if (input.slotIntervalMinutes !== undefined) {
+        const duration = input.durationMinutes ?? existingDuration
+        if (duration !== undefined) {
+            validateSlotIntervalMinutes(input.slotIntervalMinutes, duration)
+        }
     }
 
     if (input.priceCents !== undefined && input.priceCents !== null && input.priceCents < 0) {

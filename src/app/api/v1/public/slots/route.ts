@@ -145,7 +145,7 @@ export async function GET(request: NextRequest) {
             fromDate,
             toDate,
             durationMinutes: service.durationMinutes,
-            bufferMinutes: service.bufferMinutes,
+            slotIntervalMinutes: service.slotIntervalMinutes,
             availabilityRules: availabilityRules.map(rule => ({
                 id: rule.id,
                 resourceId: rule.resourceId,

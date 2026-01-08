@@ -59,22 +59,21 @@ describe('Public Slots API - Integration Tests', () => {
             }
         ])
 
-        // Create service
+        // Create service (slotInterval = duration by default)
         const service = await createService(prisma, businessId, {
             name: 'Fútbol 5',
-            durationMinutes: 60,
-            bufferMinutes: 0
+            durationMinutes: 60
         })
         serviceId = service.id
 
         // Map service to resource
         await setServiceResources(prisma, businessId, serviceId, [resourceId])
 
-        // Create service with buffer
+        // Create service with different slot interval (longer periodicity)
         const service2 = await createService(prisma, businessId, {
             name: 'Fútbol 7',
             durationMinutes: 60,
-            bufferMinutes: 15
+            slotIntervalMinutes: 75 // 60 min duration, but slots every 75 min
         })
         serviceId2 = service2.id
 

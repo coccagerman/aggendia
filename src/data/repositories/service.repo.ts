@@ -129,13 +129,16 @@ export async function createService(
 ): Promise<Service> {
     validateCreateServiceInput(input)
 
+    // Si no se especifica slotIntervalMinutes, usa durationMinutes por defecto
+    const slotInterval = input.slotIntervalMinutes ?? input.durationMinutes
+
     return prisma.service.create({
         data: {
             businessId,
             name: input.name,
             description: input.description ?? null,
             durationMinutes: input.durationMinutes,
-            bufferMinutes: input.bufferMinutes ?? 0,
+            slotIntervalMinutes: slotInterval,
             priceCents: input.priceCents ?? null,
             currency: input.currency ?? 'ARS'
         }
@@ -155,23 +158,33 @@ export async function updateService(
     serviceId: string,
     input: UpdateServiceInput
 ): Promise<Service> {
-    validateUpdateServiceInput(input)
+    // Primero obtener el servicio existente para validación de slotInterval vs duration
+    const existing = await prisma.service.findFirst({
+        where: { id: serviceId, businessId, status: { not: 'DELETED' } }
+    })
+    if (!existing) {
+        throw new AppError(ServiceErrorCodes.SERVICE_NOT_FOUND, 'Servicio no encontrado para este negocio', 404)
+    }
+
+    // Validar con la duración existente para el caso de actualizar solo slotInterval
+    validateUpdateServiceInput(input, existing.durationMinutes)
 
     const updateData: Partial<UpdateServiceInput> = {}
 
     if (input.name !== undefined) updateData.name = input.name
     if (input.description !== undefined) updateData.description = input.description
     if (input.durationMinutes !== undefined) updateData.durationMinutes = input.durationMinutes
-    if (input.bufferMinutes !== undefined) updateData.bufferMinutes = input.bufferMinutes
+    if (input.slotIntervalMinutes !== undefined) updateData.slotIntervalMinutes = input.slotIntervalMinutes
     if (input.priceCents !== undefined) updateData.priceCents = input.priceCents
     if (input.currency !== undefined) updateData.currency = input.currency
     if (input.status !== undefined) updateData.status = input.status
 
-    const existing = await prisma.service.findFirst({
-        where: { id: serviceId, businessId, status: { not: 'DELETED' } }
-    })
-    if (!existing) {
-        throw new AppError(ServiceErrorCodes.SERVICE_NOT_FOUND, 'Servicio no encontrado para este negocio', 404)
+    // Auto-ajustar slotIntervalMinutes si la nueva duración supera el intervalo actual/nuevo
+    // Esto previene violación del CHECK constraint en DB (slotInterval >= duration)
+    const finalDuration = updateData.durationMinutes ?? existing.durationMinutes
+    const finalSlotInterval = updateData.slotIntervalMinutes ?? existing.slotIntervalMinutes
+    if (finalSlotInterval < finalDuration) {
+        updateData.slotIntervalMinutes = finalDuration
     }
 
     return prisma.service.update({

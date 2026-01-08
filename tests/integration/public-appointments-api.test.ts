@@ -70,11 +70,11 @@ describe('Public Appointments API - Integration Tests', () => {
             }
         ])
 
-        // Create active service
+        // Create active service (with slot interval > duration)
         const service = await createService(prisma, businessId, {
             name: 'Fútbol 5',
             durationMinutes: 60,
-            bufferMinutes: 15
+            slotIntervalMinutes: 75 // slots every 75 min, appointment lasts 60 min
         })
         serviceId = service.id
 
@@ -84,8 +84,7 @@ describe('Public Appointments API - Integration Tests', () => {
         // Create inactive service
         const inactiveService = await createService(prisma, businessId, {
             name: 'Servicio Inactivo',
-            durationMinutes: 30,
-            bufferMinutes: 0
+            durationMinutes: 30
         })
         inactiveServiceId = inactiveService.id
         await prisma.service.update({
