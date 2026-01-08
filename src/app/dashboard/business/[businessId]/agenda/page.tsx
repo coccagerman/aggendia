@@ -127,6 +127,7 @@ export default async function AgendaPage({ params, searchParams }: PageProps) {
                                     appointments={appointments}
                                     timezone={business.timezone}
                                     resourceLabel={business.resourceLabel}
+                                    businessId={businessId}
                                 />
                             </CardContent>
                         </Card>

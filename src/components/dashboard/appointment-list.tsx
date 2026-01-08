@@ -1,12 +1,19 @@
+'use client'
+
 import { formatAppointmentTime } from '@/lib/format'
 import { AppointmentStatus } from '@prisma/client'
 import { Calendar, Clock, User } from 'lucide-react'
+import { CancelAppointmentDialog } from './cancel-appointment-dialog'
 
+/**
+ * Appointment data received from Server Component.
+ * Dates are serialized to ISO strings when passed across the RSC boundary.
+ */
 interface AppointmentData {
     id: string
     status: AppointmentStatus
-    startAt: Date
-    endAt: Date
+    startAt: string | Date
+    endAt: string | Date
     service: {
         id: string
         name: string
@@ -27,6 +34,7 @@ interface AppointmentListProps {
     appointments: AppointmentData[]
     timezone: string
     resourceLabel: string
+    businessId: string
 }
 
 const statusConfig: Record<AppointmentStatus, { label: string; className: string }> = {
@@ -48,7 +56,7 @@ const statusConfig: Record<AppointmentStatus, { label: string; className: string
     }
 }
 
-export function AppointmentList({ appointments, timezone, resourceLabel }: AppointmentListProps) {
+export function AppointmentList({ appointments, timezone, resourceLabel, businessId }: AppointmentListProps) {
     if (appointments.length === 0) {
         return (
             <div className='flex flex-col items-center justify-center py-12 text-center'>
@@ -60,11 +68,17 @@ export function AppointmentList({ appointments, timezone, resourceLabel }: Appoi
         )
     }
 
+    // Check if appointment can be cancelled (SCHEDULED or RESCHEDULED)
+    const canCancel = (status: AppointmentStatus) => status === 'SCHEDULED' || status === 'RESCHEDULED'
+
     return (
         <div className='divide-y divide-zinc-200 dark:divide-zinc-800'>
             {appointments.map(appointment => {
                 const status = statusConfig[appointment.status]
-                const timeRange = formatAppointmentTime(appointment.startAt, appointment.endAt, timezone)
+                // Convert serialized dates back to Date objects (RSC boundary serializes Date -> string)
+                const startAt = new Date(appointment.startAt)
+                const endAt = new Date(appointment.endAt)
+                const timeRange = formatAppointmentTime(startAt, endAt, timezone)
 
                 return (
                     <div
@@ -91,10 +105,23 @@ export function AppointmentList({ appointments, timezone, resourceLabel }: Appoi
                             </div>
                         </div>
 
-                        {/* Right side: Customer info */}
-                        <div className='flex items-center gap-2 text-sm text-zinc-600 dark:text-zinc-400'>
-                            <User className='h-4 w-4' />
-                            <span>{appointment.customer.fullName}</span>
+                        {/* Right side: Customer info and actions */}
+                        <div className='flex items-center gap-4'>
+                            <div className='flex items-center gap-2 text-sm text-zinc-600 dark:text-zinc-400'>
+                                <User className='h-4 w-4' />
+                                <span>{appointment.customer.fullName}</span>
+                            </div>
+
+                            {/* Cancel button - only for SCHEDULED or RESCHEDULED */}
+                            {canCancel(appointment.status) && (
+                                <CancelAppointmentDialog
+                                    appointmentId={appointment.id}
+                                    businessId={businessId}
+                                    customerName={appointment.customer.fullName}
+                                    serviceName={appointment.service.name}
+                                    timeRange={timeRange}
+                                />
+                            )}
                         </div>
                     </div>
                 )

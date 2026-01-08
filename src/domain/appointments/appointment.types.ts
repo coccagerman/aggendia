@@ -46,6 +46,24 @@ export interface AppointmentOutput {
 }
 
 /**
+ * Input for cancelling an appointment
+ */
+export interface CancelAppointmentInput {
+    businessId: string
+    appointmentId: string
+    cancellationReason?: string
+}
+
+/**
+ * Output for cancelled appointment
+ */
+export interface CancelAppointmentOutput {
+    appointmentId: string
+    status: 'CANCELLED'
+    cancellationReason: string | null
+}
+
+/**
  * Result type for domain operations
  */
 export type CreateAppointmentResult =

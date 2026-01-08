@@ -195,19 +195,50 @@ export async function getAppointmentById(
 }
 
 /**
- * Update appointment status
+ * Update appointment status with optional state verification (atomic)
+ *
+ * @param prisma - Prisma client
+ * @param appointmentId - Appointment ID
+ * @param status - New status
+ * @param cancellationReason - Optional cancellation reason
+ * @param expectedStatuses - If provided, only update if current status is one of these (race condition prevention)
+ * @returns Updated appointment or null if expectedStatuses check failed
  */
 export async function updateAppointmentStatus(
     prisma: PrismaClient,
     appointmentId: string,
     status: AppointmentStatus,
-    cancellationReason?: string
-): Promise<Appointment> {
+    cancellationReason?: string,
+    expectedStatuses?: AppointmentStatus[]
+): Promise<Appointment | null> {
+    // Use updateMany for atomic state verification when expectedStatuses is provided
+    if (expectedStatuses && expectedStatuses.length > 0) {
+        const result = await prisma.appointment.updateMany({
+            where: {
+                id: appointmentId,
+                status: { in: expectedStatuses }
+            },
+            data: {
+                status,
+                ...(cancellationReason !== undefined ? { cancellationReason } : {})
+            }
+        })
+
+        // If no rows affected, the state check failed
+        if (result.count === 0) {
+            return null
+        }
+
+        // Fetch and return the updated appointment
+        return prisma.appointment.findUnique({ where: { id: appointmentId } })
+    }
+
+    // Simple update without state verification (backwards compatible)
     return prisma.appointment.update({
         where: { id: appointmentId },
         data: {
             status,
-            ...(cancellationReason ? { cancellationReason } : {})
+            ...(cancellationReason !== undefined ? { cancellationReason } : {})
         }
     })
 }
