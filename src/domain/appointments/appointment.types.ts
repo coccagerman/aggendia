@@ -64,6 +64,31 @@ export interface CancelAppointmentOutput {
 }
 
 /**
+ * Input for rescheduling an appointment
+ * @see docs/user-stories.md - US-6.3 Reprogramar turno
+ */
+export interface RescheduleAppointmentInput {
+    businessId: string
+    appointmentId: string
+    /** New start time in ISO 8601 UTC format */
+    newStartAt: string
+}
+
+/**
+ * Output for rescheduled appointment
+ */
+export interface RescheduleAppointmentOutput {
+    /** ID of the newly created appointment */
+    newAppointmentId: string
+    /** ID of the original appointment (now RESCHEDULED) */
+    originalAppointmentId: string
+    /** New start time in ISO 8601 UTC */
+    newStartAt: string
+    /** New end time in ISO 8601 UTC */
+    newEndAt: string
+}
+
+/**
  * Result type for domain operations
  */
 export type CreateAppointmentResult =

@@ -172,7 +172,8 @@ test.describe('Public Business Page E2E', () => {
         await expect(page.getByText(serviceName)).toBeVisible()
         await expect(page.getByText('30 min')).toBeVisible() // duración default
         // Precio formateado (puede ser $2.500,00 ARS o similar según locale)
-        await expect(page.getByText(/2.*500/)).toBeVisible()
+        // Usamos regex más específica para evitar matchear timestamps en nombres
+        await expect(page.getByText(/\$\s*2[.,]500/)).toBeVisible()
         await expect(page.getByText('ARS')).toBeVisible()
 
         // Verificar botón Reservar está habilitado y es un link

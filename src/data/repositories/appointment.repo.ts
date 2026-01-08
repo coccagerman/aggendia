@@ -52,7 +52,8 @@ export interface AppointmentWithRelations extends Appointment {
 
 /**
  * Get appointments for a resource within a date range
- * Returns only active appointments (SCHEDULED, RESCHEDULED)
+ * Returns only appointments that block slots (SCHEDULED)
+ * Note: RESCHEDULED appointments don't block slots - their time was moved
  */
 export async function getAppointmentsByResourceAndRange(
     prisma: PrismaClient,
@@ -63,7 +64,7 @@ export async function getAppointmentsByResourceAndRange(
     return prisma.appointment.findMany({
         where: {
             resourceId,
-            status: { in: ['SCHEDULED', 'RESCHEDULED'] },
+            status: 'SCHEDULED',
             startAt: { lt: to },
             occupiedEndAt: { gt: from }
         },
@@ -80,7 +81,8 @@ export async function getAppointmentsByResourceAndRange(
 
 /**
  * Check if a slot is available for a resource
- * Returns true if no overlapping appointments exist
+ * Returns true if no overlapping SCHEDULED appointments exist
+ * Note: RESCHEDULED appointments don't block slots
  */
 export async function isSlotAvailable(
     prisma: PrismaClient,
@@ -91,7 +93,7 @@ export async function isSlotAvailable(
     const overlapping = await prisma.appointment.findFirst({
         where: {
             resourceId,
-            status: { in: ['SCHEDULED', 'RESCHEDULED'] },
+            status: 'SCHEDULED',
             startAt: { lt: occupiedEndAt },
             occupiedEndAt: { gt: startAt }
         },
@@ -292,4 +294,207 @@ export async function getAppointmentsByBusinessAndDay(
         },
         orderBy: { startAt: 'asc' }
     })
+}
+
+// ============================================================================
+// Reschedule Appointment (US-6.3)
+// ============================================================================
+
+/**
+ * Appointment data with service/resource info for reschedule validation
+ */
+export interface AppointmentForReschedule {
+    id: string
+    businessId: string
+    resourceId: string
+    serviceId: string
+    customerId: string
+    status: AppointmentStatus
+    businessTimezone: string
+    service: {
+        id: string
+        name: string
+        durationMinutes: number
+        slotIntervalMinutes: number
+        status: string
+    }
+    resource: {
+        id: string
+        name: string
+        status: string
+    }
+}
+
+/**
+ * Get appointment by ID with service/resource details for reschedule validation
+ */
+export async function getAppointmentForReschedule(
+    prisma: PrismaClient,
+    businessId: string,
+    appointmentId: string
+): Promise<AppointmentForReschedule | null> {
+    const result = await prisma.appointment.findFirst({
+        where: {
+            id: appointmentId,
+            businessId
+        },
+        select: {
+            id: true,
+            businessId: true,
+            resourceId: true,
+            serviceId: true,
+            customerId: true,
+            status: true,
+            business: {
+                select: {
+                    timezone: true
+                }
+            },
+            service: {
+                select: {
+                    id: true,
+                    name: true,
+                    durationMinutes: true,
+                    slotIntervalMinutes: true,
+                    status: true
+                }
+            },
+            resource: {
+                select: {
+                    id: true,
+                    name: true,
+                    status: true
+                }
+            }
+        }
+    })
+
+    if (!result) return null
+
+    return {
+        id: result.id,
+        businessId: result.businessId,
+        resourceId: result.resourceId,
+        serviceId: result.serviceId,
+        customerId: result.customerId,
+        status: result.status as AppointmentStatus,
+        businessTimezone: result.business.timezone,
+        service: result.service,
+        resource: result.resource
+    }
+}
+
+/**
+ * Input for creating a rescheduled appointment
+ */
+export interface CreateRescheduledAppointmentInput {
+    originalAppointmentId: string
+    businessId: string
+    resourceId: string
+    serviceId: string
+    customerId: string
+    startAt: Date
+    endAt: Date
+    occupiedEndAt: Date
+}
+
+/**
+ * Result of creating a rescheduled appointment
+ */
+export interface RescheduleAppointmentResult {
+    newAppointmentId: string
+    originalAppointmentId: string
+    newStartAt: Date
+    newEndAt: Date
+}
+
+/**
+ * Create a new appointment from rescheduling and mark original as RESCHEDULED
+ *
+ * This operation is atomic (transaction):
+ * 1. Updates original appointment status to RESCHEDULED (frees the original slot)
+ *    - Uses conditional update to prevent race conditions (only updates if status is SCHEDULED/RESCHEDULED)
+ * 2. Creates new appointment with rescheduled_from_id pointing to original
+ *
+ * Note: The DB constraint for anti double-booking only applies to SCHEDULED appointments.
+ * When an appointment is rescheduled, the original slot becomes FREE for new bookings
+ * while preserving the audit trail via rescheduled_from_id.
+ *
+ * @throws AppError with APPOINTMENT_SLOT_TAKEN if new slot overlaps with another SCHEDULED appointment
+ * @throws AppError with APPOINTMENT_INVALID_STATUS if original appointment status changed during operation
+ */
+export async function createRescheduledAppointment(
+    prisma: PrismaClient,
+    input: CreateRescheduledAppointmentInput
+): Promise<RescheduleAppointmentResult> {
+    try {
+        return await prisma.$transaction(async tx => {
+            // 1. Update original appointment status to RESCHEDULED with state verification
+            // Only update if current status is SCHEDULED or RESCHEDULED (prevents race conditions)
+            // This ensures we don't overwrite a concurrent cancellation or completion
+            const updateResult = await tx.appointment.updateMany({
+                where: {
+                    id: input.originalAppointmentId,
+                    status: { in: ['SCHEDULED', 'RESCHEDULED'] }
+                },
+                data: { status: 'RESCHEDULED' }
+            })
+
+            // If no rows updated, the appointment status changed concurrently
+            if (updateResult.count === 0) {
+                throw new AppError(
+                    AppointmentErrorCodes.APPOINTMENT_INVALID_STATUS,
+                    'El estado del turno cambió durante la operación. Por favor, recargue e intente nuevamente.',
+                    409
+                )
+            }
+
+            // 2. Create new appointment with reference to original
+            const newAppointment = await tx.appointment.create({
+                data: {
+                    businessId: input.businessId,
+                    resourceId: input.resourceId,
+                    serviceId: input.serviceId,
+                    customerId: input.customerId,
+                    status: 'SCHEDULED',
+                    startAt: input.startAt,
+                    endAt: input.endAt,
+                    occupiedEndAt: input.occupiedEndAt,
+                    rescheduledFromId: input.originalAppointmentId
+                }
+            })
+
+            return {
+                newAppointmentId: newAppointment.id,
+                originalAppointmentId: input.originalAppointmentId,
+                newStartAt: newAppointment.startAt,
+                newEndAt: newAppointment.endAt
+            }
+        })
+    } catch (error) {
+        // Handle EXCLUDE constraint violation (double-booking on new slot)
+        if (error instanceof Prisma.PrismaClientKnownRequestError) {
+            if (error.code === 'P2034' || error.message.includes('Appointment_no_overlap')) {
+                throw new AppError(
+                    AppointmentErrorCodes.APPOINTMENT_SLOT_TAKEN,
+                    'El horario seleccionado ya no está disponible',
+                    409
+                )
+            }
+        }
+        if (error instanceof Error && error.message.includes('Appointment_no_overlap')) {
+            throw new AppError(
+                AppointmentErrorCodes.APPOINTMENT_SLOT_TAKEN,
+                'El horario seleccionado ya no está disponible',
+                409
+            )
+        }
+        // Re-throw AppErrors as-is
+        if (error instanceof AppError) {
+            throw error
+        }
+        // Log and wrap other errors
+        console.error('Error rescheduling appointment:', error)
+        throw new AppError(SystemErrorCodes.DB_ERROR, 'Error al reprogramar el turno', 500)
+    }
 }

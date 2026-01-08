@@ -4,6 +4,7 @@ import { formatAppointmentTime } from '@/lib/format'
 import { AppointmentStatus } from '@prisma/client'
 import { Calendar, Clock, User } from 'lucide-react'
 import { CancelAppointmentDialog } from './cancel-appointment-dialog'
+import { RescheduleAppointmentDialog } from './reschedule-appointment-dialog'
 
 /**
  * Appointment data received from Server Component.
@@ -35,6 +36,8 @@ interface AppointmentListProps {
     timezone: string
     resourceLabel: string
     businessId: string
+    /** Business slug for fetching available slots */
+    slug: string
 }
 
 const statusConfig: Record<AppointmentStatus, { label: string; className: string }> = {
@@ -56,7 +59,7 @@ const statusConfig: Record<AppointmentStatus, { label: string; className: string
     }
 }
 
-export function AppointmentList({ appointments, timezone, resourceLabel, businessId }: AppointmentListProps) {
+export function AppointmentList({ appointments, timezone, resourceLabel, businessId, slug }: AppointmentListProps) {
     if (appointments.length === 0) {
         return (
             <div className='flex flex-col items-center justify-center py-12 text-center'>
@@ -68,8 +71,8 @@ export function AppointmentList({ appointments, timezone, resourceLabel, busines
         )
     }
 
-    // Check if appointment can be cancelled (SCHEDULED or RESCHEDULED)
-    const canCancel = (status: AppointmentStatus) => status === 'SCHEDULED' || status === 'RESCHEDULED'
+    // Check if appointment can be cancelled or rescheduled (SCHEDULED or RESCHEDULED)
+    const canModify = (status: AppointmentStatus) => status === 'SCHEDULED' || status === 'RESCHEDULED'
 
     return (
         <div className='divide-y divide-zinc-200 dark:divide-zinc-800'>
@@ -112,15 +115,29 @@ export function AppointmentList({ appointments, timezone, resourceLabel, busines
                                 <span>{appointment.customer.fullName}</span>
                             </div>
 
-                            {/* Cancel button - only for SCHEDULED or RESCHEDULED */}
-                            {canCancel(appointment.status) && (
-                                <CancelAppointmentDialog
-                                    appointmentId={appointment.id}
-                                    businessId={businessId}
-                                    customerName={appointment.customer.fullName}
-                                    serviceName={appointment.service.name}
-                                    timeRange={timeRange}
-                                />
+                            {/* Action buttons - only for SCHEDULED or RESCHEDULED */}
+                            {canModify(appointment.status) && (
+                                <div className='flex items-center gap-1'>
+                                    <RescheduleAppointmentDialog
+                                        appointmentId={appointment.id}
+                                        businessId={businessId}
+                                        slug={slug}
+                                        serviceId={appointment.service.id}
+                                        resourceId={appointment.resource.id}
+                                        customerName={appointment.customer.fullName}
+                                        serviceName={appointment.service.name}
+                                        resourceName={appointment.resource.name}
+                                        currentTimeRange={timeRange}
+                                        timezone={timezone}
+                                    />
+                                    <CancelAppointmentDialog
+                                        appointmentId={appointment.id}
+                                        businessId={businessId}
+                                        customerName={appointment.customer.fullName}
+                                        serviceName={appointment.service.name}
+                                        timeRange={timeRange}
+                                    />
+                                </div>
                             )}
                         </div>
                     </div>
