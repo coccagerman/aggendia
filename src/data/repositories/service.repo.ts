@@ -139,6 +139,7 @@ export async function createService(
             description: input.description ?? null,
             durationMinutes: input.durationMinutes,
             slotIntervalMinutes: slotInterval,
+            minBookingNoticeMinutes: input.minBookingNoticeMinutes ?? 0,
             priceCents: input.priceCents ?? null,
             currency: input.currency ?? 'ARS'
         }
@@ -175,6 +176,7 @@ export async function updateService(
     if (input.description !== undefined) updateData.description = input.description
     if (input.durationMinutes !== undefined) updateData.durationMinutes = input.durationMinutes
     if (input.slotIntervalMinutes !== undefined) updateData.slotIntervalMinutes = input.slotIntervalMinutes
+    if (input.minBookingNoticeMinutes !== undefined) updateData.minBookingNoticeMinutes = input.minBookingNoticeMinutes
     if (input.priceCents !== undefined) updateData.priceCents = input.priceCents
     if (input.currency !== undefined) updateData.currency = input.currency
     if (input.status !== undefined) updateData.status = input.status

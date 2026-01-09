@@ -905,4 +905,157 @@ describe('Public Appointments API - Integration Tests', () => {
             expect(data.error.message).toContain('Demasiados intentos')
         })
     })
+
+    // ============================================================================
+    // US-7.1: Minimum booking notice tests
+    // ============================================================================
+
+    describe('POST /api/v1/public/appointments - Minimum Booking Notice (US-7.1)', () => {
+        let noticeBusinessId: string
+        let noticeBusinessSlug: string
+        let noticeResourceId: string
+        let noticeServiceId: string
+
+        beforeAll(async () => {
+            // Create business
+            const biz = await createBusinessWithOwner(
+                prisma,
+                {
+                    name: `Notice Test Business ${Date.now()}`,
+                    timezone: TIMEZONE,
+                    resourceLabel: 'Cancha'
+                },
+                `notice-test-${Date.now()}`,
+                `notice-user-${Date.now()}`
+            )
+            noticeBusinessId = biz.business.id
+            noticeBusinessSlug = biz.business.slug
+
+            // Create resource with all-week availability
+            const resource = await createResource(prisma, noticeBusinessId, {
+                name: 'Cancha Test',
+                type: 'ASSET',
+                status: 'ACTIVE'
+            })
+            noticeResourceId = resource.id
+
+            // Set availability for all days 00:00-24:00
+            const allDaysAvailability = [0, 1, 2, 3, 4, 5, 6].map(day => ({
+                dayOfWeek: day as 0 | 1 | 2 | 3 | 4 | 5 | 6,
+                startMinutes: 0,
+                endMinutes: 24 * 60
+            }))
+            await setAvailability(prisma, noticeResourceId, allDaysAvailability)
+
+            // Create service WITH 60 minutes booking notice
+            const service = await createService(prisma, noticeBusinessId, {
+                name: 'Servicio Test',
+                durationMinutes: 30,
+                slotIntervalMinutes: 30,
+                minBookingNoticeMinutes: 60
+            })
+            noticeServiceId = service.id
+
+            // Map service to resource
+            await setServiceResources(prisma, noticeBusinessId, noticeServiceId, [noticeResourceId])
+        })
+
+        afterAll(async () => {
+            await prisma.business.delete({ where: { id: noticeBusinessId } })
+        })
+
+        it('returns APPOINTMENT_TOO_SOON when booking within notice window', async () => {
+            // Try to book 30 minutes from now (within the 60 min notice window)
+            const startAt = new Date(Date.now() + 30 * 60 * 1000)
+
+            const request = new NextRequest('http://localhost/api/v1/public/appointments', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    slug: noticeBusinessSlug,
+                    serviceId: noticeServiceId,
+                    resourceId: noticeResourceId,
+                    startAt: startAt.toISOString(),
+                    customer: {
+                        fullName: 'Test Customer',
+                        email: 'test@example.com'
+                    }
+                })
+            })
+
+            const response = await POST(request)
+            const data = await response.json()
+
+            expect(response.status).toBe(400)
+            expect(data.error.code).toBe('APPOINTMENT_TOO_SOON')
+            expect(data.error.message).toContain('anticipación')
+        })
+
+        it('allows booking when outside notice window', async () => {
+            // Book 2 hours from now (outside the 60 min notice window)
+            const startAt = new Date(Date.now() + 120 * 60 * 1000)
+
+            const request = new NextRequest('http://localhost/api/v1/public/appointments', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    slug: noticeBusinessSlug,
+                    serviceId: noticeServiceId,
+                    resourceId: noticeResourceId,
+                    startAt: startAt.toISOString(),
+                    customer: {
+                        fullName: 'Test Customer Notice',
+                        email: `notice-${Date.now()}@example.com`
+                    }
+                })
+            })
+
+            const response = await POST(request)
+            const data = await response.json()
+
+            // Should succeed (201) since we're outside the notice window
+            expect(response.status).toBe(201)
+            expect(data.data.appointmentId).toBeDefined()
+        })
+
+        it('includes correct notice time in error message', async () => {
+            // Update service to 90 minutes notice
+            await prisma.service.update({
+                where: { id: noticeServiceId },
+                data: { minBookingNoticeMinutes: 90 }
+            })
+
+            // Try to book 30 minutes from now
+            const startAt = new Date(Date.now() + 30 * 60 * 1000)
+
+            const request = new NextRequest('http://localhost/api/v1/public/appointments', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    slug: noticeBusinessSlug,
+                    serviceId: noticeServiceId,
+                    resourceId: noticeResourceId,
+                    startAt: startAt.toISOString(),
+                    customer: {
+                        fullName: 'Test Customer',
+                        email: 'test@example.com'
+                    }
+                })
+            })
+
+            const response = await POST(request)
+            const data = await response.json()
+
+            expect(response.status).toBe(400)
+            expect(data.error.code).toBe('APPOINTMENT_TOO_SOON')
+            // Should mention 1h 30min
+            expect(data.error.message).toContain('1h 30min')
+
+            // Reset to 60 min for other tests
+            await prisma.service.update({
+                where: { id: noticeServiceId },
+                data: { minBookingNoticeMinutes: 60 }
+            })
+        })
+    })
 })

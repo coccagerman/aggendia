@@ -173,6 +173,41 @@ test.describe('Service Creation E2E', () => {
         await expect(page.getByText(/múltiplo de 5/i)).toBeVisible({ timeout: 5000 })
     })
 
+    test('creates service with minimum booking notice', async ({ page }) => {
+        const email = generateTestEmail()
+        const password = 'TestPassword123!'
+        const businessName = `Business ${Date.now()}`
+        const serviceName = `Servicio Con Anticipación ${Date.now()}`
+
+        // Setup: signup + crear negocio
+        await signupUser(page, email, password)
+        await createBusiness(page, businessName)
+
+        // Navegar a servicios
+        await page
+            .getByRole('link', { name: /gestionar/i })
+            .first()
+            .click()
+        await expect(page).toHaveURL(/.*\/services$/)
+
+        // Abrir dialog
+        await page.getByRole('button', { name: /crear servicio/i }).click()
+
+        // Completar formulario con anticipación de 3 horas (180 minutos)
+        await page.getByLabel(/nombre del servicio/i).fill(serviceName)
+        await page.getByLabel(/anticipación mínima/i).fill('180')
+
+        // Crear (usar force para evitar problemas de scroll en modal)
+        await page
+            .getByRole('button', { name: /crear servicio/i })
+            .last()
+            .click({ force: true })
+
+        // Verificar éxito
+        await expect(page.getByText(/servicio creado/i)).toBeVisible({ timeout: 10000 })
+        await expect(page.getByText(serviceName)).toBeVisible()
+    })
+
     test('service appears in public business page', async ({ page }) => {
         const email = generateTestEmail()
         const password = 'TestPassword123!'
@@ -313,7 +348,9 @@ test.describe('Service Edit E2E', () => {
 
         // Cambiar nombre
         await page.getByLabel(/nombre del servicio/i).fill(updatedName)
-        await page.getByRole('button', { name: /guardar cambios/i }).click()
+
+        // Click via JavaScript para evitar problemas de viewport en modal
+        await page.getByRole('button', { name: /guardar cambios/i }).evaluate(el => (el as HTMLElement).click())
 
         // Verificar éxito
         await expect(page.getByText(/servicio actualizado/i)).toBeVisible({ timeout: 10000 })
@@ -368,7 +405,8 @@ test.describe('Service Edit E2E', () => {
         await page.getByLabel(/precio/i).clear()
         await page.getByLabel(/precio/i).fill('250')
 
-        await page.getByRole('button', { name: /guardar cambios/i }).click()
+        // Click via JavaScript para evitar problemas de viewport en modal
+        await page.getByRole('button', { name: /guardar cambios/i }).evaluate(el => (el as HTMLElement).click())
         await expect(page.getByText(/servicio actualizado/i)).toBeVisible({ timeout: 10000 })
 
         // Verificar valores actualizados
@@ -420,7 +458,9 @@ test.describe('Service Edit E2E', () => {
         await page.getByRole('menuitem', { name: /editar/i }).click()
         await expect(page.getByRole('dialog')).toBeVisible()
         await page.getByLabel(/nombre del servicio/i).fill(service1Name)
-        await page.getByRole('button', { name: /guardar cambios/i }).click()
+
+        // Click via JavaScript para evitar problemas de viewport en modal
+        await page.getByRole('button', { name: /guardar cambios/i }).evaluate(el => (el as HTMLElement).click())
 
         // Verificar error de conflicto
         await expect(page.getByText(/ya existe un servicio con ese nombre/i)).toBeVisible({ timeout: 10000 })
@@ -453,7 +493,9 @@ test.describe('Service Edit E2E', () => {
         await page.getByRole('button', { name: /abrir menú/i }).click()
         await page.getByRole('menuitem', { name: /editar/i }).click()
         await page.getByLabel(/nombre del servicio/i).fill('Nombre Modificado')
-        await page.getByRole('button', { name: /cancelar/i }).click()
+
+        // Click via JavaScript para evitar problemas de viewport en modal
+        await page.getByRole('button', { name: /cancelar/i }).evaluate(el => (el as HTMLElement).click())
 
         // Verificar que el nombre original persiste
         await expect(page.getByRole('dialog')).not.toBeVisible()
@@ -532,7 +574,9 @@ test.describe('Service Edit E2E', () => {
         await page.getByLabel(/nombre del servicio/i).fill(updatedName)
         await page.getByLabel(/precio/i).clear()
         await page.getByLabel(/precio/i).fill('200')
-        await page.getByRole('button', { name: /guardar cambios/i }).click()
+
+        // Click via JavaScript para evitar problemas de viewport en modal
+        await page.getByRole('button', { name: /guardar cambios/i }).evaluate(el => (el as HTMLElement).click())
         await expect(page.getByText(/servicio actualizado/i)).toBeVisible({ timeout: 10000 })
 
         // Verificar valores actualizados en página pública

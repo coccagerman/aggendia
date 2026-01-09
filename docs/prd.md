@@ -1,51 +1,62 @@
-# PRD — App de turnos simple y barata (MVP)
+# PRD — App de turnos simple y barata
 
 > Nota: En algunas conversaciones lo llamamos “PDR”, pero el nombre estándar es **PRD** (Product Requirements Document).
 
 ## 1. Resumen
 
-Aplicación web de turnos/reservas **para cualquier rubro**, enfocada en **simplicidad**, **velocidad de uso** y **bajo costo**.  
-El MVP permite que un negocio configure su catálogo de servicios, asigne qué recursos los atienden, publique disponibilidad y que sus clientes reserven sin fricción, con control básico (cancelar/reprogramar) y recordatorios por email.
+Aplicación web de turnos/reservas **para cualquier rubro**, enfocada en **simplicidad**, **velocidad de uso** y **bajo costo**.
+
+El producto permite que un negocio configure su catálogo de servicios, defina qué recursos los atienden, publique disponibilidad y gestione su agenda diaria, mientras que los clientes pueden reservar turnos online sin fricción. Incluye control operativo básico, creación manual de turnos y recordatorios automáticos por email.
+
+---
 
 ## 2. Problema
 
-Pequeños negocios coordinan turnos por WhatsApp/llamadas/Instagram y sufren:
+Pequeños y medianos negocios suelen coordinar turnos por WhatsApp, llamadas o redes sociales, lo que genera:
 
--   Desorden operativo (papel/notas/agenda informal).
+-   Desorden operativo (papel, mensajes dispersos, agendas informales).
 -   Mucho ida y vuelta para consultar disponibilidad.
--   No-shows (olvidos/cancelaciones tarde).
--   Baja visibilidad de horarios disponibles.
--   Herramientas existentes caras o demasiado complejas para el día a día.
+-   Reservas de último momento difíciles de gestionar.
+-   No-shows por olvidos o cancelaciones tardías.
+-   Herramientas existentes caras o demasiado complejas para el uso diario.
+
+---
 
 ## 3. Usuario objetivo
 
 ### Admin / Dueño
 
 -   No técnico, quiere algo que “funcione ya”.
--   Prioriza simpleza, control y costo bajo.
+-   Necesita control sobre su agenda sin complejidad.
+-   Prioriza costo bajo y reglas claras.
 
 ### Staff / Operador
 
--   Necesita ver y gestionar agenda de recursos asignados.
+-   Gestiona la agenda día a día.
+-   Necesita ver turnos por distintos rangos de tiempo.
+-   Requiere filtrar y actualizar estados rápidamente.
 
 ### Cliente final
 
--   Quiere reservar rápido (menos de 1 minuto).
--   Quiere confirmación y recordatorio.
+-   Quiere reservar rápido (idealmente en menos de un minuto).
+-   Necesita ver horarios reales y confiables.
+-   Espera confirmación y recordatorios.
+
+---
 
 ## 4. Conceptos clave: Servicio y Recurso
 
 ### Servicio
 
-Lo que el cliente “elige reservar”. Define:
+Lo que el cliente elige reservar. Define:
 
 -   **duración del turno**
--   **periodicidad de turnos** (cada cuánto tiempo se ofrece un nuevo turno)
+-   **periodicidad de turnos** (cada cuánto se ofrece un nuevo inicio)
 -   precio (opcional)
 
-Por defecto, la periodicidad es igual a la duración del servicio, aunque puede configurarse de forma independiente.
+Por defecto, la periodicidad es igual a la duración, aunque puede configurarse de forma independiente.
 
-Ejemplos: “Corte”, “Color”, “Consulta”, “Cambio de aceite”.
+Ejemplos: “Corte”, “Consulta”, “Cambio de aceite”.
 
 Este modelo refleja cómo los negocios organizan su agenda en la práctica:
 
@@ -53,133 +64,165 @@ Este modelo refleja cómo los negocios organizan su agenda en la práctica:
 
 ### Recurso
 
-Cualquier cosa “reservable” con agenda propia (persona o activo).
+Entidad reservable con agenda propia (persona o activo).
 
 Ejemplos:
 
 -   Peluquería: “Peluquero 1”, “Peluquero 2”
 -   Canchas: “Cancha 1”, “Cancha 2”
 -   Consultorio: “Consultorio 3”
--   Taller: “Box 1”, “Elevador 1”
 
-UX: cada negocio define un **nombre visible** para “Recurso”  
-(ej: “Profesional”, “Cancha”, “Consultorio”, “Box”).
+Cada negocio define el **nombre visible** del recurso (Profesional, Cancha, Box, etc.).
 
-### Relación Servicio ↔ Recurso (MVP)
+### Relación Servicio ↔ Recurso
 
-Desde el MVP, el negocio define **qué recursos ofrecen qué servicios**.
+Desde el inicio, el negocio define qué recursos ofrecen qué servicios.
 
--   Un servicio puede ser atendido por **uno o varios recursos**.
--   Un recurso puede ofrecer **uno o varios servicios**.
+-   Un servicio puede ser atendido por uno o varios recursos.
+-   Un recurso puede ofrecer uno o varios servicios.
 
 Regla: un servicio solo se ofrece públicamente si está activo **y** tiene al menos un recurso activo asignado.
 
+---
+
 ## 5. Propuesta de valor
 
--   Reservas simples en pocos pasos: servicio → recurso (si aplica) → fecha/hora → confirmar.
--   Link público compartible del negocio.
--   Agenda clara por recurso (día/semana).
+-   Reservas simples: servicio → recurso (si aplica) → fecha/hora → confirmar.
+-   Link público compartible por negocio.
+-   Agenda clara y flexible (día / semana / mes).
 -   Reglas simples y comprensibles:
+
     -   duración del turno
     -   periodicidad de turnos
-    -   política de cancelación
--   Recordatorios automáticos (MVP: email).
--   Configuración flexible sin complejidad técnica:
-    -   asignar servicios a recursos con un selector simple
-    -   definir cómo se organiza la agenda en intervalos claros
+    -   anticipación mínima para reservar
 
-## 6. Objetivos del MVP
+-   Control operativo desde el dashboard:
 
-1. Un negocio configura y publica turnos sin ayuda técnica.
-2. Un cliente reserva online de forma simple y rápida.
-3. Evitar **double-booking** (dos reservas para el mismo recurso y horario).
-4. El negocio puede cancelar/reprogramar y el cliente queda notificado.
-5. Agenda usable y clara desde el celular.
+    -   crear, cancelar, reprogramar y completar turnos
+    -   filtrar agenda por estado y recurso
 
-## 7. Alcance V1
+-   Recordatorios automáticos por email.
+
+---
+
+## 6. Objetivos del producto
+
+1. Que un negocio configure y gestione turnos sin ayuda técnica.
+2. Que un cliente pueda reservar online de forma rápida y confiable.
+3. Evitar **double-booking** en todos los escenarios.
+4. Dar al negocio control real de su agenda diaria.
+5. Mantener una UX clara y usable desde el celular.
+
+---
+
+## 7. Alcance funcional (V1)
 
 ### A) Cuenta y negocio
 
--   Registro/login (Supabase Auth).
--   Crear negocio: nombre, timezone, dirección opcional, etiqueta de “Recurso”.
--   Link público por negocio (slug).
+-   Registro / login.
+-   Crear negocio: nombre, timezone, etiqueta de recurso.
+-   Configuración básica:
+
+    -   anticipación mínima para reservas
+    -   recordatorios (on/off y offsets)
+
+-   Link público del negocio.
 
 ### B) Recursos
 
--   CRUD de recursos (nombre, tipo opcional PERSON/ASSET, estado activo/inactivo).
+-   Crear, editar y desactivar recursos.
+-   Eliminación (soft delete) solo si no hay turnos futuros.
 
 ### C) Servicios
 
--   CRUD de servicios:
-    -   duración del turno
-    -   periodicidad de turnos
-    -   precio opcional
--   La periodicidad de turnos es configurable y, por defecto, igual a la duración.
--   Servicios activos visibles públicamente **solo si** tienen recursos activos asignados.
+-   Crear, editar y desactivar servicios.
+-   Eliminación (soft delete) con preservación de historial.
+-   Configuración de duración y periodicidad.
 
-### D) Asignación Servicio ↔ Recurso (MVP)
+### D) Asignación Servicio ↔ Recurso
 
--   UI simple para asignar recursos a un servicio (y/o servicios a un recurso).
+-   UI simple para asignar recursos a servicios.
 -   Validaciones:
-    -   solo recursos del mismo negocio
-    -   no permitir asignar recursos INACTIVE
--   Impacto en el flujo público:
-    -   al elegir servicio, la lista de recursos se filtra por los asignados a ese servicio.
 
-### E) Disponibilidad por recurso
+    -   mismo negocio
+    -   solo recursos activos
 
--   Disponibilidad semanal por recurso (rangos por día).
--   (Opcional V1 si no complica) Bloqueos puntuales de disponibilidad.
+-   Impacto directo en la reserva pública.
+
+### E) Disponibilidad
+
+-   Disponibilidad semanal por recurso.
+-   Bloqueos puntuales (feriados, licencias, mantenimiento).
 
 ### F) Reservas (cliente)
 
--   Página pública: elegir servicio → recurso (si aplica) → horario disponible → confirmar datos.
--   Los horarios ofrecidos respetan:
-    -   la disponibilidad del recurso
-    -   la duración del servicio
-    -   la periodicidad definida para ese servicio
--   Reglas:
-    -   recursos ofrecidos = activos y asignados al servicio elegido
-    -   si hay 1 recurso disponible para ese servicio, se omite el paso (auto-selección)
--   Datos mínimos: nombre + email o teléfono (según regla).
--   Confirmación de reserva.
+-   Flujo público guiado y simple.
+-   Horarios ofrecidos respetan:
 
-### G) Agenda (negocio)
+    -   disponibilidad
+    -   duración y periodicidad del servicio
+    -   anticipación mínima del negocio
 
--   Vista de agenda por día con filtro por recurso.
--   Turnos mostrados en intervalos claros y consistentes.
--   Acciones: cancelar, reprogramar (confirmación opcional).
+-   Datos mínimos: nombre + email o teléfono.
+-   Confirmación automática por email.
+
+### G) Agenda y gestión (negocio)
+
+-   Agenda con vistas:
+
+    -   día
+    -   semana
+    -   mes
+
+-   Navegación temporal (anterior / siguiente).
+-   Filtros por:
+
+    -   recurso
+    -   estado del turno
+
+-   Acciones:
+
+    -   crear turno manualmente
+    -   cancelar
+    -   reprogramar
+    -   marcar como completado
 
 ### H) Notificaciones
 
 -   Email de confirmación.
--   Recordatorios 24h y/o 2h antes (config simple on/off y offsets).
+-   Recordatorios configurables.
+-   Emails de cancelación y reprogramación.
+
+---
 
 ## 8. Fuera de alcance (por ahora)
 
 -   Pagos online / señas.
 -   App móvil nativa.
--   Integración bidireccional con Google Calendar/Outlook.
--   Marketplace/descubrimiento de negocios.
+-   Integración bidireccional con calendarios externos.
+-   Marketplace de negocios.
 -   Multi-sucursal compleja.
--   Clases grupales con cupos (capacidad > 1).
--   Automatizaciones avanzadas (cobro no-show, reglas por cliente).
--   WhatsApp automático si frena el MVP por costos/aprobaciones.
--   Reglas avanzadas de asignación  
-    (skills por recurso, precios distintos por recurso, etc.).  
-    _(Podrían incorporarse más adelante sobre la misma relación Servicio ↔ Recurso.)_
+-   Clases grupales con cupos.
+-   Automatizaciones avanzadas (penalizaciones, scoring de clientes).
+-   WhatsApp automático.
+
+---
 
 ## 9. Requisitos no funcionales
 
 -   Mobile-first.
--   Confiable: impedir double-booking (idealmente a nivel DB).
--   Seguro: aislamiento multi-tenant por negocio.
--   Observabilidad mínima: logging y tracking de errores.
+-   Confiable: anti double-booking fuerte.
+-   Seguro: aislamiento multi-tenant.
+-   Performance predecible en vistas de agenda amplias.
+-   Observabilidad básica (logging y errores).
 
-## 10. Métricas de éxito (MVP)
+---
 
--   Tiempo a “primer turno” (desde registro hasta primera reserva).
+## 10. Métricas de éxito
+
+-   Tiempo a primer turno.
 -   Conversión del link público a reserva.
+-   Uso de creación manual de turnos.
 -   No-show rate.
 -   Retención mensual de negocios.
--   Baja fricción en onboarding (pocas consultas y errores).
+-   Fricción en onboarding (consultas, errores).

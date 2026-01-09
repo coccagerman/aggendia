@@ -16,7 +16,7 @@ import {
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
-import { DURATION_STEP, DURATION_OPTIONS } from '@/domain/services/service.types'
+import { DURATION_STEP, DURATION_OPTIONS, MAX_BOOKING_NOTICE_MINUTES } from '@/domain/services/service.types'
 
 interface CreateServiceDialogProps {
     businessId: string
@@ -26,6 +26,7 @@ interface FormErrors {
     name?: string
     durationMinutes?: string
     slotIntervalMinutes?: string
+    minBookingNoticeMinutes?: string
     priceCents?: string
     general?: string
 }
@@ -42,6 +43,7 @@ export function CreateServiceDialog({ businessId }: CreateServiceDialogProps) {
         description: '',
         durationMinutes: 30,
         slotIntervalMinutes: 30, // Por defecto = durationMinutes
+        minBookingNoticeMinutes: 120, // Por defecto 2 horas
         priceAmount: '' // Input como string para manejar decimales
     })
 
@@ -51,6 +53,7 @@ export function CreateServiceDialog({ businessId }: CreateServiceDialogProps) {
             description: '',
             durationMinutes: 30,
             slotIntervalMinutes: 30,
+            minBookingNoticeMinutes: 120,
             priceAmount: ''
         })
         setErrors({})
@@ -92,6 +95,7 @@ export function CreateServiceDialog({ businessId }: CreateServiceDialogProps) {
                     description: formData.description || null,
                     durationMinutes: formData.durationMinutes,
                     slotIntervalMinutes: formData.slotIntervalMinutes,
+                    minBookingNoticeMinutes: formData.minBookingNoticeMinutes,
                     priceCents
                 })
             })
@@ -115,6 +119,9 @@ export function CreateServiceDialog({ businessId }: CreateServiceDialogProps) {
                         }
                         if (fieldErrors.slotIntervalMinutes?.[0]) {
                             validationErrors.slotIntervalMinutes = fieldErrors.slotIntervalMinutes[0]
+                        }
+                        if (fieldErrors.minBookingNoticeMinutes?.[0]) {
+                            validationErrors.minBookingNoticeMinutes = fieldErrors.minBookingNoticeMinutes[0]
                         }
                         if (fieldErrors.priceCents?.[0]) {
                             validationErrors.priceCents = fieldErrors.priceCents[0]
@@ -314,6 +321,39 @@ export function CreateServiceDialog({ businessId }: CreateServiceDialogProps) {
                         {errors.slotIntervalMinutes && (
                             <p className='text-sm text-red-600 dark:text-red-400'>{errors.slotIntervalMinutes}</p>
                         )}
+                    </div>
+
+                    {/* Anticipación mínima */}
+                    <div className='space-y-2'>
+                        <Label htmlFor='service-notice'>Anticipación mínima para reservas</Label>
+                        <div className='flex items-center gap-2'>
+                            <Input
+                                id='service-notice'
+                                type='number'
+                                min='0'
+                                max={MAX_BOOKING_NOTICE_MINUTES}
+                                step='15'
+                                value={formData.minBookingNoticeMinutes}
+                                onChange={e =>
+                                    setFormData({
+                                        ...formData,
+                                        minBookingNoticeMinutes: parseInt(e.target.value) || 0
+                                    })
+                                }
+                                disabled={isSubmitting}
+                                className='w-24'
+                            />
+                            <span className='text-sm text-zinc-500'>minutos</span>
+                        </div>
+                        <p className='text-xs text-zinc-500 dark:text-zinc-400'>
+                            Con cuánta anticipación mínima debe reservar el cliente (0 = sin restricción, máx: 7 días)
+                        </p>
+                        {errors.minBookingNoticeMinutes && (
+                            <p className='text-sm text-red-600 dark:text-red-400'>{errors.minBookingNoticeMinutes}</p>
+                        )}
+                    </div>
+
+                    {/* )}
                     </div>
 
                     {/* Precio */}

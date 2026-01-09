@@ -1,50 +1,66 @@
-# Flujos principales (MVP)
+# Flujos principales
+
+Este documento describe los flujos funcionales clave del producto, cubriendo tanto la experiencia del cliente como la operación diaria del negocio.
+
+---
 
 ## Flujo 1 — Onboarding del negocio
 
 **Admin**
 
-1. Registrarse/Login (Supabase Auth)
+1. Registrarse / Login (Supabase Auth)
 2. Crear negocio (nombre, timezone, resource_label)
-3. El dashboard muestra un checklist inicial:
+3. Configurar parámetros iniciales del negocio:
+
+    - anticipación mínima para reservas
+    - recordatorios (on/off y offsets)
+
+4. El dashboard muestra un checklist inicial:
+
     - recursos
     - servicios
-    - **asignar servicios ↔ recursos**
+    - asignar servicios ↔ recursos
     - disponibilidad
-4. Completar el checklist
 
-**Resultado:** negocio listo para publicar turnos.
+5. Completar el checklist
+
+**Resultado:** negocio listo para publicar y gestionar turnos.
 
 ---
 
-## Flujo 2 — Crear recursos
+## Flujo 2 — Crear y gestionar recursos
 
 **Admin**
 
 1. Ir a “Recursos”
-2. Crear recurso (nombre, tipo opcional, estado ACTIVE)
-3. Repetir según necesidad (Cancha 1, Cancha 2 / Peluquero 1, etc.)
+2. Crear recurso (nombre, tipo opcional, estado `ACTIVE`)
+3. Editar o desactivar recursos según necesidad
+4. Eliminar recurso (soft delete) solo si no tiene turnos futuros
 
-**Resultado:** recursos creados  
-(aún no necesariamente “ofrecibles” hasta asignarlos a servicios).
+**Resultado:** recursos disponibles para ser asignados a servicios.
 
 ---
 
-## Flujo 3 — Crear servicios
+## Flujo 3 — Crear y gestionar servicios
 
 **Admin**
 
 1. Ir a “Servicios”
 2. Crear servicio definiendo:
+
     - duración del turno
     - periodicidad de turnos (por defecto igual a la duración)
+    - Tiempo mínimo de anticipación
     - precio opcional
+
 3. Guardar servicio
 
-Si el servicio está `ACTIVE`, queda visible en la página pública  
-(aunque solo será reservable si tiene recursos asignados).
+Gestión posterior:
 
-**Resultado:** servicios listos para ser ofrecidos.
+-   Desactivar servicio: deja de ofrecerse públicamente
+-   Eliminar servicio (soft delete): solo permitido si no existen turnos futuros
+
+**Resultado:** servicios listos para ser ofrecidos y administrados.
 
 ---
 
@@ -53,29 +69,27 @@ Si el servicio está `ACTIVE`, queda visible en la página pública
 **Admin**
 
 1. Ir a “Servicios”
-2. Abrir un servicio → sección “Recursos” (o “Asignación”)
-3. Seleccionar qué recursos ofrecen ese servicio  
-   (solo recursos en estado `ACTIVE`)
+2. Abrir un servicio → sección “Recursos”
+3. Seleccionar qué recursos ofrecen ese servicio (solo recursos `ACTIVE`)
 4. Guardar cambios
 
-**Resultado:** el servicio queda **reservable** con los recursos seleccionados.
+**Resultado:** el servicio queda reservable con los recursos seleccionados.
 
-> Regla:  
-> Un servicio `ACTIVE` sin recursos asignados no debe permitir reservas  
-> (estado vacío en público o mensaje “no hay recursos disponibles para este servicio”).
+> Regla:
+> Un servicio `ACTIVE` sin recursos asignados no permite avanzar a la reserva pública.
 
 ---
 
-## Flujo 5 — Definir disponibilidad semanal por recurso
+## Flujo 5 — Definir disponibilidad y bloqueos por recurso
 
 **Admin**
 
 1. Entrar a un recurso → “Disponibilidad”
-2. Elegir día de la semana
-3. Agregar uno o más rangos horarios (inicio / fin)
-4. Guardar
+2. Definir rangos semanales por día
+3. Guardar cambios
+4. (Opcional) Crear bloqueos puntuales (feriados, licencias, mantenimiento)
 
-**Resultado:** el sistema puede calcular horarios disponibles para ese recurso.
+**Resultado:** el sistema puede calcular horarios disponibles reales para ese recurso.
 
 ---
 
@@ -86,129 +100,157 @@ Si el servicio está `ACTIVE`, queda visible en la página pública
 1. Abrir el link público `/b/{slug}`
 2. Ver la lista de servicios `ACTIVE`
 3. Elegir un servicio
-4. Elegir recurso (si aplica), **filtrado por recursos `ACTIVE` asignados al servicio**
-    - Si hay 1 recurso asignado y activo: se omite el paso (auto-selección)
-    - Si hay más de uno: se muestra el listado usando `resource_label`
-5. Ver horarios disponibles para el par `(service, resource)`:
-    - dentro de la disponibilidad semanal del recurso
-    - excluyendo bloqueos puntuales del recurso
-    - excluyendo turnos ya existentes
-    - respetando la duración y la **periodicidad de turnos** del servicio
+4. Elegir recurso (si aplica), filtrado por recursos `ACTIVE` asignados al servicio:
+
+    - Si hay 1 recurso: auto-selección
+    - Si hay más de uno: se muestra listado usando `resource_label`
+
+5. Ver horarios disponibles para `(service, resource)`:
+
+    - dentro de la disponibilidad semanal
+    - excluyendo bloqueos puntuales
+    - excluyendo turnos existentes
+    - respetando duración y periodicidad del servicio
+    - respetando la anticipación mínima del negocio
+
 6. Elegir fecha y hora
 7. Completar datos (nombre + email o teléfono)
 8. Confirmar reserva
 
 **Sistema**
 
--   Valida que `service` esté `ACTIVE`
--   Valida que `resource` esté `ACTIVE`
--   Valida la relación Service ↔ Resource
--   Crea o reutiliza el cliente (`customer`)
--   Crea un `appointment` en estado `SCHEDULED`:
-    -   `end_at = start_at + duración`
-    -   `occupied_end_at = start_at + periodicidad`
--   La base de datos rechaza solapamientos (anti double-booking)
--   Crea la notificación de confirmación y envía el email
+-   Valida servicio y recurso `ACTIVE`
+-   Valida relación Service ↔ Resource
+-   Valida anticipación mínima
+-   Crea o reutiliza el cliente
+-   Crea un `appointment` en estado `SCHEDULED`
+-   La DB impide solapamientos (anti double-booking)
+-   Crea y envía notificación de confirmación
 
 **Resultado:** turno confirmado sin doble reserva.
 
 ---
 
-## Flujo 7 — Ver agenda (negocio)
+## Flujo 7 — Creación de turno por el negocio
 
 **Admin / Staff**
 
 1. Entrar a “Agenda”
-2. Elegir día (por defecto: hoy)
-3. Filtrar por recurso o “Todos”
-4. Ver lista de turnos ordenada por hora, con estado y detalles
+2. Seleccionar día / semana / mes
+3. Elegir recurso y servicio
+4. Seleccionar horario válido
+5. Crear o asociar cliente
+6. Confirmar creación
 
-**Resultado:** operación diaria organizada y clara.
+**Sistema**
+
+-   Usa la misma lógica de dominio que la reserva pública
+-   Respeta disponibilidad, anticipación y anti-overlap
+
+**Resultado:** turno creado manualmente y visible en agenda.
 
 ---
 
-## Flujo 8 — Cancelar turno
+## Flujo 8 — Ver agenda (negocio)
 
 **Admin / Staff**
 
-1. Abrir un turno en estado `SCHEDULED`
+1. Entrar a “Agenda”
+2. Elegir vista: día / semana / mes
+3. Navegar en el tiempo (anterior / siguiente)
+4. Filtrar por:
+
+    - recurso
+    - estado del turno (`SCHEDULED`, `CANCELLED`, `RESCHEDULED`, `COMPLETED`)
+
+5. Ver turnos con estado y detalles
+
+**Resultado:** visión clara y flexible de la operación diaria.
+
+---
+
+## Flujo 9 — Cancelar turno
+
+**Admin / Staff**
+
+1. Abrir un turno `SCHEDULED`
 2. Cancelar (motivo opcional)
 
 **Sistema**
 
--   Actualiza el estado a `CANCELLED`
--   Envía email de cancelación
--   El horario vuelve a estar disponible
+-   Cambia estado a `CANCELLED`
+-   Libera el horario
+-   Envía notificación de cancelación
 
 **Resultado:** turno cancelado y cliente notificado.
 
 ---
 
-## Flujo 9 — Reprogramar turno
+## Flujo 10 — Reprogramar turno
 
 **Admin / Staff**
 
-1. Abrir un turno en estado `SCHEDULED`
-2. Reprogramar → elegir un nuevo horario válido
+1. Abrir un turno `SCHEDULED`
+2. Reprogramar → elegir nuevo horario válido
 
 **Sistema**
 
--   Crea un nuevo turno o actualiza el existente  
-    (recomendado: crear uno nuevo con `rescheduled_from_id`)
--   La DB impide solapamientos en el nuevo horario
--   Envía email con el nuevo horario
+-   Crea un nuevo turno con `rescheduled_from_id` o actualiza el existente
+-   La DB impide solapamientos
+-   Envía notificación con el nuevo horario
 
 **Resultado:** turno reprogramado con trazabilidad.
 
 ---
 
-## Flujo 10 — Bloqueo puntual (excepción)
+## Flujo 11 — Marcar turno como completado
 
-**Admin**
+**Admin / Staff**
 
-1. Entrar a un recurso → “Bloqueos”
-2. Crear bloqueo (inicio / fin)
+1. Abrir un turno atendido
+2. Marcar como `COMPLETED`
 
 **Sistema**
 
--   Evita ofrecer horarios dentro de ese rango
+-   Actualiza estado
+-   No afecta disponibilidad
 
-**Resultado:** feriados, licencias o mantenimiento cubiertos.
+**Resultado:** control básico de atención realizada.
 
 ---
 
-## Flujo 11 — Recordatorios automáticos (job)
+## Flujo 12 — Recordatorios automáticos (job)
 
 **Sistema**
 
-1. Un job corre cada X minutos
-2. Busca turnos `SCHEDULED` próximos según los offsets del negocio (24h / 2h)
-3. Crea notificaciones `PENDING` si no existían (idempotencia)
-4. Envía emails y marca `SENT` o `FAILED`
+1. Job periódico
+2. Busca turnos `SCHEDULED` próximos según configuración del negocio
+3. Crea notificaciones pendientes si no existían (idempotencia)
+4. Envía emails y registra estado
 
 **Resultado:** recordatorios enviados sin duplicados.
 
 ---
 
-## Diagrama (Mermaid) — Reserva de turno
+## Diagrama — Reserva de turno (cliente)
 
 ```mermaid
 flowchart TD
   A[Cliente abre link del negocio] --> B[Selecciona servicio]
-  B --> C[Filtrar recursos activos asignados al servicio]
+  B --> C[Filtrar recursos activos asignados]
   C --> D{¿Cuántos recursos disponibles?}
-  D -- 0 --> X[Estado vacío: no hay recursos disponibles para este servicio]
+  D -- 0 --> X[Estado vacío]
   D -- 1 --> E[Recurso auto-seleccionado]
   D -- >1 --> F[Cliente elige recurso]
-  E --> G[Mostrar horarios disponibles]
+  E --> G[Mostrar horarios válidos]
   F --> G
   G --> H[Cliente elige fecha y hora]
   H --> I[Cliente ingresa datos]
   I --> J[Confirmar]
-  J --> K{Backend valida mapping y anti-overlap}
+  J --> K{Validaciones dominio + anti-overlap}
   K -- Sí --> L[Crear Appointment SCHEDULED]
-  L --> M[Crear y enviar Notification CONFIRMATION]
+  L --> M[Enviar confirmación]
   M --> N[Mostrar confirmación]
-  K -- No --> O[Error: horario no disponible]
+  K -- No --> O[Error controlado]
   O --> G
 ```

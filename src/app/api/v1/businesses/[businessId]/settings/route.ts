@@ -87,6 +87,18 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
 
         const { resource_label } = validationResult.data
 
+        if (resource_label === undefined) {
+            return NextResponse.json(
+                {
+                    error: {
+                        code: ValidationErrorCodes.VALIDATION_ERROR,
+                        message: 'Debe proporcionar al menos un campo para actualizar.'
+                    }
+                },
+                { status: 400 }
+            )
+        }
+
         const updated = await updateBusinessResourceLabel(prisma, businessId, resource_label)
 
         return NextResponse.json({

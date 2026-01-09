@@ -83,6 +83,29 @@ export async function createPublicAppointment(
         throw new AppError(ValidationErrorCodes.VALIDATION_ERROR, 'No se puede reservar en el pasado', 400)
     }
 
+    // US-7.1: Validate minimum booking notice
+    // Reject if startAt is strictly before the earliest bookable time
+    // Notice is now configured per-service, not per-business
+    const minNoticeMinutes = service.minBookingNoticeMinutes ?? 0
+    if (minNoticeMinutes > 0) {
+        const earliestBookableTime = addMinutes(now, minNoticeMinutes)
+        if (startAt < earliestBookableTime) {
+            const hoursNotice = Math.floor(minNoticeMinutes / 60)
+            const minutesNotice = minNoticeMinutes % 60
+            const noticeText =
+                hoursNotice > 0
+                    ? minutesNotice > 0
+                        ? `${hoursNotice}h ${minutesNotice}min`
+                        : `${hoursNotice} hora${hoursNotice > 1 ? 's' : ''}`
+                    : `${minutesNotice} minutos`
+            throw new AppError(
+                AppointmentErrorCodes.APPOINTMENT_TOO_SOON,
+                `Debe reservar con al menos ${noticeText} de anticipación`,
+                400
+            )
+        }
+    }
+
     // 6. Calculate endAt and occupiedEndAt
     // endAt = startAt + duration (when the appointment actually ends)
     // occupiedEndAt = startAt + slotInterval (the time block occupied for scheduling)

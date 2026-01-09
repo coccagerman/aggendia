@@ -11,7 +11,8 @@ import {
     ValidationErrorCodes,
     BusinessErrorCodes,
     ResourceErrorCodes,
-    ServiceErrorCodes
+    ServiceErrorCodes,
+    ServiceResourceErrorCodes
 } from '@/domain/common/errors'
 import { findBusinessBySlug } from '@/data/repositories/business.repo'
 import { getResourceById } from '@/data/repositories/resource.repo'
@@ -115,7 +116,7 @@ export async function GET(request: NextRequest) {
         })
         if (!mapping) {
             throw new AppError(
-                ValidationErrorCodes.VALIDATION_ERROR,
+                ServiceResourceErrorCodes.SERVICE_RESOURCE_NOT_LINKED,
                 'Este recurso no ofrece el servicio seleccionado',
                 409
             )
@@ -160,7 +161,8 @@ export async function GET(request: NextRequest) {
             appointments: appointments.map(appt => ({
                 startAt: appt.startAt,
                 occupiedEndAt: appt.occupiedEndAt
-            }))
+            })),
+            minBookingNoticeMinutes: service.minBookingNoticeMinutes
         })
 
         // Validate response schema

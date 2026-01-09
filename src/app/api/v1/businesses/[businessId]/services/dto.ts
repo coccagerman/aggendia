@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { DURATION_STEP } from '@/domain/services/service.types'
+import { DURATION_STEP, MAX_BOOKING_NOTICE_MINUTES } from '@/domain/services/service.types'
 
 /**
  * Schema para crear un servicio (POST)
@@ -26,6 +26,13 @@ export const createServiceSchema = z
                 message: `La periodicidad debe ser múltiplo de ${DURATION_STEP} minutos`
             })
             .optional(),
+        minBookingNoticeMinutes: z
+            .number()
+            .int('La anticipación debe ser un número entero')
+            .min(0, 'La anticipación no puede ser negativa')
+            .max(MAX_BOOKING_NOTICE_MINUTES, 'La anticipación no puede superar 7 días')
+            .optional()
+            .default(0),
         priceCents: z
             .number()
             .int('El precio debe ser un número entero (centavos)')
@@ -79,6 +86,12 @@ export const updateServiceSchema = z.object({
         .refine(val => val % DURATION_STEP === 0, {
             message: `La periodicidad debe ser múltiplo de ${DURATION_STEP} minutos`
         })
+        .optional(),
+    minBookingNoticeMinutes: z
+        .number()
+        .int('La anticipación debe ser un número entero')
+        .min(0, 'La anticipación no puede ser negativa')
+        .max(MAX_BOOKING_NOTICE_MINUTES, 'La anticipación no puede superar 7 días')
         .optional(),
     priceCents: z
         .number()

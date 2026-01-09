@@ -9,6 +9,11 @@
 export const DURATION_STEP = 5
 
 /**
+ * Maximum booking notice allowed (7 days in minutes)
+ */
+export const MAX_BOOKING_NOTICE_MINUTES = 10080
+
+/**
  * Opciones de duración predefinidas para UI.
  * Generadas como múltiplos de DURATION_STEP.
  */
@@ -33,6 +38,7 @@ export type Service = {
     description: string | null
     durationMinutes: number
     slotIntervalMinutes: number // Periodicidad: cada cuántos minutos se ofrece un nuevo turno
+    minBookingNoticeMinutes: number // Anticipación mínima para reservas (minutos)
     priceCents: number | null
     currency: string | null
     status: ServiceStatus
@@ -45,6 +51,7 @@ export type CreateServiceInput = {
     description?: string | null
     durationMinutes: number
     slotIntervalMinutes?: number // Si no se especifica, usa durationMinutes por defecto
+    minBookingNoticeMinutes?: number // Si no se especifica, default 0
     priceCents?: number | null
     currency?: string | null
 }

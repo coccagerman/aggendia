@@ -85,8 +85,13 @@ export function calculateSlots(input: CalculateSlotsInput): SlotOutput[] {
     }
 
     // Filter out slots that have already passed (race condition prevention)
+    // Also filter by minimum booking notice (US-7.1)
+    // Use >= to include slots exactly at the minimum notice threshold
     const now = new Date()
-    return slots.filter(slot => new Date(slot.startAt) > now)
+    const minBookingNotice = input.minBookingNoticeMinutes ?? 0
+    const earliestBookableTime = addMinutes(now, minBookingNotice)
+
+    return slots.filter(slot => new Date(slot.startAt) >= earliestBookableTime)
 }
 
 /**

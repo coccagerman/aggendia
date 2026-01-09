@@ -315,9 +315,141 @@
 
 ---
 
-## Épica 7 — Notificaciones y mailing
+## Épica 7 — Operación avanzada de agenda y reglas de negocio
 
-### US-7.1 Confirmación de reserva por email
+Esta épica agrupa mejoras necesarias para una operación diaria realista del negocio.
+
+### US-7.1 Configurar anticipación mínima para reservas
+
+**Como** admin
+**Quiero** definir con cuánta anticipación mínima un cliente puede reservar
+**Para** evitar reservas de último momento difíciles de gestionar.
+
+**Aceptación**
+
+El negocio puede definir un valor en minutos (ej: 60, 120, 1440).
+
+El valor se guarda a nivel de servicio.
+
+El usuario debe poder editar este valor al momento de crear el servicio o desde el modal de edición de servicio (previamente creado).
+
+Los slots ofrecidos públicamente respetan esta anticipación.
+
+Si un cliente intenta reservar antes del límite:
+
+la reserva es rechazada con mensaje claro.
+
+### US-7.2 Eliminar servicios (soft delete)
+
+**Como** admin
+**Quiero** eliminar servicios que ya no uso
+**Para** mantener el catálogo limpio sin perder historial.
+
+**Aceptación**
+
+Un servicio solo puede eliminarse si no tiene turnos futuros.
+
+La eliminación es lógica (soft delete).
+
+Servicios eliminados:
+
+no aparecen en listados
+
+no pueden usarse para nuevas reservas
+
+Turnos históricos permanecen visibles en agenda.
+
+### US-7.3 Crear turnos manualmente desde la agenda
+
+**Como** admin/staff
+**Quiero** crear un turno manualmente
+**Para** registrar reservas tomadas por teléfono o en persona.
+
+**Aceptación**
+
+El flujo se realiza desde la agenda.
+
+Permite seleccionar:
+
+recurso
+
+servicio
+
+fecha y horario válido
+
+cliente existente o nuevo
+
+Usa la misma validación que la reserva pública:
+
+disponibilidad
+
+anticipación mínima
+
+anti double-booking
+
+El turno queda en estado SCHEDULED.
+
+### US-7.4 Ver agenda con distintas granularidades
+
+**Como** admin/staff
+**Quiero** ver la agenda por día, semana o mes
+**Para** organizar mejor mi trabajo.
+
+**Aceptación**
+
+La agenda permite alternar vistas:
+
+día
+
+semana
+
+mes
+
+Todas las vistas muestran turnos reales del negocio.
+
+El cambio de vista no altera el modelo de turnos.
+
+### US-7.5 Navegar la agenda en el tiempo
+
+**Como** admin/staff
+**Quiero** moverme al día/semana/mes anterior o siguiente
+**Para** consultar turnos pasados o futuros.
+
+**Aceptación**
+
+Controles de navegación:
+
+anterior
+
+siguiente
+
+Selector de fecha base.
+
+La navegación respeta la vista seleccionada.
+
+### US-7.6 Filtrar agenda por estado de turnos
+
+**Como** admin/staff
+**Quiero** filtrar la agenda por estado
+**Para** enfocarme en turnos relevantes.
+
+**Aceptación**
+
+Filtro por uno o varios estados:
+
+SCHEDULED
+
+CANCELLED
+
+RESCHEDULED
+
+COMPLETED
+
+El filtro se aplica en todas las vistas de agenda.
+
+## Épica 8 — Notificaciones y mailing
+
+### US-8.1 Confirmación de reserva por email
 
 **Como** cliente  
 **Quiero** recibir una confirmación por email  
@@ -335,7 +467,7 @@
     -   el turno queda creado
     -   se registra el error para reintento.
 
-### US-7.2 Configurar recordatorios
+### US-8.2 Configurar recordatorios
 
 **Como** admin  
 **Quiero** activar/desactivar recordatorios y offsets  
@@ -346,7 +478,7 @@
 -   Toggle enabled.
 -   Selección simple: 24h y/o 2h.
 
-### US-7.3 Enviar recordatorios automáticos (sistema)
+### US-8.3 Enviar recordatorios automáticos (sistema)
 
 **Como** sistema  
 **Quiero** enviar recordatorios automáticos  
@@ -360,9 +492,9 @@
 
 ---
 
-## Épica 8 — Multi-tenant y permisos
+## Épica 9 — Multi-tenant y permisos
 
-### US-8.1 Aislamiento por negocio
+### US-9.1 Aislamiento por negocio
 
 **Como** sistema  
 **Quiero** que un negocio no acceda a datos de otro  

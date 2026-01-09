@@ -32,6 +32,7 @@ export interface CalculateSlotsInput {
     availabilityRules: AvailabilityRuleInput[] // Weekly availability
     blocks: BlockInterval[] // Punctual blocks
     appointments: AppointmentInterval[] // Existing appointments (occupied_end_at)
+    minBookingNoticeMinutes?: number // Minimum booking notice (US-7.1), default 0
 }
 
 /**

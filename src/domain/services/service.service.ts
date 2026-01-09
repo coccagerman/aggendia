@@ -3,7 +3,7 @@
  */
 
 import { AppError, ValidationErrorCodes } from '@/domain/common/errors'
-import { CreateServiceInput, UpdateServiceInput, DURATION_STEP } from './service.types'
+import { CreateServiceInput, UpdateServiceInput, DURATION_STEP, MAX_BOOKING_NOTICE_MINUTES } from './service.types'
 
 /**
  * Valida que la duración del servicio sea válida (> 0 y múltiplo de DURATION_STEP)
@@ -20,6 +20,19 @@ export function validateServiceDuration(durationMinutes: number): void {
             `La duración debe ser múltiplo de ${DURATION_STEP} minutos`,
             400
         )
+    }
+}
+
+/**
+ * Valida que minBookingNoticeMinutes sea válido (>= 0 y <= MAX_BOOKING_NOTICE_MINUTES)
+ */
+export function validateMinBookingNoticeMinutes(minBookingNoticeMinutes: number): void {
+    if (minBookingNoticeMinutes < 0) {
+        throw new AppError(ValidationErrorCodes.VALIDATION_ERROR, 'La anticipación no puede ser negativa', 400)
+    }
+
+    if (minBookingNoticeMinutes > MAX_BOOKING_NOTICE_MINUTES) {
+        throw new AppError(ValidationErrorCodes.VALIDATION_ERROR, 'La anticipación no puede superar 7 días', 400)
     }
 }
 
@@ -68,6 +81,11 @@ export function validateCreateServiceInput(input: CreateServiceInput): void {
         validateSlotIntervalMinutes(input.slotIntervalMinutes, input.durationMinutes)
     }
 
+    // Validar minBookingNoticeMinutes si se especifica
+    if (input.minBookingNoticeMinutes !== undefined) {
+        validateMinBookingNoticeMinutes(input.minBookingNoticeMinutes)
+    }
+
     if (input.priceCents !== undefined && input.priceCents !== null && input.priceCents < 0) {
         throw new AppError(ValidationErrorCodes.VALIDATION_ERROR, 'El precio no puede ser negativo', 400)
     }
@@ -101,6 +119,11 @@ export function validateUpdateServiceInput(input: UpdateServiceInput, existingDu
         if (duration !== undefined) {
             validateSlotIntervalMinutes(input.slotIntervalMinutes, duration)
         }
+    }
+
+    // Validar minBookingNoticeMinutes si se especifica
+    if (input.minBookingNoticeMinutes !== undefined) {
+        validateMinBookingNoticeMinutes(input.minBookingNoticeMinutes)
     }
 
     if (input.priceCents !== undefined && input.priceCents !== null && input.priceCents < 0) {

@@ -37,15 +37,15 @@ enum ServiceStatus {
 }
 
 model Business {
-  id            String   @id @default(uuid())
-  name          String
-  slug          String   @unique
-  timezone      String
-  resourceLabel String   @default("Recurso")
-  address       String?
-  area          String?
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  id                       String   @id @default(uuid())
+  name                     String
+  slug                     String   @unique
+  timezone                 String
+  resourceLabel            String   @default("Recurso")
+  address                  String?
+  area                     String?
+  createdAt                DateTime @default(now())
+  updatedAt                DateTime @updatedAt
 
   members           BusinessMember[]
   resources         Resource[]
@@ -105,17 +105,18 @@ model AvailabilityRule {
 }
 
 model Service {
-  id                  String        @id @default(uuid())
-  businessId          String
-  name                String
-  description         String?
-  durationMinutes     Int
-  slotIntervalMinutes Int           // Periodicidad: cada cuántos minutos se ofrece un nuevo turno
-  priceCents          Int?
-  currency            String?       @default("ARS")
-  status              ServiceStatus @default(ACTIVE)
-  createdAt           DateTime      @default(now())
-  updatedAt           DateTime      @updatedAt
+  id                      String        @id @default(uuid())
+  businessId              String
+  name                    String
+  description             String?
+  durationMinutes         Int
+  slotIntervalMinutes     Int           // Periodicidad: cada cuántos minutos se ofrece un nuevo turno
+  minBookingNoticeMinutes Int           @default(0) // Anticipación mínima para reservas (minutos)
+  priceCents              Int?
+  currency                String?       @default("ARS")
+  status                  ServiceStatus @default(ACTIVE)
+  createdAt               DateTime      @default(now())
+  updatedAt               DateTime      @updatedAt
 
   business         Business          @relation(fields: [businessId], references: [id], onDelete: Cascade)
   serviceResources ServiceResource[]

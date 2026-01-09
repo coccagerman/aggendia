@@ -247,6 +247,7 @@ describe('Public Slots API - Integration Tests', () => {
 
             expect(response.status).toBe(409)
             const data = await response.json()
+            expect(data.error.code).toBe('SERVICE_RESOURCE_NOT_LINKED')
             expect(data.error.message).toContain('no ofrece el servicio')
         })
 
@@ -439,6 +440,171 @@ describe('Public Slots API - Integration Tests', () => {
 
             // Cleanup
             await prisma.business.delete({ where: { id: otherBiz.business.id } })
+        })
+    })
+
+    // ============================================================================
+    // US-7.1: Minimum booking notice tests for slots endpoint
+    // ============================================================================
+
+    describe('GET /api/v1/public/slots - Minimum Booking Notice (US-7.1)', () => {
+        let noticeBusinessId: string
+        let noticeBusinessSlug: string
+        let noticeResourceId: string
+        let noticeServiceId: string
+
+        beforeAll(async () => {
+            // Create business
+            const biz = await createBusinessWithOwner(
+                prisma,
+                {
+                    name: `Slots Notice Test ${Date.now()}`,
+                    timezone: TIMEZONE,
+                    resourceLabel: 'Cancha'
+                },
+                `slots-notice-${Date.now()}`,
+                `slots-notice-user-${Date.now()}`
+            )
+            noticeBusinessId = biz.business.id
+            noticeBusinessSlug = biz.business.slug
+
+            // Create resource with all-week availability
+            const resource = await createResource(prisma, noticeBusinessId, {
+                name: 'Cancha Notice',
+                type: 'ASSET',
+                status: 'ACTIVE'
+            })
+            noticeResourceId = resource.id
+
+            // Set availability for all days 00:00-24:00
+            const allDaysAvailability = [0, 1, 2, 3, 4, 5, 6].map(day => ({
+                dayOfWeek: day as 0 | 1 | 2 | 3 | 4 | 5 | 6,
+                startMinutes: 0,
+                endMinutes: 24 * 60
+            }))
+            await setAvailability(prisma, noticeResourceId, allDaysAvailability)
+
+            // Create service WITH 60 minutes booking notice
+            const service = await createService(prisma, noticeBusinessId, {
+                name: 'Servicio Notice Test',
+                durationMinutes: 30,
+                slotIntervalMinutes: 30,
+                minBookingNoticeMinutes: 60
+            })
+            noticeServiceId = service.id
+
+            // Map service to resource
+            await setServiceResources(prisma, noticeBusinessId, noticeServiceId, [noticeResourceId])
+        })
+
+        afterAll(async () => {
+            await prisma.business.delete({ where: { id: noticeBusinessId } })
+        })
+
+        it('filters out slots within minimum booking notice window', async () => {
+            const now = new Date()
+            const fromDate = now.toISOString()
+            const toDate = addDays(now, 2).toISOString()
+
+            const url = new URL(`http://localhost/api/v1/public/slots`)
+            url.searchParams.set('slug', noticeBusinessSlug)
+            url.searchParams.set('serviceId', noticeServiceId)
+            url.searchParams.set('resourceId', noticeResourceId)
+            url.searchParams.set('fromDate', fromDate)
+            url.searchParams.set('toDate', toDate)
+
+            const request = new NextRequest(url)
+            const response = await GET(request)
+
+            expect(response.status).toBe(200)
+            const data = await response.json()
+
+            // All returned slots should be at least 60 minutes from now
+            const earliestBookableTime = new Date(now.getTime() + 60 * 60 * 1000)
+            data.data.forEach((slot: { startAt: string }) => {
+                expect(new Date(slot.startAt).getTime()).toBeGreaterThanOrEqual(earliestBookableTime.getTime())
+            })
+        })
+
+        it('includes slot exactly at minimum notice threshold (boundary test)', async () => {
+            // Create a service with exactly 30 minutes notice to test boundary
+            const boundaryService = await createService(prisma, noticeBusinessId, {
+                name: 'Boundary Service',
+                durationMinutes: 30,
+                slotIntervalMinutes: 30,
+                minBookingNoticeMinutes: 30
+            })
+            await setServiceResources(prisma, noticeBusinessId, boundaryService.id, [noticeResourceId])
+
+            const now = new Date()
+            const fromDate = now.toISOString()
+            const toDate = addDays(now, 1).toISOString()
+
+            const url = new URL(`http://localhost/api/v1/public/slots`)
+            url.searchParams.set('slug', noticeBusinessSlug)
+            url.searchParams.set('serviceId', boundaryService.id)
+            url.searchParams.set('resourceId', noticeResourceId)
+            url.searchParams.set('fromDate', fromDate)
+            url.searchParams.set('toDate', toDate)
+
+            const request = new NextRequest(url)
+            const response = await GET(request)
+
+            expect(response.status).toBe(200)
+            const data = await response.json()
+
+            // Should have slots and all should be >= now + 30 minutes
+            expect(data.data.length).toBeGreaterThan(0)
+            const earliestBookableTime = new Date(now.getTime() + 30 * 60 * 1000)
+            data.data.forEach((slot: { startAt: string }) => {
+                expect(new Date(slot.startAt).getTime()).toBeGreaterThanOrEqual(earliestBookableTime.getTime())
+            })
+
+            // Cleanup
+            await prisma.service.delete({ where: { id: boundaryService.id } })
+        })
+
+        it('returns more slots when notice is reduced', async () => {
+            const now = new Date()
+            const fromDate = now.toISOString()
+            const toDate = addDays(now, 1).toISOString()
+
+            // Get slots with 60 min notice
+            const url1 = new URL(`http://localhost/api/v1/public/slots`)
+            url1.searchParams.set('slug', noticeBusinessSlug)
+            url1.searchParams.set('serviceId', noticeServiceId)
+            url1.searchParams.set('resourceId', noticeResourceId)
+            url1.searchParams.set('fromDate', fromDate)
+            url1.searchParams.set('toDate', toDate)
+
+            const response1 = await GET(new NextRequest(url1))
+            const data1 = await response1.json()
+
+            // Create service with no notice
+            const noNoticeService = await createService(prisma, noticeBusinessId, {
+                name: 'No Notice Service',
+                durationMinutes: 30,
+                slotIntervalMinutes: 30,
+                minBookingNoticeMinutes: 0
+            })
+            await setServiceResources(prisma, noticeBusinessId, noNoticeService.id, [noticeResourceId])
+
+            // Get slots with 0 min notice
+            const url2 = new URL(`http://localhost/api/v1/public/slots`)
+            url2.searchParams.set('slug', noticeBusinessSlug)
+            url2.searchParams.set('serviceId', noNoticeService.id)
+            url2.searchParams.set('resourceId', noticeResourceId)
+            url2.searchParams.set('fromDate', fromDate)
+            url2.searchParams.set('toDate', toDate)
+
+            const response2 = await GET(new NextRequest(url2))
+            const data2 = await response2.json()
+
+            // Service with no notice should have more (or equal) slots
+            expect(data2.data.length).toBeGreaterThanOrEqual(data1.data.length)
+
+            // Cleanup
+            await prisma.service.delete({ where: { id: noNoticeService.id } })
         })
     })
 })

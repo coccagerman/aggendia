@@ -3,7 +3,7 @@
  * Updated for US-5.5: uses slotIntervalMinutes instead of bufferMinutes
  */
 
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi } from 'vitest'
 import { calculateSlots } from '@/domain/slots/slots.service'
 import { CalculateSlotsInput } from '@/domain/slots/slots.types'
 import { addDays, startOfDay } from 'date-fns'
@@ -319,5 +319,166 @@ describe('calculateSlots', () => {
         const end = new Date(firstSlot.endAt)
         const diff = (end.getTime() - start.getTime()) / 1000 / 60
         expect(diff).toBe(30)
+    })
+
+    // ============================================================================
+    // US-7.1: Minimum booking notice tests
+    // ============================================================================
+
+    describe('minBookingNoticeMinutes', () => {
+        it('should filter out slots within minimum booking notice window', () => {
+            // Generate slots starting from "now" with 60 min notice
+            const now = new Date()
+            const dayOfWeek = now.getDay() as 0 | 1 | 2 | 3 | 4 | 5 | 6
+
+            const input: CalculateSlotsInput = {
+                businessTimezone: TIMEZONE,
+                fromDate: now,
+                toDate: addDays(now, 2),
+                durationMinutes: 30,
+                slotIntervalMinutes: 30,
+                availabilityRules: [
+                    {
+                        dayOfWeek,
+                        startMinutes: 0, // 00:00
+                        endMinutes: 24 * 60 // 24:00 (full day)
+                    },
+                    {
+                        dayOfWeek: ((dayOfWeek + 1) % 7) as 0 | 1 | 2 | 3 | 4 | 5 | 6,
+                        startMinutes: 0,
+                        endMinutes: 24 * 60
+                    }
+                ],
+                blocks: [],
+                appointments: [],
+                minBookingNoticeMinutes: 60 // 1 hour notice
+            }
+
+            const result = calculateSlots(input)
+
+            // All returned slots should be at least 60 minutes from now (>= the boundary)
+            const earliestBookableTime = new Date(now.getTime() + 60 * 60 * 1000)
+            result.forEach(slot => {
+                expect(new Date(slot.startAt).getTime()).toBeGreaterThanOrEqual(earliestBookableTime.getTime())
+            })
+        })
+
+        it('should return all slots when minBookingNoticeMinutes is 0', () => {
+            const now = new Date()
+            const dayOfWeek = now.getDay() as 0 | 1 | 2 | 3 | 4 | 5 | 6
+
+            const inputWithNotice: CalculateSlotsInput = {
+                businessTimezone: TIMEZONE,
+                fromDate: now,
+                toDate: addDays(now, 1),
+                durationMinutes: 30,
+                slotIntervalMinutes: 30,
+                availabilityRules: [
+                    {
+                        dayOfWeek,
+                        startMinutes: 0,
+                        endMinutes: 24 * 60
+                    }
+                ],
+                blocks: [],
+                appointments: [],
+                minBookingNoticeMinutes: 0
+            }
+
+            const inputWithoutNotice: CalculateSlotsInput = {
+                ...inputWithNotice
+            }
+            delete inputWithoutNotice.minBookingNoticeMinutes
+
+            const resultWithNotice = calculateSlots(inputWithNotice)
+            const resultWithoutNotice = calculateSlots(inputWithoutNotice)
+
+            // Both should return the same slots (0 notice = no filtering)
+            expect(resultWithNotice.length).toBe(resultWithoutNotice.length)
+        })
+
+        it('should handle large minBookingNoticeMinutes (1 day)', () => {
+            const now = new Date()
+            const dayOfWeek = now.getDay() as 0 | 1 | 2 | 3 | 4 | 5 | 6
+
+            const input: CalculateSlotsInput = {
+                businessTimezone: TIMEZONE,
+                fromDate: now,
+                toDate: addDays(now, 3),
+                durationMinutes: 30,
+                slotIntervalMinutes: 30,
+                availabilityRules: [
+                    {
+                        dayOfWeek,
+                        startMinutes: 9 * 60,
+                        endMinutes: 12 * 60
+                    },
+                    {
+                        dayOfWeek: ((dayOfWeek + 1) % 7) as 0 | 1 | 2 | 3 | 4 | 5 | 6,
+                        startMinutes: 9 * 60,
+                        endMinutes: 12 * 60
+                    },
+                    {
+                        dayOfWeek: ((dayOfWeek + 2) % 7) as 0 | 1 | 2 | 3 | 4 | 5 | 6,
+                        startMinutes: 9 * 60,
+                        endMinutes: 12 * 60
+                    }
+                ],
+                blocks: [],
+                appointments: [],
+                minBookingNoticeMinutes: 1440 // 24 hours
+            }
+
+            const result = calculateSlots(input)
+
+            // All returned slots should be at least 24 hours from now (>= the boundary)
+            const earliestBookableTime = new Date(now.getTime() + 1440 * 60 * 1000)
+            result.forEach(slot => {
+                expect(new Date(slot.startAt).getTime()).toBeGreaterThanOrEqual(earliestBookableTime.getTime())
+            })
+        })
+
+        it('should include slot exactly at minimum notice threshold (boundary test)', () => {
+            // Use vi.useFakeTimers to control "now" precisely
+            const fixedNow = new Date('2026-01-15T10:00:00Z')
+            vi.setSystemTime(fixedNow)
+
+            // Create availability rule that includes a slot exactly at the boundary
+            // If minBookingNoticeMinutes = 60, and now = 10:00, then boundary = 11:00
+            // A slot starting at 11:00 should be INCLUDED (>= behavior)
+            const dayOfWeek = fixedNow.getUTCDay() as 0 | 1 | 2 | 3 | 4 | 5 | 6
+
+            const input: CalculateSlotsInput = {
+                businessTimezone: 'UTC',
+                fromDate: fixedNow,
+                toDate: addDays(fixedNow, 1),
+                durationMinutes: 30,
+                slotIntervalMinutes: 30,
+                availabilityRules: [
+                    {
+                        dayOfWeek,
+                        startMinutes: 11 * 60, // 11:00 - exactly at boundary
+                        endMinutes: 12 * 60 // 12:00
+                    }
+                ],
+                blocks: [],
+                appointments: [],
+                minBookingNoticeMinutes: 60 // 1 hour notice
+            }
+
+            const result = calculateSlots(input)
+
+            // Should have slots: 11:00 (boundary), 11:30
+            // The 11:00 slot is EXACTLY at now + 60 minutes, should be included
+            expect(result.length).toBeGreaterThanOrEqual(1)
+            expect(result[0].displayTime).toBe('11:00')
+
+            // Verify the first slot is exactly at the boundary
+            const firstSlotTime = new Date(result[0].startAt).getTime()
+            const boundaryTime = fixedNow.getTime() + 60 * 60 * 1000
+            expect(firstSlotTime).toBe(boundaryTime)
+
+            vi.useRealTimers()
+        })
     })
 })
