@@ -47,13 +47,15 @@ describe('rescheduleAppointment', () => {
         }
     }
 
-    // Mock availability rules (Monday-Friday 9:00-18:00)
+    // Mock availability rules (all week 9:00-18:00 to avoid day-of-week issues in tests)
     const mockAvailabilityRules = [
+        { dayOfWeek: 0 as const, startMinutes: 540, endMinutes: 1080 }, // Sunday
         { dayOfWeek: 1 as const, startMinutes: 540, endMinutes: 1080 }, // Monday
         { dayOfWeek: 2 as const, startMinutes: 540, endMinutes: 1080 }, // Tuesday
         { dayOfWeek: 3 as const, startMinutes: 540, endMinutes: 1080 }, // Wednesday
         { dayOfWeek: 4 as const, startMinutes: 540, endMinutes: 1080 }, // Thursday
-        { dayOfWeek: 5 as const, startMinutes: 540, endMinutes: 1080 } // Friday
+        { dayOfWeek: 5 as const, startMinutes: 540, endMinutes: 1080 }, // Friday
+        { dayOfWeek: 6 as const, startMinutes: 540, endMinutes: 1080 } // Saturday
     ]
 
     // Mock reschedule result

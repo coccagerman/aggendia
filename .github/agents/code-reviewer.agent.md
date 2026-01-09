@@ -10,6 +10,14 @@ handoffs:
       agent: Developer
       prompt: 'Implementá los fixes sugeridos en este review, respetando docs/conventions.md y sin agregar librerías innecesarias.'
       send: false
+
+    - label: Devolver plan al Planner para correcciones
+      agent: Planner
+      prompt: 'El plan tiene problemas que deben corregirse antes de implementar.
+      Revisá los hallazgos del review (riesgos, omisiones, seguridad, multi-tenant o scope)
+      y devolvé una versión ajustada del plan, manteniendo cambios mínimos y alineados a
+      docs/conventions.md, PRD y User Stories.'
+      send: false
 ---
 
 # Rol

@@ -94,3 +94,22 @@ export interface RescheduleAppointmentOutput {
 export type CreateAppointmentResult =
     | { success: true; data: AppointmentOutput }
     | { success: false; error: { code: string; message: string; httpStatus: number } }
+
+/**
+ * Input for marking an appointment as completed
+ * @see docs/user-stories.md - US-6.4 Marcar completado
+ */
+export interface CompleteAppointmentInput {
+    businessId: string
+    appointmentId: string
+    /** Current time for validation (must be >= occupiedEndAt to ensure appointment finished) */
+    currentTime: Date
+}
+
+/**
+ * Output for completed appointment
+ */
+export interface CompleteAppointmentOutput {
+    appointmentId: string
+    status: 'COMPLETED'
+}

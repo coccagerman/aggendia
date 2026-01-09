@@ -3,6 +3,7 @@
  *
  * @see docs/user-stories.md - US-6.2 Cancelar turno
  * @see docs/user-stories.md - US-6.3 Reprogramar turno
+ * @see docs/user-stories.md - US-6.4 Marcar completado
  */
 
 import { AppError, AppointmentErrorCodes } from '@/domain/common/errors'
@@ -13,7 +14,9 @@ import {
     CancelAppointmentOutput,
     AppointmentStatus,
     RescheduleAppointmentInput,
-    RescheduleAppointmentOutput
+    RescheduleAppointmentOutput,
+    CompleteAppointmentInput,
+    CompleteAppointmentOutput
 } from './appointment.types'
 
 /**
@@ -336,5 +339,136 @@ export async function rescheduleAppointment(
         originalAppointmentId: result.originalAppointmentId,
         newStartAt: result.newStartAt.toISOString(),
         newEndAt: result.newEndAt.toISOString()
+    }
+}
+
+// ============================================================================
+// Mark Appointment as Completed (US-6.4)
+// ============================================================================
+
+/**
+ * States that can be marked as completed
+ */
+const COMPLETABLE_STATUSES: AppointmentStatus[] = ['SCHEDULED', 'RESCHEDULED']
+
+/**
+ * Appointment data returned by repository (minimal fields needed for completion)
+ */
+interface AppointmentForCompletion {
+    id: string
+    status: AppointmentStatus
+    startAt: Date
+    /** End time including buffer - used to validate completion (slot must be finished) */
+    occupiedEndAt: Date
+}
+
+/**
+ * Repository dependencies for markAppointmentAsCompleted
+ * Allows domain to remain infrastructure-agnostic (no Prisma dependency)
+ */
+export interface CompleteAppointmentDeps {
+    /** Get appointment by ID with multi-tenant validation */
+    getAppointmentById: (businessId: string, appointmentId: string) => Promise<AppointmentForCompletion | null>
+    /** Update appointment status atomically with expected state check */
+    updateAppointmentStatus: (
+        appointmentId: string,
+        status: AppointmentStatus,
+        cancellationReason: string | undefined,
+        expectedStatuses: AppointmentStatus[]
+    ) => Promise<AppointmentForCompletion | null>
+}
+
+/**
+ * Mark an appointment as completed
+ *
+ * Business rules:
+ * - Appointment must exist and belong to the specified business (multi-tenant)
+ * - Only SCHEDULED or RESCHEDULED appointments can be marked as completed
+ * - Appointment occupiedEndAt must be <= current time (cannot complete in-progress or future appointments)
+ * - Idempotent: if already COMPLETED, returns success without error
+ * - Uses atomic state verification to prevent race conditions
+ * - Marking as completed does NOT free the slot (slot already passed)
+ *
+ * @see docs/user-stories.md - US-6.4 Marcar completado
+ *
+ * @param deps - Repository dependencies (injected)
+ * @param input - Complete appointment input
+ * @returns Completed appointment output
+ * @throws AppError if appointment not found, invalid status, or appointment not finished
+ */
+export async function markAppointmentAsCompleted(
+    deps: CompleteAppointmentDeps,
+    input: CompleteAppointmentInput
+): Promise<CompleteAppointmentOutput> {
+    const { businessId, appointmentId, currentTime } = input
+
+    // 1. Get appointment with multi-tenant validation
+    const appointment = await deps.getAppointmentById(businessId, appointmentId)
+
+    if (!appointment) {
+        throw new AppError(
+            AppointmentErrorCodes.APPOINTMENT_NOT_FOUND,
+            'El turno no existe o no pertenece a este negocio',
+            404
+        )
+    }
+
+    // 2. Check if already completed (idempotent)
+    if (appointment.status === 'COMPLETED') {
+        return {
+            appointmentId: appointment.id,
+            status: 'COMPLETED'
+        }
+    }
+
+    // 3. Validate current status allows completion
+    if (!COMPLETABLE_STATUSES.includes(appointment.status)) {
+        throw new AppError(
+            AppointmentErrorCodes.APPOINTMENT_INVALID_STATUS,
+            `No se puede marcar como completado un turno en estado ${appointment.status}`,
+            400
+        )
+    }
+
+    // 4. Validate appointment has finished (cannot complete future or in-progress appointments)
+    // This ensures "no afecta disponibilidad" because the slot is already in the past
+    if (appointment.occupiedEndAt > currentTime) {
+        throw new AppError(
+            AppointmentErrorCodes.APPOINTMENT_INVALID_STATUS,
+            'No se puede marcar como completado un turno que aún no ha finalizado',
+            400
+        )
+    }
+
+    // 5. Update status to COMPLETED with atomic state verification
+    // This prevents race conditions where status changes between read and write
+    const updated = await deps.updateAppointmentStatus(appointmentId, 'COMPLETED', undefined, COMPLETABLE_STATUSES)
+
+    // If update returned null, the state changed between validation and update (race condition)
+    if (!updated) {
+        // Re-fetch to check current state
+        const currentAppointment = await deps.getAppointmentById(businessId, appointmentId)
+
+        // If it's now COMPLETED, treat as success (idempotent)
+        if (currentAppointment?.status === 'COMPLETED') {
+            return {
+                appointmentId: currentAppointment.id,
+                status: 'COMPLETED'
+            }
+        }
+
+        // Otherwise, the status changed to something else (e.g., CANCELLED)
+        throw new AppError(
+            AppointmentErrorCodes.APPOINTMENT_INVALID_STATUS,
+            `El estado del turno cambió durante la operación. Estado actual: ${
+                currentAppointment?.status ?? 'desconocido'
+            }`,
+            409
+        )
+    }
+
+    return {
+        appointmentId: updated.id,
+        status: 'COMPLETED'
     }
 }

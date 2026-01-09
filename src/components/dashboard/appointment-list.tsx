@@ -5,6 +5,7 @@ import { AppointmentStatus } from '@prisma/client'
 import { Calendar, Clock, User } from 'lucide-react'
 import { CancelAppointmentDialog } from './cancel-appointment-dialog'
 import { RescheduleAppointmentDialog } from './reschedule-appointment-dialog'
+import { CompleteAppointmentDialog } from './complete-appointment-dialog'
 
 /**
  * Appointment data received from Server Component.
@@ -15,6 +16,8 @@ interface AppointmentData {
     status: AppointmentStatus
     startAt: string | Date
     endAt: string | Date
+    /** End time including buffer - used to determine if appointment can be completed */
+    occupiedEndAt: string | Date
     service: {
         id: string
         name: string
@@ -74,6 +77,10 @@ export function AppointmentList({ appointments, timezone, resourceLabel, busines
     // Check if appointment can be cancelled or rescheduled (SCHEDULED or RESCHEDULED)
     const canModify = (status: AppointmentStatus) => status === 'SCHEDULED' || status === 'RESCHEDULED'
 
+    // Check if appointment can be marked as completed (SCHEDULED or RESCHEDULED and already finished)
+    const canComplete = (status: AppointmentStatus, occupiedEndAt: Date) =>
+        canModify(status) && occupiedEndAt <= new Date()
+
     return (
         <div className='divide-y divide-zinc-200 dark:divide-zinc-800'>
             {appointments.map(appointment => {
@@ -81,6 +88,7 @@ export function AppointmentList({ appointments, timezone, resourceLabel, busines
                 // Convert serialized dates back to Date objects (RSC boundary serializes Date -> string)
                 const startAt = new Date(appointment.startAt)
                 const endAt = new Date(appointment.endAt)
+                const occupiedEndAt = new Date(appointment.occupiedEndAt)
                 const timeRange = formatAppointmentTime(startAt, endAt, timezone)
 
                 return (
@@ -130,6 +138,16 @@ export function AppointmentList({ appointments, timezone, resourceLabel, busines
                                         currentTimeRange={timeRange}
                                         timezone={timezone}
                                     />
+                                    {/* Complete button - only for finished appointments */}
+                                    {canComplete(appointment.status, occupiedEndAt) && (
+                                        <CompleteAppointmentDialog
+                                            appointmentId={appointment.id}
+                                            businessId={businessId}
+                                            customerName={appointment.customer.fullName}
+                                            serviceName={appointment.service.name}
+                                            timeRange={timeRange}
+                                        />
+                                    )}
                                     <CancelAppointmentDialog
                                         appointmentId={appointment.id}
                                         businessId={businessId}
