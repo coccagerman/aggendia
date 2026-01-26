@@ -3,7 +3,7 @@
  * Tests GET /api/v1/public/slots
  */
 
-import { describe, it, expect, beforeAll, afterAll } from 'vitest'
+import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest'
 import { NextRequest } from 'next/server'
 import { prisma } from '@/data/prisma/prisma'
 import { createBusinessWithOwner } from '@/data/repositories/business.repo'
@@ -252,7 +252,11 @@ describe('Public Slots API - Integration Tests', () => {
         })
 
         it('returns slots for valid request (Monday availability)', async () => {
-            // Find next Monday
+            // Use fake timers to ensure we're at the start of the day (avoid past-slot filtering)
+            vi.useFakeTimers()
+            vi.setSystemTime(new Date('2026-01-26T06:00:00Z')) // Early morning UTC (3am Buenos Aires)
+
+            // Find next Monday from "now" (fake time)
             const today = new Date()
             let nextMonday = startOfDay(today)
             while (nextMonday.getDay() !== 1) {
@@ -271,6 +275,8 @@ describe('Public Slots API - Integration Tests', () => {
 
             const request = new NextRequest(url)
             const response = await GET(request)
+
+            vi.useRealTimers()
 
             expect(response.status).toBe(200)
             const data = await response.json()
@@ -326,7 +332,11 @@ describe('Public Slots API - Integration Tests', () => {
         })
 
         it('respects service buffer when calculating slots', async () => {
-            // Find next Monday
+            // Use fake timers to ensure we're at the start of the day (avoid past-slot filtering)
+            vi.useFakeTimers()
+            vi.setSystemTime(new Date('2026-01-26T06:00:00Z')) // Early morning UTC (3am Buenos Aires)
+
+            // Find next Monday from "now" (fake time)
             const today = new Date()
             let nextMonday = startOfDay(today)
             while (nextMonday.getDay() !== 1) {
@@ -359,6 +369,8 @@ describe('Public Slots API - Integration Tests', () => {
             const request2 = new NextRequest(url2)
             const response2 = await GET(request2)
             const data2 = await response2.json()
+
+            vi.useRealTimers()
 
             // Service with buffer should have fewer slots
             expect(data2.data.length).toBeLessThan(data1.data.length)

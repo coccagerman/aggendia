@@ -3,7 +3,7 @@
  * Updated for US-5.5: uses slotIntervalMinutes instead of bufferMinutes
  */
 
-import { describe, it, expect, vi } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { calculateSlots } from '@/domain/slots/slots.service'
 import { CalculateSlotsInput } from '@/domain/slots/slots.types'
 import { addDays, startOfDay } from 'date-fns'
@@ -12,6 +12,18 @@ import { fromZonedTime } from 'date-fns-tz'
 const TIMEZONE = 'America/Argentina/Buenos_Aires'
 
 describe('calculateSlots', () => {
+    // Mock system time for tests that use fixed dates in the past
+    // This prevents the "filter out past slots" logic from removing all results
+    beforeEach(() => {
+        // Set system time to before the test dates (2026-01-15)
+        vi.useFakeTimers()
+        vi.setSystemTime(new Date('2026-01-15T00:00:00Z'))
+    })
+
+    afterEach(() => {
+        vi.useRealTimers()
+    })
+
     it('should return empty array when no availability rules exist', () => {
         const baseDate = startOfDay(new Date('2026-01-10T00:00:00Z'))
 

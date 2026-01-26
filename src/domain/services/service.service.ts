@@ -130,3 +130,24 @@ export function validateUpdateServiceInput(input: UpdateServiceInput, existingDu
         throw new AppError(ValidationErrorCodes.VALIDATION_ERROR, 'El precio no puede ser negativo', 400)
     }
 }
+
+/**
+ * Resultado de la validación para eliminar un servicio.
+ */
+export interface CanDeleteServiceResult {
+    canDelete: boolean
+    futureAppointmentsCount: number
+}
+
+/**
+ * Verifica si un servicio puede ser eliminado (soft delete).
+ * Un servicio solo puede eliminarse si no tiene turnos futuros SCHEDULED.
+ * @param futureAppointmentsCount - Cantidad de turnos futuros del servicio
+ * @returns Resultado indicando si puede eliminarse
+ */
+export function canDeleteService(futureAppointmentsCount: number): CanDeleteServiceResult {
+    return {
+        canDelete: futureAppointmentsCount === 0,
+        futureAppointmentsCount
+    }
+}

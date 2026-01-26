@@ -804,3 +804,163 @@ test.describe('Service Toggle Active E2E', () => {
         await expect(page.getByText('Inactivo', { exact: true })).not.toBeVisible()
     })
 })
+
+test.describe('Service Deletion E2E', () => {
+    test('deletes service without future appointments', async ({ page }) => {
+        const email = generateTestEmail()
+        const password = 'TestPassword123!'
+        const businessName = `Business ${Date.now()}`
+        const serviceName = `Servicio a eliminar ${Date.now()}`
+
+        // Setup: signup + crear negocio
+        await signupUser(page, email, password)
+        await createBusiness(page, businessName)
+
+        // Navegar a servicios
+        await page
+            .getByRole('link', { name: /gestionar/i })
+            .first()
+            .click()
+        await expect(page).toHaveURL(/.*\/services$/)
+
+        // Crear servicio
+        await page.getByRole('button', { name: /crear servicio/i }).click()
+        await page.getByLabel(/nombre del servicio/i).fill(serviceName)
+        await page
+            .getByRole('button', { name: /crear servicio/i })
+            .last()
+            .click()
+        await expect(page.getByText(/servicio creado/i)).toBeVisible({ timeout: 10000 })
+
+        // Esperar a que la página termine de cargar
+        await page.waitForLoadState('networkidle')
+
+        // Verificar que el servicio está en el listado
+        await expect(page.getByRole('heading', { name: serviceName })).toBeVisible({ timeout: 5000 })
+
+        // Abrir menú de acciones y seleccionar eliminar
+        await page.getByRole('button', { name: /abrir menú/i }).click()
+        await page.getByRole('menuitem', { name: /eliminar/i }).click()
+
+        // Confirmar eliminación en el modal
+        await expect(page.getByText(/¿estás seguro.*eliminar/i)).toBeVisible()
+        await page.getByRole('button', { name: /^eliminar$/i }).click()
+
+        // Verificar toast de éxito
+        await expect(page.getByText(/servicio eliminado/i)).toBeVisible({ timeout: 10000 })
+
+        // Verificar que el servicio ya no aparece en el listado
+        await expect(page.getByRole('heading', { name: serviceName })).not.toBeVisible({ timeout: 5000 })
+    })
+
+    test('cancel delete does not remove service', async ({ page }) => {
+        const email = generateTestEmail()
+        const password = 'TestPassword123!'
+        const businessName = `Business ${Date.now()}`
+        const serviceName = `Cancel Delete ${Date.now()}`
+
+        // Setup
+        await signupUser(page, email, password)
+        await createBusiness(page, businessName)
+
+        await page
+            .getByRole('link', { name: /gestionar/i })
+            .first()
+            .click()
+
+        // Crear servicio
+        await page.getByRole('button', { name: /crear servicio/i }).click()
+        await page.getByLabel(/nombre del servicio/i).fill(serviceName)
+        await page
+            .getByRole('button', { name: /crear servicio/i })
+            .last()
+            .click()
+        await expect(page.getByText(/servicio creado/i)).toBeVisible({ timeout: 10000 })
+
+        // Esperar a que la página termine de cargar
+        await page.waitForLoadState('networkidle')
+
+        // Verificar que el servicio está en el listado
+        await expect(page.getByRole('heading', { name: serviceName })).toBeVisible({ timeout: 10000 })
+
+        // Abrir modal de eliminar pero cancelar
+        await page.getByRole('button', { name: /abrir menú/i }).click()
+        await page.getByRole('menuitem', { name: /eliminar/i }).click()
+        await expect(page.getByText(/¿estás seguro.*eliminar/i)).toBeVisible()
+        await page.getByRole('button', { name: /cancelar/i }).click()
+
+        // Verificar que el servicio sigue en el listado
+        await expect(page.getByRole('heading', { name: serviceName })).toBeVisible()
+    })
+
+    test('deleted service does not appear in public page', async ({ page }) => {
+        const email = generateTestEmail()
+        const password = 'TestPassword123!'
+        const businessName = `Business ${Date.now()}`
+        const serviceName = `Public Delete ${Date.now()}`
+        const resourceName = `Resource ${Date.now()}`
+
+        // Setup
+        await signupUser(page, email, password)
+        await createBusiness(page, businessName)
+
+        // Obtener slug del negocio desde el link público en dashboard
+        const publicLink = page.locator('code').filter({ hasText: '/b/' })
+        await expect(publicLink).toBeVisible({ timeout: 5000 })
+        const publicLinkText = await publicLink.textContent()
+        const publicUrl = publicLinkText?.includes('http') ? publicLinkText : `http://localhost:3000${publicLinkText}`
+        const slug = new URL(publicUrl!).pathname.replace(/^\/b\//, '')
+
+        // Primero crear un recurso (necesario para que el servicio aparezca en página pública)
+        await page
+            .getByRole('link', { name: /crear.*recurso/i })
+            .first()
+            .click()
+        await page.getByLabel(/nombre/i).fill(resourceName)
+        await page.getByRole('button', { name: /crear/i }).click()
+        await expect(page).toHaveURL('/dashboard', { timeout: 10000 })
+        await expect(page.getByText(resourceName)).toBeVisible({ timeout: 5000 })
+
+        // Crear servicio
+        await page
+            .getByRole('link', { name: /gestionar/i })
+            .first()
+            .click()
+        await page.getByRole('button', { name: /crear servicio/i }).click()
+        await page.getByLabel(/nombre del servicio/i).fill(serviceName)
+        await page
+            .getByRole('button', { name: /crear servicio/i })
+            .last()
+            .click()
+        await expect(page.getByText(/servicio creado/i)).toBeVisible({ timeout: 10000 })
+
+        // Asignar recurso al servicio via el badge "Sin recursos"
+        await page.waitForLoadState('networkidle')
+        await page.getByRole('button', { name: /sin recursos/i }).click()
+        await expect(page.getByRole('dialog')).toBeVisible({ timeout: 5000 })
+        await page.getByRole('checkbox').first().click()
+        await page.getByRole('button', { name: /guardar/i }).click()
+        await expect(page.getByText(/recursos actualizados/i)).toBeVisible({ timeout: 10000 })
+
+        // Verificar que aparece en página pública
+        await page.goto(`/b/${slug}`)
+        await expect(page.getByText(serviceName)).toBeVisible({ timeout: 10000 })
+
+        // Volver al dashboard y eliminar
+        await page.goto('/dashboard')
+        await page
+            .getByRole('link', { name: /gestionar/i })
+            .first()
+            .click()
+        await page.waitForLoadState('networkidle')
+        await expect(page.getByRole('heading', { name: serviceName })).toBeVisible({ timeout: 10000 })
+        await page.getByRole('button', { name: /abrir menú/i }).click()
+        await page.getByRole('menuitem', { name: /eliminar/i }).click()
+        await page.getByRole('button', { name: /^eliminar$/i }).click()
+        await expect(page.getByText(/servicio eliminado/i)).toBeVisible({ timeout: 10000 })
+
+        // Verificar que ya no aparece en página pública
+        await page.goto(`/b/${slug}`)
+        await expect(page.getByText(serviceName)).not.toBeVisible()
+    })
+})

@@ -7,7 +7,8 @@ import {
     validateServiceDuration,
     validateSlotIntervalMinutes,
     validateCreateServiceInput,
-    validateUpdateServiceInput
+    validateUpdateServiceInput,
+    canDeleteService
 } from '@/domain/services/service.service'
 import { AppError } from '@/domain/common/errors'
 
@@ -252,5 +253,33 @@ describe('Service Domain - validateUpdateServiceInput', () => {
                 priceCents: -500
             })
         ).toThrow('precio no puede ser negativo')
+    })
+})
+
+describe('Service Domain - canDeleteService', () => {
+    it('retorna canDelete=true cuando no hay turnos futuros', () => {
+        const result = canDeleteService(0)
+        expect(result.canDelete).toBe(true)
+        expect(result.futureAppointmentsCount).toBe(0)
+    })
+
+    it('retorna canDelete=false cuando hay turnos futuros', () => {
+        const result = canDeleteService(5)
+        expect(result.canDelete).toBe(false)
+        expect(result.futureAppointmentsCount).toBe(5)
+    })
+
+    it('retorna canDelete=false con un solo turno futuro', () => {
+        const result = canDeleteService(1)
+        expect(result.canDelete).toBe(false)
+        expect(result.futureAppointmentsCount).toBe(1)
+    })
+
+    it('retorna las propiedades esperadas', () => {
+        const result = canDeleteService(3)
+        expect(result).toHaveProperty('canDelete')
+        expect(result).toHaveProperty('futureAppointmentsCount')
+        expect(typeof result.canDelete).toBe('boolean')
+        expect(typeof result.futureAppointmentsCount).toBe('number')
     })
 })

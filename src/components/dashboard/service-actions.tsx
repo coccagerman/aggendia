@@ -3,7 +3,13 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuSeparator,
+    DropdownMenuTrigger
+} from '@/components/ui/dropdown-menu'
 import {
     Dialog,
     DialogContent,
@@ -12,11 +18,21 @@ import {
     DialogHeader,
     DialogTitle
 } from '@/components/ui/dialog'
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle
+} from '@/components/ui/alert-dialog'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
-import { MoreHorizontal, Pencil, Power, PowerOff } from 'lucide-react'
+import { Loader2, MoreHorizontal, Pencil, Power, PowerOff, Trash2 } from 'lucide-react'
 import {
     type Service,
     DURATION_STEP,
@@ -41,8 +57,11 @@ export function ServiceActions({ service }: ServiceActionsProps) {
     const router = useRouter()
     const [isEditOpen, setIsEditOpen] = useState(false)
     const [isToggleOpen, setIsToggleOpen] = useState(false)
+    const [isDeleteOpen, setIsDeleteOpen] = useState(false)
     const [isSubmitting, setIsSubmitting] = useState(false)
     const [isToggling, setIsToggling] = useState(false)
+    const [isDeleting, setIsDeleting] = useState(false)
+    const [deleteError, setDeleteError] = useState<string | null>(null)
     const [errors, setErrors] = useState<FormErrors>({})
     const [useCustomDuration, setUseCustomDuration] = useState(false)
 
@@ -104,6 +123,65 @@ export function ServiceActions({ service }: ServiceActionsProps) {
             console.error('Error al cambiar estado del servicio:', error)
             toast.error('Error de conexión. Intentá nuevamente.')
             setIsToggling(false)
+        }
+    }
+
+    const handleOpenDelete = () => {
+        setDeleteError(null)
+        setIsDeleteOpen(true)
+    }
+
+    const handleDelete = async () => {
+        setIsDeleting(true)
+        setDeleteError(null)
+
+        try {
+            const response = await fetch(`/api/v1/businesses/${service.businessId}/services/${service.id}`, {
+                method: 'DELETE'
+            })
+
+            if (!response.ok) {
+                const data = await response.json()
+                if (response.status === 409 && data.error?.code === 'SERVICE_HAS_FUTURE_APPOINTMENTS') {
+                    setDeleteError('Este servicio tiene turnos futuros. Desactivalo en su lugar.')
+                } else {
+                    setDeleteError(data.error?.message || 'Error al eliminar.')
+                }
+                return
+            }
+
+            setIsDeleteOpen(false)
+            toast.success('Servicio eliminado correctamente.')
+            router.refresh()
+        } catch {
+            setDeleteError('Error de conexión. Intentá nuevamente.')
+        } finally {
+            setIsDeleting(false)
+        }
+    }
+
+    const handleDeactivateFromDeleteError = async () => {
+        setIsDeleting(true)
+        try {
+            const response = await fetch(`/api/v1/businesses/${service.businessId}/services/${service.id}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ status: 'INACTIVE' })
+            })
+
+            if (!response.ok) {
+                const data = await response.json()
+                toast.error(data.error?.message || 'Error al desactivar.')
+                return
+            }
+
+            setIsDeleteOpen(false)
+            toast.success('Servicio desactivado correctamente.')
+            router.refresh()
+        } catch {
+            toast.error('Error de conexión. Intentá nuevamente.')
+        } finally {
+            setIsDeleting(false)
         }
     }
 
@@ -261,6 +339,14 @@ export function ServiceActions({ service }: ServiceActionsProps) {
                                 Activar
                             </>
                         )}
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem
+                        onClick={handleOpenDelete}
+                        className='cursor-pointer text-red-600 focus:text-red-600'
+                    >
+                        <Trash2 className='mr-2 h-4 w-4' />
+                        Eliminar
                     </DropdownMenuItem>
                 </DropdownMenuContent>
             </DropdownMenu>
@@ -554,6 +640,63 @@ export function ServiceActions({ service }: ServiceActionsProps) {
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
+
+            {/* Modal de confirmación de eliminación */}
+            <AlertDialog open={isDeleteOpen} onOpenChange={setIsDeleteOpen}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Eliminar servicio</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            ¿Estás seguro de que querés eliminar el servicio <strong>{service.name}</strong>?
+                            <br />
+                            <br />
+                            Esta acción no se puede deshacer. Los turnos históricos asociados a este servicio seguirán
+                            visibles en la agenda.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+
+                    {/* Error de eliminación */}
+                    {deleteError && (
+                        <div className='rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-800 dark:border-red-900/50 dark:bg-red-950/30 dark:text-red-200'>
+                            {deleteError}
+                            {deleteError.includes('turnos futuros') && (
+                                <Button
+                                    type='button'
+                                    variant='link'
+                                    className='mt-2 h-auto p-0 text-red-700 underline dark:text-red-300'
+                                    onClick={handleDeactivateFromDeleteError}
+                                    disabled={isDeleting}
+                                >
+                                    {isDeleting ? 'Desactivando...' : 'Desactivar en su lugar'}
+                                </Button>
+                            )}
+                        </div>
+                    )}
+
+                    <AlertDialogFooter>
+                        <AlertDialogCancel disabled={isDeleting} className='cursor-pointer'>
+                            Cancelar
+                        </AlertDialogCancel>
+                        <AlertDialogAction
+                            onClick={e => {
+                                e.preventDefault()
+                                handleDelete()
+                            }}
+                            disabled={isDeleting}
+                            className='cursor-pointer bg-red-600 hover:bg-red-700 focus:ring-red-600'
+                        >
+                            {isDeleting ? (
+                                <>
+                                    <Loader2 className='mr-2 h-4 w-4 animate-spin' />
+                                    Eliminando...
+                                </>
+                            ) : (
+                                'Eliminar'
+                            )}
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
         </>
     )
 }

@@ -498,3 +498,37 @@ export async function createRescheduledAppointment(
         throw new AppError(SystemErrorCodes.DB_ERROR, 'Error al reprogramar el turno', 500)
     }
 }
+
+/**
+ * Count future SCHEDULED appointments for a service
+ * Used for soft-delete validation (US-7.2)
+ * @param prisma - Prisma client
+ * @param serviceId - Service ID
+ * @returns Number of future appointments
+ */
+export async function countFutureAppointmentsByServiceId(prisma: PrismaClient, serviceId: string): Promise<number> {
+    return prisma.appointment.count({
+        where: {
+            serviceId,
+            status: 'SCHEDULED',
+            startAt: { gte: new Date() }
+        }
+    })
+}
+
+/**
+ * Count future SCHEDULED appointments for a resource
+ * Used for soft-delete validation (US-2.3)
+ * @param prisma - Prisma client
+ * @param resourceId - Resource ID
+ * @returns Number of future appointments
+ */
+export async function countFutureAppointmentsByResourceId(prisma: PrismaClient, resourceId: string): Promise<number> {
+    return prisma.appointment.count({
+        where: {
+            resourceId,
+            status: 'SCHEDULED',
+            startAt: { gte: new Date() }
+        }
+    })
+}
