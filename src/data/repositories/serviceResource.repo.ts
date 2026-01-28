@@ -507,3 +507,25 @@ export async function getServiceIdsWithActiveResources(
 
     return new Set(links.map(link => link.serviceId))
 }
+
+/**
+ * Elimina todas las asociaciones Service-Resource de un recurso.
+ * Se usa cuando se elimina un recurso (soft delete) para limpiar las relaciones.
+ * @param prisma - Prisma client
+ * @param businessId - ID del negocio
+ * @param resourceId - ID del recurso
+ * @returns Cantidad de asociaciones eliminadas
+ */
+export async function removeAllServiceLinksForResource(
+    prisma: PrismaClient,
+    businessId: string,
+    resourceId: string
+): Promise<number> {
+    const result = await prisma.serviceResource.deleteMany({
+        where: {
+            businessId,
+            resourceId
+        }
+    })
+    return result.count
+}

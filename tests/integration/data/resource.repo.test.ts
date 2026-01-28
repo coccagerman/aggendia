@@ -12,6 +12,12 @@ import {
     deleteResource
 } from '@/data/repositories/resource.repo'
 import { createBusinessWithOwner } from '@/data/repositories/business.repo'
+import { createService } from '@/data/repositories/service.repo'
+import {
+    addResourceToService,
+    getResourceIdsByServiceId,
+    countResourcesByServiceIds
+} from '@/data/repositories/serviceResource.repo'
 
 describe('Resource Repository - Integration Tests', () => {
     let businessId1: string
@@ -464,6 +470,92 @@ describe('Resource Repository - Integration Tests', () => {
                     name: existingName
                 })
             ).rejects.toThrow('Ya existe un recurso activo o inactivo con ese nombre')
+        })
+    })
+
+    describe('deleteResource - service link cleanup', () => {
+        it('elimina las asociaciones ServiceResource cuando se elimina un recurso', async () => {
+            // Crear recurso y servicio
+            const resource = await createResource(prisma, businessId1, {
+                name: `Recurso para Desasignar ${Date.now()}`
+            })
+            const service = await createService(prisma, businessId1, {
+                name: `Servicio para Test Link ${Date.now()}`,
+                durationMinutes: 30
+            })
+
+            // Asociar recurso al servicio
+            await addResourceToService(prisma, businessId1, service.id, resource.id)
+
+            // Verificar que la asociación existe
+            const linksBefore = await getResourceIdsByServiceId(prisma, businessId1, service.id)
+            expect(linksBefore).toContain(resource.id)
+
+            // Eliminar el recurso (soft delete)
+            await deleteResource(prisma, businessId1, resource.id)
+
+            // Verificar que la asociación fue eliminada
+            const linksAfter = await getResourceIdsByServiceId(prisma, businessId1, service.id)
+            expect(linksAfter).not.toContain(resource.id)
+        })
+
+        it('actualiza el contador de recursos de un servicio cuando se elimina un recurso asignado', async () => {
+            // Crear dos recursos y un servicio
+            const resource1 = await createResource(prisma, businessId1, {
+                name: `Recurso Count 1 ${Date.now()}`
+            })
+            const resource2 = await createResource(prisma, businessId1, {
+                name: `Recurso Count 2 ${Date.now()}`
+            })
+            const service = await createService(prisma, businessId1, {
+                name: `Servicio Count Test ${Date.now()}`,
+                durationMinutes: 30
+            })
+
+            // Asociar ambos recursos al servicio
+            await addResourceToService(prisma, businessId1, service.id, resource1.id)
+            await addResourceToService(prisma, businessId1, service.id, resource2.id)
+
+            // Verificar contador antes
+            const countsBefore = await countResourcesByServiceIds(prisma, businessId1, [service.id])
+            expect(countsBefore.get(service.id)).toBe(2)
+
+            // Eliminar uno de los recursos
+            await deleteResource(prisma, businessId1, resource1.id)
+
+            // Verificar contador después
+            const countsAfter = await countResourcesByServiceIds(prisma, businessId1, [service.id])
+            expect(countsAfter.get(service.id)).toBe(1)
+        })
+
+        it('elimina asociaciones de múltiples servicios cuando se elimina un recurso', async () => {
+            // Crear un recurso y dos servicios
+            const resource = await createResource(prisma, businessId1, {
+                name: `Recurso Multi Service ${Date.now()}`
+            })
+            const service1 = await createService(prisma, businessId1, {
+                name: `Servicio Multi 1 ${Date.now()}`,
+                durationMinutes: 30
+            })
+            const service2 = await createService(prisma, businessId1, {
+                name: `Servicio Multi 2 ${Date.now()}`,
+                durationMinutes: 45
+            })
+
+            // Asociar el recurso a ambos servicios
+            await addResourceToService(prisma, businessId1, service1.id, resource.id)
+            await addResourceToService(prisma, businessId1, service2.id, resource.id)
+
+            // Verificar que las asociaciones existen
+            expect(await getResourceIdsByServiceId(prisma, businessId1, service1.id)).toContain(resource.id)
+            expect(await getResourceIdsByServiceId(prisma, businessId1, service2.id)).toContain(resource.id)
+
+            // Eliminar el recurso
+            await deleteResource(prisma, businessId1, resource.id)
+
+            // Verificar que ambas asociaciones fueron eliminadas
+            expect(await getResourceIdsByServiceId(prisma, businessId1, service1.id)).not.toContain(resource.id)
+            expect(await getResourceIdsByServiceId(prisma, businessId1, service2.id)).not.toContain(resource.id)
         })
     })
 })

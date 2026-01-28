@@ -1,6 +1,7 @@
 import { PrismaClient } from '@prisma/client'
 import { Resource, CreateResourceInput, UpdateResourceInput } from '@/domain/resources/resource.types'
 import { AppError, ResourceErrorCodes, ValidationErrorCodes, SystemErrorCodes } from '@/domain/common/errors'
+import { removeAllServiceLinksForResource } from './serviceResource.repo'
 
 function ensureResourceClient(prisma: PrismaClient): PrismaClient {
     if ((prisma as unknown as { resource?: unknown }).resource) {
@@ -201,20 +202,30 @@ export async function updateResource(
 
 /**
  * Elimina un recurso (soft delete: cambia status a DELETED).
+ * También elimina todas las asociaciones ServiceResource del recurso.
  */
 export async function deleteResource(prisma: PrismaClient, businessId: string, resourceId: string): Promise<void> {
     const client = ensureResourceClient(prisma)
-    const result = await client.resource.updateMany({
+
+    // Verificar que el recurso existe antes de proceder
+    const existing = await client.resource.findFirst({
         where: {
             id: resourceId,
-            businessId
-        },
-        data: {
-            status: 'DELETED'
+            businessId,
+            status: { not: 'DELETED' }
         }
     })
 
-    if (result.count === 0) {
+    if (!existing) {
         throw new AppError(ResourceErrorCodes.RESOURCE_NOT_FOUND, 'Recurso no encontrado.', 404)
     }
+
+    // Eliminar todas las asociaciones Service-Resource del recurso
+    await removeAllServiceLinksForResource(client, businessId, resourceId)
+
+    // Hacer soft delete del recurso
+    await client.resource.update({
+        where: { id: resourceId },
+        data: { status: 'DELETED' }
+    })
 }
