@@ -129,13 +129,31 @@ export async function createService(
 ): Promise<Service> {
     validateCreateServiceInput(input)
 
+    const trimmedName = input.name.trim()
+
+    // Verificar que no exista un servicio activo/inactivo con el mismo nombre
+    const existingWithSameName = await prisma.service.findFirst({
+        where: {
+            businessId,
+            name: trimmedName,
+            status: { not: 'DELETED' }
+        }
+    })
+    if (existingWithSameName) {
+        throw new AppError(
+            ServiceErrorCodes.SERVICE_NAME_CONFLICT,
+            'Ya existe un servicio activo o inactivo con ese nombre en este negocio.',
+            409
+        )
+    }
+
     // Si no se especifica slotIntervalMinutes, usa durationMinutes por defecto
     const slotInterval = input.slotIntervalMinutes ?? input.durationMinutes
 
     return prisma.service.create({
         data: {
             businessId,
-            name: input.name,
+            name: trimmedName,
             description: input.description ?? null,
             durationMinutes: input.durationMinutes,
             slotIntervalMinutes: slotInterval,
@@ -167,12 +185,32 @@ export async function updateService(
         throw new AppError(ServiceErrorCodes.SERVICE_NOT_FOUND, 'Servicio no encontrado para este negocio', 404)
     }
 
+    // Si se cambia el nombre, verificar que no exista otro servicio activo/inactivo con ese nombre
+    if (input.name !== undefined && input.name.trim() !== existing.name) {
+        const trimmedName = input.name.trim()
+        const existingWithSameName = await prisma.service.findFirst({
+            where: {
+                businessId,
+                name: trimmedName,
+                status: { not: 'DELETED' },
+                id: { not: serviceId }
+            }
+        })
+        if (existingWithSameName) {
+            throw new AppError(
+                ServiceErrorCodes.SERVICE_NAME_CONFLICT,
+                'Ya existe un servicio activo o inactivo con ese nombre en este negocio.',
+                409
+            )
+        }
+    }
+
     // Validar con la duración existente para el caso de actualizar solo slotInterval
     validateUpdateServiceInput(input, existing.durationMinutes)
 
     const updateData: Partial<UpdateServiceInput> = {}
 
-    if (input.name !== undefined) updateData.name = input.name
+    if (input.name !== undefined) updateData.name = input.name.trim()
     if (input.description !== undefined) updateData.description = input.description
     if (input.durationMinutes !== undefined) updateData.durationMinutes = input.durationMinutes
     if (input.slotIntervalMinutes !== undefined) updateData.slotIntervalMinutes = input.slotIntervalMinutes

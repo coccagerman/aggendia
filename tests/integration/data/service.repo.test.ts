@@ -290,4 +290,116 @@ describe('Service Repository - Integration Tests', () => {
             expect(services.map(s => s.id)).not.toContain(service.id)
         })
     })
+
+    describe('soft delete - name reuse', () => {
+        it('permite crear servicio con nombre de uno eliminado (índice parcial único)', async () => {
+            const serviceName = `Servicio Reusable ${Date.now()}`
+
+            // Crear el servicio
+            const original = await createService(prisma, businessId1, {
+                name: serviceName,
+                durationMinutes: 30
+            })
+            expect(original.status).toBe('ACTIVE')
+
+            // Eliminarlo (soft delete)
+            await deleteService(prisma, businessId1, original.id)
+
+            // Crear otro con el mismo nombre - ahora funciona gracias al índice parcial
+            const reused = await createService(prisma, businessId1, {
+                name: serviceName,
+                durationMinutes: 45
+            })
+
+            expect(reused.id).not.toBe(original.id)
+            expect(reused.name).toBe(serviceName)
+            expect(reused.durationMinutes).toBe(45)
+            expect(reused.status).toBe('ACTIVE')
+        })
+
+        it('rechaza crear servicio con nombre duplicado si existe uno activo', async () => {
+            const serviceName = `Servicio Activo Duplicado ${Date.now()}`
+
+            // Crear servicio activo
+            await createService(prisma, businessId1, {
+                name: serviceName,
+                durationMinutes: 30
+            })
+
+            // Intentar crear otro con el mismo nombre - debería fallar
+            await expect(
+                createService(prisma, businessId1, {
+                    name: serviceName,
+                    durationMinutes: 45
+                })
+            ).rejects.toThrow('Ya existe un servicio activo o inactivo con ese nombre')
+        })
+
+        it('rechaza crear servicio con nombre duplicado si existe uno inactivo', async () => {
+            const serviceName = `Servicio Inactivo Duplicado ${Date.now()}`
+
+            // Crear servicio y marcarlo como inactivo
+            const service = await createService(prisma, businessId1, {
+                name: serviceName,
+                durationMinutes: 30
+            })
+            await updateService(prisma, businessId1, service.id, { status: 'INACTIVE' })
+
+            // Intentar crear otro con el mismo nombre - debería fallar
+            await expect(
+                createService(prisma, businessId1, {
+                    name: serviceName,
+                    durationMinutes: 45
+                })
+            ).rejects.toThrow('Ya existe un servicio activo o inactivo con ese nombre')
+        })
+
+        it('permite actualizar nombre a uno de servicio eliminado (índice parcial único)', async () => {
+            const deletedName = `Servicio Eliminado ${Date.now()}`
+            const activeName = `Servicio Activo ${Date.now()}`
+
+            // Crear y eliminar un servicio
+            const deletedService = await createService(prisma, businessId1, {
+                name: deletedName,
+                durationMinutes: 30
+            })
+            await deleteService(prisma, businessId1, deletedService.id)
+
+            // Crear otro servicio con nombre diferente
+            const activeService = await createService(prisma, businessId1, {
+                name: activeName,
+                durationMinutes: 30
+            })
+
+            // Actualizar al nombre del eliminado - ahora funciona gracias al índice parcial
+            const updated = await updateService(prisma, businessId1, activeService.id, {
+                name: deletedName
+            })
+
+            expect(updated.name).toBe(deletedName)
+        })
+
+        it('rechaza actualizar nombre a uno de servicio activo existente', async () => {
+            const existingName = `Servicio Existente ${Date.now()}`
+            const otherName = `Servicio Otro ${Date.now()}`
+
+            // Crear dos servicios
+            await createService(prisma, businessId1, {
+                name: existingName,
+                durationMinutes: 30
+            })
+
+            const otherService = await createService(prisma, businessId1, {
+                name: otherName,
+                durationMinutes: 30
+            })
+
+            // Intentar cambiar el nombre del segundo al del primero - debería fallar
+            await expect(
+                updateService(prisma, businessId1, otherService.id, {
+                    name: existingName
+                })
+            ).rejects.toThrow('Ya existe un servicio activo o inactivo con ese nombre')
+        })
+    })
 })

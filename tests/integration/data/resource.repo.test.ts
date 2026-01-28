@@ -362,4 +362,108 @@ describe('Resource Repository - Integration Tests', () => {
             expect(found).toBeNull()
         })
     })
+
+    describe('soft delete - name reuse', () => {
+        it('permite crear recurso con nombre de uno eliminado (índice parcial único)', async () => {
+            const resourceName = `Recurso Reusable ${Date.now()}`
+
+            // Crear el recurso
+            const original = await createResource(prisma, businessId1, {
+                name: resourceName,
+                type: 'PERSON'
+            })
+            expect(original.status).toBe('ACTIVE')
+
+            // Eliminarlo (soft delete)
+            await deleteResource(prisma, businessId1, original.id)
+
+            // Crear otro con el mismo nombre - ahora funciona gracias al índice parcial
+            const reused = await createResource(prisma, businessId1, {
+                name: resourceName,
+                type: 'ASSET'
+            })
+
+            expect(reused.id).not.toBe(original.id)
+            expect(reused.name).toBe(resourceName)
+            expect(reused.type).toBe('ASSET')
+            expect(reused.status).toBe('ACTIVE')
+        })
+
+        it('rechaza crear recurso con nombre duplicado si existe uno activo', async () => {
+            const resourceName = `Recurso Activo Duplicado ${Date.now()}`
+
+            // Crear recurso activo
+            await createResource(prisma, businessId1, {
+                name: resourceName
+            })
+
+            // Intentar crear otro con el mismo nombre - debería fallar
+            await expect(
+                createResource(prisma, businessId1, {
+                    name: resourceName
+                })
+            ).rejects.toThrow('Ya existe un recurso activo o inactivo con ese nombre')
+        })
+
+        it('rechaza crear recurso con nombre duplicado si existe uno inactivo', async () => {
+            const resourceName = `Recurso Inactivo Duplicado ${Date.now()}`
+
+            // Crear recurso y marcarlo como inactivo
+            const resource = await createResource(prisma, businessId1, {
+                name: resourceName
+            })
+            await updateResource(prisma, businessId1, resource.id, { status: 'INACTIVE' })
+
+            // Intentar crear otro con el mismo nombre - debería fallar
+            await expect(
+                createResource(prisma, businessId1, {
+                    name: resourceName
+                })
+            ).rejects.toThrow('Ya existe un recurso activo o inactivo con ese nombre')
+        })
+
+        it('permite actualizar nombre a uno de recurso eliminado (índice parcial único)', async () => {
+            const deletedName = `Recurso Eliminado ${Date.now()}`
+            const activeName = `Recurso Activo ${Date.now()}`
+
+            // Crear y eliminar un recurso
+            const deletedResource = await createResource(prisma, businessId1, {
+                name: deletedName
+            })
+            await deleteResource(prisma, businessId1, deletedResource.id)
+
+            // Crear otro recurso con nombre diferente
+            const activeResource = await createResource(prisma, businessId1, {
+                name: activeName
+            })
+
+            // Actualizar al nombre del eliminado - ahora funciona gracias al índice parcial
+            const updated = await updateResource(prisma, businessId1, activeResource.id, {
+                name: deletedName
+            })
+
+            expect(updated.name).toBe(deletedName)
+        })
+
+        it('rechaza actualizar nombre a uno de recurso activo existente', async () => {
+            const existingName = `Recurso Existente ${Date.now()}`
+            const otherName = `Recurso Otro ${Date.now()}`
+
+            // Crear dos recursos
+            await createResource(prisma, businessId1, {
+                name: existingName
+            })
+
+            const otherResource = await createResource(prisma, businessId1, {
+                name: otherName
+            })
+
+            // Intentar cambiar el nombre del segundo al del primero - debería fallar
+            await expect(
+                updateResource(prisma, businessId1, otherResource.id, {
+                    name: existingName
+                })
+            ).rejects.toThrow('Ya existe un recurso activo o inactivo con ese nombre')
+        })
+    })
 })

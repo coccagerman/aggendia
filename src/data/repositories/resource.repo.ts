@@ -24,6 +24,23 @@ export async function createResource(
     input: CreateResourceInput
 ): Promise<Resource> {
     const client = ensureResourceClient(prisma)
+
+    // Verificar que no exista un recurso activo/inactivo con el mismo nombre
+    const existingWithSameName = await client.resource.findFirst({
+        where: {
+            businessId,
+            name: input.name.trim(),
+            status: { not: 'DELETED' }
+        }
+    })
+    if (existingWithSameName) {
+        throw new AppError(
+            ResourceErrorCodes.RESOURCE_NAME_CONFLICT,
+            'Ya existe un recurso activo o inactivo con ese nombre en este negocio.',
+            409
+        )
+    }
+
     return client.resource.create({
         data: {
             businessId,
@@ -124,12 +141,32 @@ export async function updateResource(
     const existing = await client.resource.findFirst({
         where: {
             id: resourceId,
-            businessId
+            businessId,
+            status: { not: 'DELETED' }
         }
     })
 
     if (!existing) {
         throw new AppError(ResourceErrorCodes.RESOURCE_NOT_FOUND, 'Recurso no encontrado.', 404)
+    }
+
+    // Si se cambia el nombre, verificar que no exista otro recurso activo/inactivo con ese nombre
+    if (input.name && input.name.trim() !== existing.name) {
+        const existingWithSameName = await client.resource.findFirst({
+            where: {
+                businessId,
+                name: input.name.trim(),
+                status: { not: 'DELETED' },
+                id: { not: resourceId }
+            }
+        })
+        if (existingWithSameName) {
+            throw new AppError(
+                ResourceErrorCodes.RESOURCE_NAME_CONFLICT,
+                'Ya existe un recurso activo o inactivo con ese nombre en este negocio.',
+                409
+            )
+        }
     }
 
     const data: Partial<Resource> = {

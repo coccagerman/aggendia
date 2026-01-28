@@ -6,14 +6,14 @@ Este documento define convenciones de arquitectura, estructura y estilo para con
 
 ## 1) Objetivos de arquitectura
 
--   **Separación clara de responsabilidades:**
-    `api` (transporte) ≠ `domain` (reglas) ≠ `data` (persistencia).
--   **Multi-tenant seguro:** todo dato está aislado por `business_id`.
--   **Consistencia fuerte:** evitar double-booking (DB + validación de dominio).
--   **DX alta y código predecible:** tipado fuerte, validaciones y errores uniformes.
--   **Evolución simple:** permitir separar backend en el futuro sin reescribir reglas de negocio.
--   **Modelo explícito:** servicios y recursos existen por separado y se **mapean** explícitamente (Service ↔ Resource).
--   **Agenda basada en slots discretos:** definidos por la periodicidad de cada servicio, con vistas flexibles.
+- **Separación clara de responsabilidades:**
+  `api` (transporte) ≠ `domain` (reglas) ≠ `data` (persistencia).
+- **Multi-tenant seguro:** todo dato está aislado por `business_id`.
+- **Consistencia fuerte:** evitar double-booking (DB + validación de dominio).
+- **DX alta y código predecible:** tipado fuerte, validaciones y errores uniformes.
+- **Evolución simple:** permitir separar backend en el futuro sin reescribir reglas de negocio.
+- **Modelo explícito:** servicios y recursos existen por separado y se **mapean** explícitamente (Service ↔ Resource).
+- **Agenda basada en slots discretos:** definidos por la periodicidad de cada servicio, con vistas flexibles.
 
 ---
 
@@ -105,8 +105,8 @@ Los **Route Handlers** (`src/app/api/...`) solo hacen:
 
 Reglas estrictas:
 
--   `domain/` **no importa** Next.js ni Prisma.
--   `data/` **no contiene reglas de negocio**, solo persistencia.
+- `domain/` **no importa** Next.js ni Prisma.
+- `data/` **no contiene reglas de negocio**, solo persistencia.
 
 ---
 
@@ -114,10 +114,10 @@ Reglas estrictas:
 
 ### Base
 
--   Prefijo: `/api/v1`
--   JSON siempre (`Content-Type: application/json`)
--   Paginación y filtros por query params
--   IDs siempre UUID (excepto `slug` en endpoints públicos)
+- Prefijo: `/api/v1`
+- JSON siempre (`Content-Type: application/json`)
+- Paginación y filtros por query params
+- IDs siempre UUID (excepto `slug` en endpoints públicos)
 
 ---
 
@@ -125,10 +125,10 @@ Reglas estrictas:
 
 #### Businesses
 
--   GET `/api/v1/businesses`
--   POST `/api/v1/businesses`
--   GET `/api/v1/businesses/:businessId`
--   PATCH `/api/v1/businesses/:businessId`
+- GET `/api/v1/businesses`
+- POST `/api/v1/businesses`
+- GET `/api/v1/businesses/:businessId`
+- PATCH `/api/v1/businesses/:businessId`
 
 > Incluye configuraciones globales del negocio (timezone, políticas, anticipación mínima).
 
@@ -136,31 +136,31 @@ Reglas estrictas:
 
 #### Resources (Recurso)
 
--   GET `/api/v1/businesses/:businessId/resources`
--   POST `/api/v1/businesses/:businessId/resources`
--   GET `/api/v1/businesses/:businessId/resources/:resourceId`
--   PATCH `/api/v1/businesses/:businessId/resources/:resourceId`
--   DELETE `/api/v1/businesses/:businessId/resources/:resourceId` (soft delete)
+- GET `/api/v1/businesses/:businessId/resources`
+- POST `/api/v1/businesses/:businessId/resources`
+- GET `/api/v1/businesses/:businessId/resources/:resourceId`
+- PATCH `/api/v1/businesses/:businessId/resources/:resourceId`
+- DELETE `/api/v1/businesses/:businessId/resources/:resourceId` (soft delete)
 
 ---
 
 #### Services (Servicio)
 
--   GET `/api/v1/businesses/:businessId/services`
--   POST `/api/v1/businesses/:businessId/services`
--   PATCH `/api/v1/businesses/:businessId/services/:serviceId`
--   DELETE `/api/v1/businesses/:businessId/services/:serviceId` (soft delete)
+- GET `/api/v1/businesses/:businessId/services`
+- POST `/api/v1/businesses/:businessId/services`
+- PATCH `/api/v1/businesses/:businessId/services/:serviceId`
+- DELETE `/api/v1/businesses/:businessId/services/:serviceId` (soft delete)
 
 Los servicios definen:
 
--   duración del turno
--   periodicidad de turnos (intervalo entre inicios)
--   precio opcional
+- duración del turno
+- periodicidad de turnos (intervalo entre inicios)
+- precio opcional
 
 Reglas:
 
--   Servicios pueden **desactivarse** o **eliminarse** (soft delete).
--   Servicios eliminados no aparecen en listados ni pueden usarse para nuevas reservas.
+- Servicios pueden **desactivarse** o **eliminarse** (soft delete).
+- Servicios eliminados no aparecen en listados ni pueden usarse para nuevas reservas.
 
 ---
 
@@ -168,63 +168,62 @@ Reglas:
 
 Objetivo: un servicio puede ofrecerse por uno o varios recursos, y un recurso puede ofrecer varios servicios.
 
--   GET `/api/v1/businesses/:businessId/services/:serviceId/resources`
--   PUT `/api/v1/businesses/:businessId/services/:serviceId/resources`
-
-    -   body: `{ resourceIds: string[] }`
-    -   reemplaza el set completo (idempotente)
+- GET `/api/v1/businesses/:businessId/services/:serviceId/resources`
+- PUT `/api/v1/businesses/:businessId/services/:serviceId/resources`
+    - body: `{ resourceIds: string[] }`
+    - reemplaza el set completo (idempotente)
 
 Opcional:
 
--   GET `/api/v1/businesses/:businessId/resources/:resourceId/services`
--   PUT `/api/v1/businesses/:businessId/resources/:resourceId/services`
+- GET `/api/v1/businesses/:businessId/resources/:resourceId/services`
+- PUT `/api/v1/businesses/:businessId/resources/:resourceId/services`
 
 **Regla de dominio:**
 
--   Al calcular slots o crear turnos con `(serviceId, resourceId)` siempre debe existir el mapping.
+- Al calcular slots o crear turnos con `(serviceId, resourceId)` siempre debe existir el mapping.
 
 ---
 
 ### Availability
 
--   GET `/api/v1/businesses/:businessId/resources/:resourceId/availability`
--   PUT `/api/v1/businesses/:businessId/resources/:resourceId/availability`
--   POST `/api/v1/businesses/:businessId/resources/:resourceId/blocks`
--   DELETE `/api/v1/businesses/:businessId/resources/:resourceId/blocks/:blockId`
+- GET `/api/v1/businesses/:businessId/resources/:resourceId/availability`
+- PUT `/api/v1/businesses/:businessId/resources/:resourceId/availability`
+- POST `/api/v1/businesses/:businessId/resources/:resourceId/blocks`
+- DELETE `/api/v1/businesses/:businessId/resources/:resourceId/blocks/:blockId`
 
 ---
 
 ### Appointments
 
--   GET `/api/v1/businesses/:businessId/appointments?from=...&to=...&resourceId=...&status=...`
--   POST `/api/v1/businesses/:businessId/appointments`
-    (creación manual por el negocio)
--   POST `/api/v1/public/appointments`
-    (creación pública por clientes)
--   PATCH `/api/v1/businesses/:businessId/appointments/:appointmentId/cancel`
--   PATCH `/api/v1/businesses/:businessId/appointments/:appointmentId/reschedule`
--   PATCH `/api/v1/businesses/:businessId/appointments/:appointmentId/complete`
+- GET `/api/v1/businesses/:businessId/appointments?from=...&to=...&resourceId=...&status=...`
+- POST `/api/v1/businesses/:businessId/appointments`
+  (creación manual por el negocio)
+- POST `/api/v1/public/appointments`
+  (creación pública por clientes)
+- PATCH `/api/v1/businesses/:businessId/appointments/:appointmentId/cancel`
+- PATCH `/api/v1/businesses/:businessId/appointments/:appointmentId/reschedule`
+- PATCH `/api/v1/businesses/:businessId/appointments/:appointmentId/complete`
 
 Notas:
 
--   Ambos flujos (público y dashboard) usan el **mismo servicio de dominio**.
--   La agenda admite filtros por rango de fechas y estado.
+- Ambos flujos (público y dashboard) usan el **mismo servicio de dominio**.
+- La agenda admite filtros por rango de fechas y estado.
 
 ---
 
 ### Public (cliente)
 
--   GET `/api/v1/public/businesses/:slug`
--   GET `/api/v1/public/businesses/:slug/services`
--   GET `/api/v1/public/businesses/:slug/resources?serviceId=...`
--   GET `/api/v1/public/slots?slug=...&serviceId=...&resourceId=...&from=...&to=...`
+- GET `/api/v1/public/businesses/:slug`
+- GET `/api/v1/public/businesses/:slug/services`
+- GET `/api/v1/public/businesses/:slug/resources?serviceId=...`
+- GET `/api/v1/public/slots?slug=...&serviceId=...&resourceId=...&from=...&to=...`
 
 Validaciones obligatorias:
 
--   servicio ACTIVE
--   recurso ACTIVE
--   mapping Service ↔ Resource existente
--   respeto de anticipación mínima del negocio
+- servicio ACTIVE
+- recurso ACTIVE
+- mapping Service ↔ Resource existente
+- respeto de anticipación mínima del negocio
 
 ---
 
@@ -232,13 +231,13 @@ Validaciones obligatorias:
 
 Los DTOs son contratos de API, distintos a los modelos de DB.
 
--   Validación en frontera con **Zod**.
--   Conversión DTO → dominio explícita.
+- Validación en frontera con **Zod**.
+- Conversión DTO → dominio explícita.
 
 Convención:
 
--   `src/domain/**.types.ts` → tipos de dominio
--   `src/app/api/v1/**/dto.ts` → DTOs de API
+- `src/domain/**.types.ts` → tipos de dominio
+- `src/app/api/v1/**/dto.ts` → DTOs de API
 
 ---
 
@@ -246,8 +245,8 @@ Convención:
 
 ### Éxito
 
--   200 OK → `{ data: ... }`
--   201 Created → `{ data: ... }`
+- 200 OK → `{ data: ... }`
+- 201 Created → `{ data: ... }`
 
 ### Listas
 
@@ -259,14 +258,14 @@ Convención:
 
 ## 6) Autenticación, autorización y multi-tenant
 
--   Auth: Supabase Auth (usuarios internos).
--   Nunca confiar en `businessId` enviado por el cliente.
--   Validar siempre pertenencia en `business_members`.
+- Auth: Supabase Auth (usuarios internos).
+- Nunca confiar en `businessId` enviado por el cliente.
+- Validar siempre pertenencia en `business_members`.
 
 Funciones sugeridas:
 
--   `requireUser()`
--   `requireBusinessAccess(userId, businessId)`
+- `requireUser()`
+- `requireBusinessAccess(userId, businessId)`
 
 ---
 
@@ -274,11 +273,11 @@ Funciones sugeridas:
 
 Errores de negocio relevantes:
 
--   `SERVICE_RESOURCE_NOT_LINKED`
--   `APPOINTMENT_SLOT_TAKEN`
--   `APPOINTMENT_OUTSIDE_AVAILABILITY`
--   `APPOINTMENT_TOO_SOON`
--   `SERVICE_DELETED`
+- `SERVICE_RESOURCE_NOT_LINKED`
+- `APPOINTMENT_SLOT_TAKEN`
+- `APPOINTMENT_OUTSIDE_AVAILABILITY`
+- `APPOINTMENT_TOO_SOON`
+- `SERVICE_DELETED`
 
 Los conflictos de agenda devuelven **409**.
 
@@ -286,10 +285,10 @@ Los conflictos de agenda devuelven **409**.
 
 ## 8) Timezone policy (crítica)
 
--   Guardar timestamps en UTC (`timestamptz`).
--   Calcular slots en timezone del negocio.
--   Convertir a UTC antes de persistir.
--   Usar librería con soporte TZ (Luxon / date-fns-tz).
+- Guardar timestamps en UTC (`timestamptz`).
+- Calcular slots en timezone del negocio.
+- Convertir a UTC antes de persistir.
+- Usar librería con soporte TZ (Luxon / date-fns-tz).
 
 ---
 
@@ -297,49 +296,49 @@ Los conflictos de agenda devuelven **409**.
 
 Requisito:
 
--   Prohibir solapamientos por `resource_id` considerando el **intervalo ocupado del turno**.
+- Prohibir solapamientos por `resource_id` considerando el **intervalo ocupado del turno**.
 
 Estrategia:
 
--   `occupied_end_at = start_at + slot_interval_minutes`
--   Constraint **EXCLUDE** en DB sobre `(resource_id, tstzrange(start_at, occupied_end_at))`
--   Solo aplica a estados activos del turno.
+- `occupied_end_at = start_at + slot_interval_minutes`
+- Constraint **EXCLUDE** en DB sobre `(resource_id, tstzrange(start_at, occupied_end_at))`
+- Solo aplica a estados activos del turno.
 
 ---
 
 ## 10) Seguridad y PII
 
--   Minimizar PII (nombre + email/teléfono).
--   No loguear datos sensibles.
--   Rate limiting futuro en endpoints públicos.
+- Minimizar PII (nombre + email/teléfono).
+- No loguear datos sensibles.
+- Rate limiting futuro en endpoints públicos.
 
 ---
 
 ## 11) Performance y buenas prácticas
 
--   Limitar rango de slots ofrecidos (ej: máximo 30–60 días).
--   Evitar N+1 en repositorios.
--   Índices clave en `appointments` y `service_resources`.
--   Queries de agenda siempre por rango (`from` / `to`).
+- Limitar rango de slots ofrecidos (ej: máximo 30–60 días).
+- Evitar N+1 en repositorios.
+- Índices clave en `appointments` y `service_resources`.
+- Queries de agenda siempre por rango (`from` / `to`).
 
 ---
 
 ## 12) Estilo de código y calidad
 
--   TypeScript estricto.
--   Zod para DTOs y env.
--   Enums centralizados.
--   Nombres consistentes:
-    `businessId`, `resourceId`, `serviceId`, `appointmentId`, `startAt`, `endAt`, `occupiedEndAt`.
+- TypeScript estricto.
+- Zod para DTOs y env.
+- Enums centralizados.
+- Nombres consistentes:
+  `businessId`, `resourceId`, `serviceId`, `appointmentId`, `startAt`, `endAt`, `occupiedEndAt`.
 
 ---
 
 ## 13) Convención de commits y ramas
 
--   `feat:` nueva funcionalidad
--   `fix:` corrección
--   `chore:` tareas internas
--   `docs:` documentación
+- `feat:` nueva funcionalidad
+- `fix:` corrección
+- `chore:` tareas internas
+- `docs:` documentación
 
 PRs pequeños y coherentes.
 
@@ -347,16 +346,20 @@ PRs pequeños y coherentes.
 
 ## 14) Checklist para nuevas features
 
--   DTO validado con Zod
--   Auth + tenant check aplicado
--   Reglas de dominio reutilizadas
--   Anticipación mínima validada si aplica
--   Errores mapeados a códigos estándar
--   Timezone correcto
--   Conflictos (409) contemplados
--   UI maneja loading / error / empty
--   En reservas públicas:
+- DTO validado con Zod
+- Auth + tenant check aplicado
+- Reglas de dominio reutilizadas
+- Anticipación mínima validada si aplica
+- Errores mapeados a códigos estándar
+- Timezone correcto
+- Conflictos (409) contemplados
+- UI maneja loading / error / empty
+- En reservas públicas:
+    - service ACTIVE
+    - resource ACTIVE
+    - mapping Service ↔ Resource válido
 
-    -   service ACTIVE
-    -   resource ACTIVE
-    -   mapping Service ↔ Resource válido
+## 15) Testing
+
+- Se implementan tests unitarios y e2e para testear cada feature y flujo en totalidad.
+- NO se hace skip de tests nunca. Si se necesita recrear una situación específica para testear un flujo, se hace dentro del test mismo.
