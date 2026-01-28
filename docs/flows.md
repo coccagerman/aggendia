@@ -11,12 +11,10 @@ Este documento describe los flujos funcionales clave del producto, cubriendo tan
 1. Registrarse / Login (Supabase Auth)
 2. Crear negocio (nombre, timezone, resource_label)
 3. Configurar parámetros iniciales del negocio:
-
     - anticipación mínima para reservas
     - recordatorios (on/off y offsets)
 
 4. El dashboard muestra un checklist inicial:
-
     - recursos
     - servicios
     - asignar servicios ↔ recursos
@@ -47,7 +45,6 @@ Este documento describe los flujos funcionales clave del producto, cubriendo tan
 
 1. Ir a “Servicios”
 2. Crear servicio definiendo:
-
     - duración del turno
     - periodicidad de turnos (por defecto igual a la duración)
     - Tiempo mínimo de anticipación
@@ -57,8 +54,8 @@ Este documento describe los flujos funcionales clave del producto, cubriendo tan
 
 Gestión posterior:
 
--   Desactivar servicio: deja de ofrecerse públicamente
--   Eliminar servicio (soft delete): solo permitido si no existen turnos futuros
+- Desactivar servicio: deja de ofrecerse públicamente
+- Eliminar servicio (soft delete): solo permitido si no existen turnos futuros
 
 **Resultado:** servicios listos para ser ofrecidos y administrados.
 
@@ -101,12 +98,10 @@ Gestión posterior:
 2. Ver la lista de servicios `ACTIVE`
 3. Elegir un servicio
 4. Elegir recurso (si aplica), filtrado por recursos `ACTIVE` asignados al servicio:
-
     - Si hay 1 recurso: auto-selección
     - Si hay más de uno: se muestra listado usando `resource_label`
 
 5. Ver horarios disponibles para `(service, resource)`:
-
     - dentro de la disponibilidad semanal
     - excluyendo bloqueos puntuales
     - excluyendo turnos existentes
@@ -119,13 +114,13 @@ Gestión posterior:
 
 **Sistema**
 
--   Valida servicio y recurso `ACTIVE`
--   Valida relación Service ↔ Resource
--   Valida anticipación mínima
--   Crea o reutiliza el cliente
--   Crea un `appointment` en estado `SCHEDULED`
--   La DB impide solapamientos (anti double-booking)
--   Crea y envía notificación de confirmación
+- Valida servicio y recurso `ACTIVE`
+- Valida relación Service ↔ Resource
+- Valida anticipación mínima
+- Crea o reutiliza el cliente
+- Crea un `appointment` en estado `SCHEDULED`
+- La DB impide solapamientos (anti double-booking)
+- Crea y envía notificación de confirmación
 
 **Resultado:** turno confirmado sin doble reserva.
 
@@ -144,8 +139,10 @@ Gestión posterior:
 
 **Sistema**
 
--   Usa la misma lógica de dominio que la reserva pública
--   Respeta disponibilidad, anticipación y anti-overlap
+- Usa la lógica de dominio para cálculo de slots disponibles
+- Respeta disponibilidad y anti-overlap
+- **NO aplica anticipación mínima** (ver US-7.3): permite crear turnos en el mismo día
+- **NO permite turnos en el pasado**: el horario debe ser futuro
 
 **Resultado:** turno creado manualmente y visible en agenda.
 
@@ -159,7 +156,6 @@ Gestión posterior:
 2. Elegir vista: día / semana / mes
 3. Navegar en el tiempo (anterior / siguiente)
 4. Filtrar por:
-
     - recurso
     - estado del turno (`SCHEDULED`, `CANCELLED`, `RESCHEDULED`, `COMPLETED`)
 
@@ -178,9 +174,9 @@ Gestión posterior:
 
 **Sistema**
 
--   Cambia estado a `CANCELLED`
--   Libera el horario
--   Envía notificación de cancelación
+- Cambia estado a `CANCELLED`
+- Libera el horario
+- Envía notificación de cancelación
 
 **Resultado:** turno cancelado y cliente notificado.
 
@@ -195,9 +191,9 @@ Gestión posterior:
 
 **Sistema**
 
--   Crea un nuevo turno con `rescheduled_from_id` o actualiza el existente
--   La DB impide solapamientos
--   Envía notificación con el nuevo horario
+- Crea un nuevo turno con `rescheduled_from_id` o actualiza el existente
+- La DB impide solapamientos
+- Envía notificación con el nuevo horario
 
 **Resultado:** turno reprogramado con trazabilidad.
 
@@ -212,8 +208,8 @@ Gestión posterior:
 
 **Sistema**
 
--   Actualiza estado
--   No afecta disponibilidad
+- Actualiza estado
+- No afecta disponibilidad
 
 **Resultado:** control básico de atención realizada.
 

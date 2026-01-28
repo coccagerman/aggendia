@@ -11,6 +11,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { AgendaFilters } from '@/components/dashboard/agenda-filters'
 import { AppointmentList } from '@/components/dashboard/appointment-list'
+import { CreateAppointmentDialog } from '@/components/dashboard/create-appointment-dialog'
 
 interface PageProps {
     params: Promise<{ businessId: string }>
@@ -92,11 +93,20 @@ export default async function AgendaPage({ params, searchParams }: PageProps) {
         <div className='flex min-h-screen flex-col bg-zinc-50 dark:bg-zinc-950'>
             {/* Header */}
             <header className='border-b border-zinc-200 bg-white dark:border-zinc-800 dark:bg-black'>
-                <div className='container mx-auto flex h-16 items-center px-4 sm:px-6 lg:px-8'>
-                    <Button asChild variant='ghost' size='sm' className='mr-4'>
-                        <Link href='/dashboard'>← Volver</Link>
-                    </Button>
-                    <h1 className='text-xl font-semibold text-zinc-900 dark:text-zinc-50'>Agenda de {business.name}</h1>
+                <div className='container mx-auto flex h-16 items-center justify-between px-4 sm:px-6 lg:px-8'>
+                    <div className='flex items-center'>
+                        <Button asChild variant='ghost' size='sm' className='mr-4'>
+                            <Link href='/dashboard'>← Volver</Link>
+                        </Button>
+                        <h1 className='text-xl font-semibold text-zinc-900 dark:text-zinc-50'>
+                            Agenda de {business.name}
+                        </h1>
+                    </div>
+                    <CreateAppointmentDialog
+                        businessId={businessId}
+                        timezone={business.timezone}
+                        resourceLabel={business.resourceLabel}
+                    />
                 </div>
             </header>
 
