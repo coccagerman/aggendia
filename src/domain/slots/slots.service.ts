@@ -5,7 +5,13 @@
 
 import { fromZonedTime, toZonedTime, format } from 'date-fns-tz'
 import { addMinutes, startOfDay, isBefore, isAfter } from 'date-fns'
-import { CalculateSlotsInput, SlotOutput, BlockInterval, AppointmentInterval } from './slots.types'
+import {
+    CalculateSlotsInput,
+    SlotOutput,
+    BlockInterval,
+    AppointmentInterval,
+    AvailabilityRuleInput
+} from './slots.types'
 
 /**
  * Calculate available slots for a resource/service combination
@@ -30,21 +36,23 @@ export function calculateSlots(input: CalculateSlotsInput): SlotOutput[] {
         appointments
     } = input
 
+    // Deduplicate availability rules by (dayOfWeek, startMinutes, endMinutes)
+    // This prevents duplicate slots when rules are accidentally duplicated in the DB
+    const deduplicatedRules = deduplicateAvailabilityRules(availabilityRules)
+
     const slots: SlotOutput[] = []
 
     // Convert range to business timezone to iterate day by day
     let currentDate = toZonedTime(fromDate, businessTimezone)
     const endDate = toZonedTime(toDate, businessTimezone)
 
-    // Iterate each day
-    while (
-        isBefore(startOfDay(currentDate), startOfDay(endDate)) ||
-        currentDate.getTime() === startOfDay(endDate).getTime()
-    ) {
+    // Iterate each day in the range [fromDate, toDate) - exclusive on toDate
+    // We only process days where startOfDay(currentDate) < startOfDay(endDate)
+    while (isBefore(startOfDay(currentDate), startOfDay(endDate))) {
         const dayOfWeek = currentDate.getDay() as 0 | 1 | 2 | 3 | 4 | 5 | 6
 
-        // Get availability rules for this day
-        const dayRules = availabilityRules.filter(rule => rule.dayOfWeek === dayOfWeek)
+        // Get availability rules for this day (using deduplicated rules)
+        const dayRules = deduplicatedRules.filter(rule => rule.dayOfWeek === dayOfWeek)
 
         if (dayRules.length === 0) {
             // No availability for this day, skip
@@ -195,4 +203,23 @@ function generateDiscreteSlots(
     }
 
     return slots
+}
+
+/**
+ * Deduplicate availability rules by (dayOfWeek, startMinutes, endMinutes)
+ * This handles cases where duplicate rules exist in the database
+ */
+function deduplicateAvailabilityRules(rules: AvailabilityRuleInput[]): AvailabilityRuleInput[] {
+    const seen = new Set<string>()
+    const deduplicated: AvailabilityRuleInput[] = []
+
+    for (const rule of rules) {
+        const key = `${rule.dayOfWeek}:${rule.startMinutes}-${rule.endMinutes}`
+        if (!seen.has(key)) {
+            seen.add(key)
+            deduplicated.push(rule)
+        }
+    }
+
+    return deduplicated
 }

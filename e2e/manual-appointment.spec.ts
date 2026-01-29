@@ -340,7 +340,13 @@ test.describe('US-7.3: Crear turnos manualmente desde la agenda', () => {
 
         await page.waitForTimeout(2000)
 
-        // Con disponibilidad todos los días, siempre debe haber slots
+        // Si es tarde en el día, puede que no haya slots disponibles hoy.
+        // Navegar al día siguiente para asegurar que hay slots.
+        const nextDayButton = dialog.getByRole('button', { name: /día siguiente/i })
+        await nextDayButton.click()
+        await page.waitForTimeout(2000)
+
+        // Con disponibilidad todos los días, siempre debe haber slots para mañana
         const slotButtons = dialog.locator('button').filter({ hasText: /\d{1,2}:\d{2}/ })
         await expect(slotButtons.first()).toBeVisible({ timeout: 10000 })
 
@@ -391,9 +397,13 @@ test.describe('US-7.3: Crear turnos manualmente desde la agenda', () => {
         const dateLabel = dialog.getByText('Fecha', { exact: true })
         await expect(dateLabel).toBeVisible({ timeout: 10000 })
 
-        // Con disponibilidad 7 días por semana, siempre debe haber slots
-        // Esperar a que se carguen los slots
-        await page.waitForTimeout(1000)
+        // Si es tarde en el día, puede que no haya slots disponibles hoy.
+        // Navegar al día siguiente para asegurar que hay slots.
+        const nextDayButton = dialog.getByRole('button', { name: /día siguiente/i })
+        await nextDayButton.click()
+        await page.waitForTimeout(2000)
+
+        // Con disponibilidad 7 días por semana, siempre debe haber slots para mañana
         const slotButtons = dialog.locator('button').filter({ hasText: /\d{1,2}:\d{2}/ })
         await expect(slotButtons.first()).toBeVisible({ timeout: 10000 })
 
