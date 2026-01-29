@@ -43,6 +43,75 @@ export function formatDateForAgenda(date: Date | string, timezone: string): stri
 }
 
 /**
+ * Formats a week range for display.
+ * Output format: "20 - 26 de enero de 2026" or "28 de enero - 3 de febrero de 2026"
+ *
+ * @param mondayStr - Monday date string in YYYY-MM-DD format
+ * @param timezone - IANA timezone string
+ * @returns Formatted week range string
+ */
+export function formatWeekRangeForAgenda(mondayStr: string, timezone: string): string {
+    const [year, month, day] = mondayStr.split('-').map(Number)
+    const monday = new Date(Date.UTC(year, month - 1, day, 12, 0, 0)) // noon to avoid DST issues
+    const sunday = new Date(Date.UTC(year, month - 1, day + 6, 12, 0, 0))
+
+    const mondayMonth = monday.toLocaleDateString('es-AR', { timeZone: timezone, month: 'long' })
+    const sundayMonth = sunday.toLocaleDateString('es-AR', { timeZone: timezone, month: 'long' })
+    const mondayDay = monday.toLocaleDateString('es-AR', { timeZone: timezone, day: 'numeric' })
+    const sundayDay = sunday.toLocaleDateString('es-AR', { timeZone: timezone, day: 'numeric' })
+    const sundayYear = sunday.toLocaleDateString('es-AR', { timeZone: timezone, year: 'numeric' })
+
+    if (mondayMonth === sundayMonth) {
+        // Same month: "20 - 26 de enero de 2026"
+        return `${mondayDay} - ${sundayDay} de ${mondayMonth} de ${sundayYear}`
+    } else {
+        // Different months: "28 de enero - 3 de febrero de 2026"
+        return `${mondayDay} de ${mondayMonth} - ${sundayDay} de ${sundayMonth} de ${sundayYear}`
+    }
+}
+
+/**
+ * Formats a month for display.
+ * Output format: "Enero 2026"
+ *
+ * @param dateStr - Date string in YYYY-MM-DD format (any day in the month)
+ * @param timezone - IANA timezone string
+ * @returns Formatted month string
+ */
+export function formatMonthForAgenda(dateStr: string, timezone: string): string {
+    const [year, month, day] = dateStr.split('-').map(Number)
+    const date = new Date(Date.UTC(year, month - 1, day, 12, 0, 0)) // noon to avoid DST issues
+    return date.toLocaleDateString('es-AR', {
+        timeZone: timezone,
+        month: 'long',
+        year: 'numeric'
+    })
+}
+
+/**
+ * Formats a short date for week/month views.
+ * Output format: "Lun 20" or "20/1"
+ *
+ * @param dateStr - Date string in YYYY-MM-DD format
+ * @param format - 'weekday' for "Lun 20" or 'short' for "20/1"
+ * @param timezone - IANA timezone string
+ * @returns Formatted short date string
+ */
+export function formatShortDate(dateStr: string, format: 'weekday' | 'short', timezone: string): string {
+    const [year, month, day] = dateStr.split('-').map(Number)
+    const date = new Date(Date.UTC(year, month - 1, day, 12, 0, 0))
+
+    if (format === 'weekday') {
+        const weekday = date.toLocaleDateString('es-AR', { timeZone: timezone, weekday: 'short' })
+        const dayNum = date.toLocaleDateString('es-AR', { timeZone: timezone, day: 'numeric' })
+        // Capitalize first letter
+        return `${weekday.charAt(0).toUpperCase()}${weekday.slice(1)} ${dayNum}`
+    } else {
+        return date.toLocaleDateString('es-AR', { timeZone: timezone, day: 'numeric', month: 'numeric' })
+    }
+}
+
+/**
  * Formatea un precio en centavos a string legible.
  *
  * @param priceCents - Precio en centavos (ej: 15050 para $150.50). Si es null, retorna texto alternativo.

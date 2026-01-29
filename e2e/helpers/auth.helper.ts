@@ -28,8 +28,8 @@ export async function signupUser(page: Page, email: string, password: string) {
         // Email confirmation required: fall back to manual login
         await page.goto('/login')
     } else if (status === 200) {
-        // Wait for any client-side navigation after signup
-        await page.waitForLoadState('networkidle', { timeout: 10000 })
+        // Wait for navigation to complete - use domcontentloaded as networkidle can be flaky
+        await page.waitForLoadState('domcontentloaded', { timeout: 10000 })
     } else {
         const body = await response.json().catch(() => ({}))
         throw new Error(`Signup failed (status ${status}): ${JSON.stringify(body)}`)

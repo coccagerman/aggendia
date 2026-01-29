@@ -246,15 +246,16 @@ export async function updateAppointmentStatus(
 }
 
 /**
- * Get appointments for a business on a specific day
+ * Get appointments for a business on a specific day/range
  * Optionally filter by resourceId
  * Returns all statuses (SCHEDULED, CANCELLED, etc.) for admin visibility
- * Excludes appointments with soft-deleted resources or services
+ * Note: Appointments are shown even if their resource/service has been soft-deleted
+ *       because appointments represent historical data that should be preserved.
  *
  * @param prisma - Prisma client
  * @param businessId - Business ID (multi-tenant filter)
- * @param dayStart - Start of day in UTC
- * @param dayEnd - End of day in UTC (exclusive)
+ * @param dayStart - Start of range in UTC
+ * @param dayEnd - End of range in UTC (exclusive)
  * @param resourceId - Optional resource ID filter
  * @returns Appointments with relations
  */
@@ -269,14 +270,7 @@ export async function getAppointmentsByBusinessAndDay(
         where: {
             businessId,
             startAt: { gte: dayStart, lt: dayEnd },
-            ...(resourceId ? { resourceId } : {}),
-            // Exclude appointments with soft-deleted resources or services
-            resource: {
-                status: { not: 'DELETED' }
-            },
-            service: {
-                status: { not: 'DELETED' }
-            }
+            ...(resourceId ? { resourceId } : {})
         },
         include: {
             service: {
@@ -294,6 +288,54 @@ export async function getAppointmentsByBusinessAndDay(
         },
         orderBy: { startAt: 'asc' }
     })
+}
+
+/**
+ * Alias for getAppointmentsByBusinessAndDay for semantic clarity when querying ranges.
+ * Use this when querying week or month ranges.
+ */
+export const getAppointmentsByBusinessAndRange = getAppointmentsByBusinessAndDay
+
+/**
+ * Count appointments per day for a business within a date range.
+ * Uses SQL aggregation with timezone conversion for optimal performance.
+ *
+ * @param prisma - Prisma client
+ * @param businessId - Business ID (multi-tenant filter)
+ * @param rangeStart - Start of range in UTC
+ * @param rangeEnd - End of range in UTC (exclusive)
+ * @param resourceId - Optional resource ID filter
+ * @param timezone - Business timezone for grouping by local date
+ * @returns Record of date strings (YYYY-MM-DD) to appointment counts
+ */
+export async function getAppointmentCountsByDay(
+    prisma: PrismaClient,
+    businessId: string,
+    rangeStart: Date,
+    rangeEnd: Date,
+    resourceId?: string,
+    timezone: string = 'UTC'
+): Promise<Record<string, number>> {
+    // Use raw SQL for GROUP BY with timezone conversion (PostgreSQL)
+    // GROUP BY 1 means "group by first column in SELECT"
+    const results = await prisma.$queryRaw<{ date: string; count: bigint }[]>`
+        SELECT 
+            TO_CHAR("startAt" AT TIME ZONE ${timezone}, 'YYYY-MM-DD') as date,
+            COUNT(*) as count
+        FROM "Appointment"
+        WHERE "businessId" = ${businessId}
+          AND "startAt" >= ${rangeStart}
+          AND "startAt" < ${rangeEnd}
+          ${resourceId ? Prisma.sql`AND "resourceId" = ${resourceId}` : Prisma.empty}
+        GROUP BY 1
+    `
+
+    const countsByDay: Record<string, number> = {}
+    for (const row of results) {
+        countsByDay[row.date] = Number(row.count)
+    }
+
+    return countsByDay
 }
 
 // ============================================================================

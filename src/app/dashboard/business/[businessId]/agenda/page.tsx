@@ -4,23 +4,39 @@ import Link from 'next/link'
 import { prisma } from '@/data/prisma/prisma'
 import { getBusinessById } from '@/data/repositories/business.repo'
 import { getResourcesByBusinessId } from '@/data/repositories/resource.repo'
-import { getAppointmentsByBusinessAndDay } from '@/data/repositories/appointment.repo'
-import { getDayRangeInUTC, getTodayInTimezone, isValidDateString } from '@/lib/timezone'
-import { formatDateForAgenda } from '@/lib/format'
+import { getAppointmentsByBusinessAndRange, getAppointmentCountsByDay } from '@/data/repositories/appointment.repo'
+import {
+    getDayRangeInUTC,
+    getWeekRangeInUTC,
+    getMonthRangeInUTC,
+    getWeekDays,
+    getMonthDays,
+    getWeekStartDate,
+    getMonthStartDate,
+    getTodayInTimezone,
+    isValidDateString
+} from '@/lib/timezone'
+import { formatDateForAgenda, formatWeekRangeForAgenda, formatMonthForAgenda } from '@/lib/format'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { AgendaFilters } from '@/components/dashboard/agenda-filters'
+import { AgendaFilters, type AgendaView } from '@/components/dashboard/agenda-filters'
 import { AppointmentList } from '@/components/dashboard/appointment-list'
+import { WeekView } from '@/components/dashboard/week-view'
+import { MonthView } from '@/components/dashboard/month-view'
 import { CreateAppointmentDialog } from '@/components/dashboard/create-appointment-dialog'
 
 interface PageProps {
     params: Promise<{ businessId: string }>
-    searchParams: Promise<{ date?: string; resourceId?: string }>
+    searchParams: Promise<{ date?: string; resourceId?: string; view?: string }>
+}
+
+function isValidView(view: string | undefined): view is AgendaView {
+    return view === 'day' || view === 'week' || view === 'month'
 }
 
 export default async function AgendaPage({ params, searchParams }: PageProps) {
     const { businessId } = await params
-    const { date: dateParam, resourceId: resourceIdParam } = await searchParams
+    const { date: dateParam, resourceId: resourceIdParam, view: viewParam } = await searchParams
 
     // Validar sesión
     const supabase = await createClient()
@@ -56,12 +72,21 @@ export default async function AgendaPage({ params, searchParams }: PageProps) {
         redirect('/dashboard')
     }
 
+    // Determinar vista (default: día)
+    const selectedView: AgendaView = isValidView(viewParam) ? viewParam : 'day'
+
     // Determinar fecha a mostrar (default: hoy en timezone del negocio)
     const today = getTodayInTimezone(business.timezone)
-    const selectedDate = dateParam && isValidDateString(dateParam) ? dateParam : today
+    let selectedDate = dateParam && isValidDateString(dateParam) ? dateParam : today
+
+    // Adjust date based on view (week starts on Monday, month on 1st)
+    if (selectedView === 'week') {
+        selectedDate = getWeekStartDate(selectedDate)
+    } else if (selectedView === 'month') {
+        selectedDate = getMonthStartDate(selectedDate)
+    }
 
     // Obtener recursos para el filtro (ACTIVE e INACTIVE, excluyendo DELETED)
-    // Incluimos INACTIVE para permitir filtrar turnos históricos de recursos desactivados
     let resources: { id: string; name: string; status: string }[] = []
     try {
         const allResources = await getResourcesByBusinessId(prisma, businessId)
@@ -76,18 +101,102 @@ export default async function AgendaPage({ params, searchParams }: PageProps) {
     const validResourceId =
         resourceIdParam && resources.some(r => r.id === resourceIdParam) ? resourceIdParam : undefined
 
-    // Obtener turnos del día
-    const { start: dayStart, end: dayEnd } = getDayRangeInUTC(selectedDate, business.timezone)
-    let appointments: Awaited<ReturnType<typeof getAppointmentsByBusinessAndDay>> = []
+    // Calculate date range based on view
+    let rangeStart: Date
+    let rangeEnd: Date
+
+    switch (selectedView) {
+        case 'week': {
+            const range = getWeekRangeInUTC(selectedDate, business.timezone)
+            rangeStart = range.start
+            rangeEnd = range.end
+            break
+        }
+        case 'month': {
+            const range = getMonthRangeInUTC(selectedDate, business.timezone)
+            rangeStart = range.start
+            rangeEnd = range.end
+            break
+        }
+        default: {
+            const range = getDayRangeInUTC(selectedDate, business.timezone)
+            rangeStart = range.start
+            rangeEnd = range.end
+        }
+    }
+
+    // Obtener turnos del rango (para day/week) o solo conteos (para month)
+    let appointments: Awaited<ReturnType<typeof getAppointmentsByBusinessAndRange>> = []
+    let appointmentCountByDay: Record<string, number> = {}
 
     try {
-        appointments = await getAppointmentsByBusinessAndDay(prisma, businessId, dayStart, dayEnd, validResourceId)
+        if (selectedView === 'month') {
+            // Vista mes: solo necesitamos conteos por día (query optimizado)
+            appointmentCountByDay = await getAppointmentCountsByDay(
+                prisma,
+                businessId,
+                rangeStart,
+                rangeEnd,
+                validResourceId,
+                business.timezone
+            )
+        } else {
+            // Vista día/semana: necesitamos datos completos
+            appointments = await getAppointmentsByBusinessAndRange(
+                prisma,
+                businessId,
+                rangeStart,
+                rangeEnd,
+                validResourceId
+            )
+        }
     } catch (error) {
         console.error('Error al obtener turnos:', error instanceof Error ? error.message : 'UNKNOWN')
     }
 
-    // Formatear fecha para display
-    const formattedDate = formatDateForAgenda(dayStart, business.timezone)
+    // Format title based on view
+    let formattedTitle: string
+    let description: string
+
+    // Para vista mes, calcular total desde el record de conteos
+    const monthTotalAppointments =
+        selectedView === 'month' ? Object.values(appointmentCountByDay).reduce((sum, count) => sum + count, 0) : 0
+
+    switch (selectedView) {
+        case 'week':
+            formattedTitle = formatWeekRangeForAgenda(selectedDate, business.timezone)
+            description =
+                appointments.length === 0
+                    ? 'No hay turnos esta semana'
+                    : `${appointments.length} turno${appointments.length !== 1 ? 's' : ''}`
+            break
+        case 'month':
+            formattedTitle = formatMonthForAgenda(selectedDate, business.timezone)
+            description =
+                monthTotalAppointments === 0
+                    ? 'No hay turnos este mes'
+                    : `${monthTotalAppointments} turno${monthTotalAppointments !== 1 ? 's' : ''}`
+            break
+        default:
+            formattedTitle = formatDateForAgenda(rangeStart, business.timezone)
+            description =
+                appointments.length === 0
+                    ? 'No hay turnos para este día'
+                    : `${appointments.length} turno${appointments.length !== 1 ? 's' : ''}`
+    }
+
+    // Group appointments by day for week view (only needed for day/week)
+    const appointmentsByDay: Record<string, typeof appointments> = {}
+    if (selectedView !== 'month') {
+        for (const appt of appointments) {
+            const startAt = new Date(appt.startAt)
+            // Get date string in business timezone
+            const dateStr = startAt.toLocaleDateString('en-CA', { timeZone: business.timezone })
+            const existing = appointmentsByDay[dateStr] || []
+            existing.push(appt)
+            appointmentsByDay[dateStr] = existing
+        }
+    }
 
     return (
         <div className='flex min-h-screen flex-col bg-zinc-50 dark:bg-zinc-950'>
@@ -113,33 +222,49 @@ export default async function AgendaPage({ params, searchParams }: PageProps) {
             {/* Main content */}
             <main className='flex-1 py-8'>
                 <div className='container mx-auto px-4 sm:px-6 lg:px-8'>
-                    <div className='mx-auto max-w-3xl space-y-6'>
+                    <div className='mx-auto max-w-4xl space-y-6'>
                         {/* Filters */}
                         <AgendaFilters
                             resources={resources}
                             selectedDate={selectedDate}
                             selectedResourceId={validResourceId}
+                            selectedView={selectedView}
                             resourceLabel={business.resourceLabel}
                         />
 
                         {/* Appointments card */}
                         <Card>
                             <CardHeader>
-                                <CardTitle className='capitalize'>{formattedDate}</CardTitle>
-                                <CardDescription>
-                                    {appointments.length === 0
-                                        ? 'No hay turnos para este día'
-                                        : `${appointments.length} turno${appointments.length !== 1 ? 's' : ''}`}
-                                </CardDescription>
+                                <CardTitle className='capitalize'>{formattedTitle}</CardTitle>
+                                <CardDescription>{description}</CardDescription>
                             </CardHeader>
                             <CardContent>
-                                <AppointmentList
-                                    appointments={appointments}
-                                    timezone={business.timezone}
-                                    resourceLabel={business.resourceLabel}
-                                    businessId={businessId}
-                                    slug={business.slug}
-                                />
+                                {selectedView === 'day' && (
+                                    <AppointmentList
+                                        appointments={appointments}
+                                        timezone={business.timezone}
+                                        resourceLabel={business.resourceLabel}
+                                        businessId={businessId}
+                                        slug={business.slug}
+                                    />
+                                )}
+                                {selectedView === 'week' && (
+                                    <WeekView
+                                        weekDays={getWeekDays(selectedDate)}
+                                        appointmentsByDay={appointmentsByDay}
+                                        timezone={business.timezone}
+                                        resourceLabel={business.resourceLabel}
+                                        businessId={businessId}
+                                        slug={business.slug}
+                                    />
+                                )}
+                                {selectedView === 'month' && (
+                                    <MonthView
+                                        monthDays={getMonthDays(selectedDate)}
+                                        appointmentCountByDay={appointmentCountByDay}
+                                        timezone={business.timezone}
+                                    />
+                                )}
                             </CardContent>
                         </Card>
                     </div>

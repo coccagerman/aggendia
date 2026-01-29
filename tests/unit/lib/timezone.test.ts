@@ -10,7 +10,8 @@ import {
     formatDateTimeInTimezone,
     getDayRangeInUTC,
     getTodayInTimezone,
-    isValidDateString
+    isValidDateString,
+    getWeekdayInTimezone
 } from '@/lib/timezone'
 
 describe('timezone utilities', () => {
@@ -318,6 +319,54 @@ describe('timezone utilities', () => {
         it('should handle leap years correctly', () => {
             expect(isValidDateString('2024-02-29')).toBe(true) // 2024 is leap year
             expect(isValidDateString('2026-02-29')).toBe(false) // 2026 is not leap year
+        })
+    })
+
+    describe('getWeekdayInTimezone', () => {
+        it('should return correct weekday (0=Sun to 6=Sat) for a known date in UTC', () => {
+            // 2026-01-01 is a Thursday
+            expect(getWeekdayInTimezone('2026-01-01', 'UTC')).toBe(4) // Thursday
+            // 2026-01-04 is a Sunday
+            expect(getWeekdayInTimezone('2026-01-04', 'UTC')).toBe(0) // Sunday
+            // 2026-01-05 is a Monday
+            expect(getWeekdayInTimezone('2026-01-05', 'UTC')).toBe(1) // Monday
+            // 2026-01-10 is a Saturday
+            expect(getWeekdayInTimezone('2026-01-10', 'UTC')).toBe(6) // Saturday
+        })
+
+        it('should return correct weekday for Buenos Aires timezone', () => {
+            // 2026-01-01 is Thursday in Buenos Aires (UTC-3)
+            expect(getWeekdayInTimezone('2026-01-01', 'America/Argentina/Buenos_Aires')).toBe(4)
+            // 2026-01-04 is Sunday
+            expect(getWeekdayInTimezone('2026-01-04', 'America/Argentina/Buenos_Aires')).toBe(0)
+        })
+
+        it('should return correct weekday for New York timezone', () => {
+            // 2026-01-01 is Thursday in New York (UTC-5)
+            expect(getWeekdayInTimezone('2026-01-01', 'America/New_York')).toBe(4)
+            // 2026-07-04 is a Saturday (US Independence Day 2026)
+            expect(getWeekdayInTimezone('2026-07-04', 'America/New_York')).toBe(6)
+        })
+
+        it('should return correct weekday for Madrid timezone', () => {
+            // 2026-01-01 is Thursday in Madrid (UTC+1)
+            expect(getWeekdayInTimezone('2026-01-01', 'Europe/Madrid')).toBe(4)
+        })
+
+        it('should handle month boundaries correctly', () => {
+            // 2026-02-01 is a Sunday
+            expect(getWeekdayInTimezone('2026-02-01', 'UTC')).toBe(0)
+            // 2026-03-01 is a Sunday
+            expect(getWeekdayInTimezone('2026-03-01', 'UTC')).toBe(0)
+            // 2026-12-01 is a Tuesday
+            expect(getWeekdayInTimezone('2026-12-01', 'UTC')).toBe(2)
+        })
+
+        it('should handle end of month dates correctly', () => {
+            // 2026-01-31 is a Saturday
+            expect(getWeekdayInTimezone('2026-01-31', 'UTC')).toBe(6)
+            // 2026-02-28 is a Saturday
+            expect(getWeekdayInTimezone('2026-02-28', 'UTC')).toBe(6)
         })
     })
 })
