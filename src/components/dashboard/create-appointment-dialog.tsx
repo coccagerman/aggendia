@@ -4,7 +4,6 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { format, parseISO, addDays, subDays } from 'date-fns'
 import { fromZonedTime, toZonedTime } from 'date-fns-tz'
-import { es } from 'date-fns/locale'
 import {
     Dialog,
     DialogContent,
@@ -19,6 +18,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { DatePicker } from '@/components/ui/date-picker'
 import { Plus, ChevronLeft, ChevronRight, Loader2 } from 'lucide-react'
 
 interface Service {
@@ -342,18 +342,20 @@ export function CreateAppointmentDialog({ businessId, timezone, resourceLabel }:
         setSelectedDate(nextDayStr)
     }
 
-    function handleDateChange(e: React.ChangeEvent<HTMLInputElement>) {
-        const newDate = e.target.value
-        if (newDate) {
-            const today = getTodayInBusinessTz()
-            if (newDate >= today) {
-                setSelectedDate(newDate)
-            }
+    function handleDatePickerChange(date: Date) {
+        const newDateStr = format(date, 'yyyy-MM-dd')
+        const today = getTodayInBusinessTz()
+        if (newDateStr >= today) {
+            setSelectedDate(newDateStr)
         }
     }
 
     const minDate = getTodayInBusinessTz()
     const isPreviousDisabled = selectedDate <= minDate
+
+    // Convert selectedDate string to Date object for DatePicker
+    const dateValue = parseISO(selectedDate + 'T12:00:00')
+    const minDateValue = parseISO(minDate + 'T00:00:00')
 
     // Check if form is valid for submit
     const isFormValid =
@@ -437,7 +439,7 @@ export function CreateAppointmentDialog({ businessId, timezone, resourceLabel }:
                     {/* Date selector */}
                     {selectedResourceId && (
                         <div className='space-y-2'>
-                            <Label htmlFor='date'>Fecha</Label>
+                            <Label>Fecha</Label>
                             <div className='flex items-center gap-2'>
                                 <Button
                                     type='button'
@@ -446,15 +448,15 @@ export function CreateAppointmentDialog({ businessId, timezone, resourceLabel }:
                                     onClick={handlePreviousDay}
                                     disabled={isPreviousDisabled || isLoadingSlots}
                                     aria-label='Día anterior'
+                                    className='cursor-pointer'
                                 >
                                     <ChevronLeft className='h-4 w-4' />
                                 </Button>
-                                <Input
-                                    id='date'
-                                    type='date'
-                                    value={selectedDate}
-                                    onChange={handleDateChange}
-                                    min={minDate}
+                                <DatePicker
+                                    value={dateValue}
+                                    onChange={handleDatePickerChange}
+                                    mode='day'
+                                    minDate={minDateValue}
                                     disabled={isLoadingSlots}
                                     className='flex-1'
                                 />
@@ -465,13 +467,11 @@ export function CreateAppointmentDialog({ businessId, timezone, resourceLabel }:
                                     onClick={handleNextDay}
                                     disabled={isLoadingSlots}
                                     aria-label='Día siguiente'
+                                    className='cursor-pointer'
                                 >
                                     <ChevronRight className='h-4 w-4' />
                                 </Button>
                             </div>
-                            <p className='text-sm text-zinc-500'>
-                                {format(parseISO(selectedDate), "EEEE d 'de' MMMM", { locale: es })}
-                            </p>
                         </div>
                     )}
 

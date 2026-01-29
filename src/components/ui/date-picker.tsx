@@ -17,9 +17,13 @@ interface DatePickerProps {
     onChange: (date: Date) => void
     mode: DatePickerMode
     className?: string
+    /** Minimum selectable date (dates before this will be disabled) */
+    minDate?: Date
+    /** Whether the picker is disabled */
+    disabled?: boolean
 }
 
-export function DatePicker({ value, onChange, mode, className }: DatePickerProps) {
+export function DatePicker({ value, onChange, mode, className, minDate, disabled }: DatePickerProps) {
     const [open, setOpen] = React.useState(false)
     const [viewMonth, setViewMonth] = React.useState(value)
 
@@ -79,7 +83,12 @@ export function DatePicker({ value, onChange, mode, className }: DatePickerProps
             <PopoverTrigger asChild>
                 <Button
                     variant='outline'
-                    className={cn('justify-start text-left font-normal', !value && 'text-muted-foreground', className)}
+                    disabled={disabled}
+                    className={cn(
+                        'justify-start text-left font-normal cursor-pointer',
+                        !value && 'text-muted-foreground',
+                        className
+                    )}
                 >
                     <CalendarIcon className='mr-2 h-4 w-4' />
                     <span className='capitalize'>{formatDisplayValue()}</span>
@@ -142,6 +151,7 @@ export function DatePicker({ value, onChange, mode, className }: DatePickerProps
                         onMonthChange={setViewMonth}
                         initialFocus
                         weekHover={mode === 'week'}
+                        disabled={minDate ? { before: minDate } : undefined}
                         modifiers={
                             mode === 'week'
                                 ? {
