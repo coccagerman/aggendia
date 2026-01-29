@@ -1,6 +1,8 @@
 'use client'
 
+import { useMemo } from 'react'
 import { formatAppointmentTime } from '@/lib/format'
+import { statusConfig, filterAppointmentsByStatus } from '@/lib/appointments'
 import { AppointmentStatus } from '@prisma/client'
 import { Calendar, Clock, User } from 'lucide-react'
 import { CancelAppointmentDialog } from './cancel-appointment-dialog'
@@ -41,29 +43,27 @@ interface AppointmentListProps {
     businessId: string
     /** Business slug for fetching available slots */
     slug: string
+    /** Active status filters - if provided, appointments will be filtered client-side */
+    activeStatuses?: AppointmentStatus[]
 }
 
-const statusConfig: Record<AppointmentStatus, { label: string; className: string }> = {
-    SCHEDULED: {
-        label: 'Confirmado',
-        className: 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400'
-    },
-    CANCELLED: {
-        label: 'Cancelado',
-        className: 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400'
-    },
-    RESCHEDULED: {
-        label: 'Reprogramado',
-        className: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400'
-    },
-    COMPLETED: {
-        label: 'Completado',
-        className: 'bg-zinc-100 text-zinc-800 dark:bg-zinc-800 dark:text-zinc-400'
-    }
-}
+export function AppointmentList({
+    appointments,
+    timezone,
+    resourceLabel,
+    businessId,
+    slug,
+    activeStatuses
+}: AppointmentListProps) {
+    // Filter appointments by status (memoized)
+    const filteredAppointments = useMemo(() => {
+        if (!activeStatuses || activeStatuses.length === 0) {
+            return appointments
+        }
+        return filterAppointmentsByStatus(appointments, activeStatuses)
+    }, [appointments, activeStatuses])
 
-export function AppointmentList({ appointments, timezone, resourceLabel, businessId, slug }: AppointmentListProps) {
-    if (appointments.length === 0) {
+    if (filteredAppointments.length === 0) {
         return (
             <div className='flex flex-col items-center justify-center py-12 text-center'>
                 <div className='rounded-full bg-zinc-100 p-3 dark:bg-zinc-800'>
@@ -83,7 +83,7 @@ export function AppointmentList({ appointments, timezone, resourceLabel, busines
 
     return (
         <div className='divide-y divide-zinc-200 dark:divide-zinc-800'>
-            {appointments.map(appointment => {
+            {filteredAppointments.map(appointment => {
                 const status = statusConfig[appointment.status]
                 // Convert serialized dates back to Date objects (RSC boundary serializes Date -> string)
                 const startAt = new Date(appointment.startAt)

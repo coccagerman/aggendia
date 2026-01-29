@@ -1,20 +1,58 @@
 'use client'
 
+import { useMemo } from 'react'
 import { Calendar } from 'lucide-react'
 import { getTodayInTimezone, getWeekdayInTimezone } from '@/lib/timezone'
+import { filterAppointmentsByStatus } from '@/lib/appointments'
+import type { AppointmentStatus } from '@prisma/client'
+
+interface AppointmentData {
+    status: AppointmentStatus
+    startAt: string | Date
+}
 
 interface MonthViewProps {
     /** Array of all date strings in the month */
     monthDays: string[]
-    /** Count of appointments per day */
+    /** Count of appointments per day (used when no status filter) */
     appointmentCountByDay: Record<string, number>
     timezone: string
     /** Callback when a day is clicked */
     onDayClick?: (dateStr: string) => void
+    /** Full appointments data (needed for status filtering) */
+    appointments?: AppointmentData[]
+    /** Active status filters */
+    activeStatuses?: AppointmentStatus[]
 }
 
-export function MonthView({ monthDays, appointmentCountByDay, timezone, onDayClick }: MonthViewProps) {
-    const totalAppointments = Object.values(appointmentCountByDay).reduce((sum, count) => sum + count, 0)
+export function MonthView({
+    monthDays,
+    appointmentCountByDay,
+    timezone,
+    onDayClick,
+    appointments,
+    activeStatuses
+}: MonthViewProps) {
+    // Calculate filtered counts by day (memoized)
+    const filteredCountByDay = useMemo(() => {
+        // If we have appointments and status filters, calculate filtered counts
+        if (appointments && activeStatuses && activeStatuses.length > 0) {
+            const filtered = filterAppointmentsByStatus(appointments, activeStatuses)
+
+            const countByDay: Record<string, number> = {}
+            for (const appt of filtered) {
+                const startAt = new Date(appt.startAt)
+                const dateStr = startAt.toLocaleDateString('en-CA', { timeZone: timezone })
+                countByDay[dateStr] = (countByDay[dateStr] || 0) + 1
+            }
+            return countByDay
+        }
+
+        // Otherwise use pre-calculated counts from backend
+        return appointmentCountByDay
+    }, [appointments, activeStatuses, appointmentCountByDay, timezone])
+
+    const totalAppointments = Object.values(filteredCountByDay).reduce((sum, count) => sum + count, 0)
 
     // Get today's date for highlighting
     const today = getTodayInTimezone(timezone)
@@ -86,7 +124,7 @@ export function MonthView({ monthDays, appointmentCountByDay, timezone, onDayCli
                                 )
                             }
 
-                            const appointmentCount = appointmentCountByDay[dateStr] || 0
+                            const appointmentCount = filteredCountByDay[dateStr] || 0
                             const isToday = dateStr === today
                             const dayNum = parseInt(dateStr.split('-')[2], 10)
 

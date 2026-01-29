@@ -1,7 +1,9 @@
 'use client'
 
+import { useMemo } from 'react'
 import { Calendar, Clock, User } from 'lucide-react'
 import { formatAppointmentTime, formatShortDate } from '@/lib/format'
+import { statusConfig, filterAppointmentsByStatus } from '@/lib/appointments'
 import { AppointmentStatus } from '@prisma/client'
 import { CancelAppointmentDialog } from './cancel-appointment-dialog'
 import { RescheduleAppointmentDialog } from './reschedule-appointment-dialog'
@@ -41,29 +43,33 @@ interface WeekViewProps {
     resourceLabel: string
     businessId: string
     slug: string
+    /** Active status filters - if provided, appointments will be filtered client-side */
+    activeStatuses?: AppointmentStatus[]
 }
 
-const statusConfig: Record<AppointmentStatus, { label: string; className: string }> = {
-    SCHEDULED: {
-        label: 'Confirmado',
-        className: 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400'
-    },
-    CANCELLED: {
-        label: 'Cancelado',
-        className: 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400'
-    },
-    RESCHEDULED: {
-        label: 'Reprogramado',
-        className: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400'
-    },
-    COMPLETED: {
-        label: 'Completado',
-        className: 'bg-zinc-100 text-zinc-800 dark:bg-zinc-800 dark:text-zinc-400'
-    }
-}
+export function WeekView({
+    weekDays,
+    appointmentsByDay,
+    timezone,
+    resourceLabel,
+    businessId,
+    slug,
+    activeStatuses
+}: WeekViewProps) {
+    // Filter appointments by status for each day (memoized)
+    const filteredAppointmentsByDay = useMemo(() => {
+        if (!activeStatuses || activeStatuses.length === 0) {
+            return appointmentsByDay
+        }
 
-export function WeekView({ weekDays, appointmentsByDay, timezone, resourceLabel, businessId, slug }: WeekViewProps) {
-    const totalAppointments = Object.values(appointmentsByDay).reduce((sum, apps) => sum + apps.length, 0)
+        const filtered: Record<string, AppointmentData[]> = {}
+        for (const [day, appointments] of Object.entries(appointmentsByDay)) {
+            filtered[day] = filterAppointmentsByStatus(appointments, activeStatuses)
+        }
+        return filtered
+    }, [appointmentsByDay, activeStatuses])
+
+    const totalAppointments = Object.values(filteredAppointmentsByDay).reduce((sum, apps) => sum + apps.length, 0)
 
     // Check if appointment can be cancelled or rescheduled
     const canModify = (status: AppointmentStatus) => status === 'SCHEDULED' || status === 'RESCHEDULED'
@@ -86,7 +92,7 @@ export function WeekView({ weekDays, appointmentsByDay, timezone, resourceLabel,
     return (
         <div className='space-y-4'>
             {weekDays.map(dateStr => {
-                const appointments = appointmentsByDay[dateStr] || []
+                const appointments = filteredAppointmentsByDay[dateStr] || []
                 const dayLabel = formatShortDate(dateStr, 'weekday', timezone)
 
                 return (

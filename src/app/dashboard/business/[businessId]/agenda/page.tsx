@@ -17,6 +17,12 @@ import {
     isValidDateString
 } from '@/lib/timezone'
 import { formatDateForAgenda, formatWeekRangeForAgenda, formatMonthForAgenda } from '@/lib/format'
+import {
+    parseStatusFilter,
+    filterAppointmentsByStatus,
+    countAppointmentsByStatus,
+    APPOINTMENT_STATUSES
+} from '@/lib/appointments'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { AgendaFilters, type AgendaView } from '@/components/dashboard/agenda-filters'
@@ -27,7 +33,7 @@ import { CreateAppointmentDialog } from '@/components/dashboard/create-appointme
 
 interface PageProps {
     params: Promise<{ businessId: string }>
-    searchParams: Promise<{ date?: string; resourceId?: string; view?: string }>
+    searchParams: Promise<{ date?: string; resourceId?: string; view?: string; status?: string }>
 }
 
 function isValidView(view: string | undefined): view is AgendaView {
@@ -36,7 +42,10 @@ function isValidView(view: string | undefined): view is AgendaView {
 
 export default async function AgendaPage({ params, searchParams }: PageProps) {
     const { businessId } = await params
-    const { date: dateParam, resourceId: resourceIdParam, view: viewParam } = await searchParams
+    const { date: dateParam, resourceId: resourceIdParam, view: viewParam, status: statusParam } = await searchParams
+
+    // Parse status filter (default: all statuses)
+    const activeStatuses = parseStatusFilter(statusParam)
 
     // Validar sesión
     const supabase = await createClient()
@@ -125,13 +134,17 @@ export default async function AgendaPage({ params, searchParams }: PageProps) {
         }
     }
 
-    // Obtener turnos del rango (para day/week) o solo conteos (para month)
+    // Obtener turnos del rango (para day/week) o solo conteos (para month sin filtro de estado)
     let appointments: Awaited<ReturnType<typeof getAppointmentsByBusinessAndRange>> = []
     let appointmentCountByDay: Record<string, number> = {}
 
+    // Determinar si necesitamos datos completos para vista mes
+    // Si hay filtro de estado activo (no todos seleccionados), necesitamos datos completos
+    const hasStatusFilter = activeStatuses.length < APPOINTMENT_STATUSES.length
+
     try {
-        if (selectedView === 'month') {
-            // Vista mes: solo necesitamos conteos por día (query optimizado)
+        if (selectedView === 'month' && !hasStatusFilter) {
+            // Vista mes sin filtro de estado: solo necesitamos conteos por día (query optimizado)
             appointmentCountByDay = await getAppointmentCountsByDay(
                 prisma,
                 businessId,
@@ -141,7 +154,7 @@ export default async function AgendaPage({ params, searchParams }: PageProps) {
                 business.timezone
             )
         } else {
-            // Vista día/semana: necesitamos datos completos
+            // Vista día/semana o mes con filtro de estado: necesitamos datos completos
             appointments = await getAppointmentsByBusinessAndRange(
                 prisma,
                 businessId,
@@ -149,40 +162,60 @@ export default async function AgendaPage({ params, searchParams }: PageProps) {
                 rangeEnd,
                 validResourceId
             )
+
+            // Para vista mes sin filtro, calcular conteos desde datos completos
+            if (selectedView === 'month') {
+                for (const appt of appointments) {
+                    const startAt = new Date(appt.startAt)
+                    const dateStr = startAt.toLocaleDateString('en-CA', { timeZone: business.timezone })
+                    appointmentCountByDay[dateStr] = (appointmentCountByDay[dateStr] || 0) + 1
+                }
+            }
         }
     } catch (error) {
         console.error('Error al obtener turnos:', error instanceof Error ? error.message : 'UNKNOWN')
+    }
+
+    // Calculate status counts for filter badges (from all appointments, not filtered)
+    const statusCounts = countAppointmentsByStatus(appointments)
+
+    // Calculate filtered counts for descriptions
+    const filteredAppointments = filterAppointmentsByStatus(appointments, activeStatuses)
+    const filteredCount = filteredAppointments.length
+
+    // Para vista mes con filtro de estado, calcular total filtrado
+    let filteredMonthTotal = 0
+    if (selectedView === 'month' && hasStatusFilter) {
+        filteredMonthTotal = filteredAppointments.length
+    } else if (selectedView === 'month') {
+        filteredMonthTotal = Object.values(appointmentCountByDay).reduce((sum, count) => sum + count, 0)
     }
 
     // Format title based on view
     let formattedTitle: string
     let description: string
 
-    // Para vista mes, calcular total desde el record de conteos
-    const monthTotalAppointments =
-        selectedView === 'month' ? Object.values(appointmentCountByDay).reduce((sum, count) => sum + count, 0) : 0
-
     switch (selectedView) {
         case 'week':
             formattedTitle = formatWeekRangeForAgenda(selectedDate, business.timezone)
             description =
-                appointments.length === 0
+                filteredCount === 0
                     ? 'No hay turnos esta semana'
-                    : `${appointments.length} turno${appointments.length !== 1 ? 's' : ''}`
+                    : `${filteredCount} turno${filteredCount !== 1 ? 's' : ''}`
             break
         case 'month':
             formattedTitle = formatMonthForAgenda(selectedDate, business.timezone)
             description =
-                monthTotalAppointments === 0
+                filteredMonthTotal === 0
                     ? 'No hay turnos este mes'
-                    : `${monthTotalAppointments} turno${monthTotalAppointments !== 1 ? 's' : ''}`
+                    : `${filteredMonthTotal} turno${filteredMonthTotal !== 1 ? 's' : ''}`
             break
         default:
             formattedTitle = formatDateForAgenda(rangeStart, business.timezone)
             description =
-                appointments.length === 0
+                filteredCount === 0
                     ? 'No hay turnos para este día'
-                    : `${appointments.length} turno${appointments.length !== 1 ? 's' : ''}`
+                    : `${filteredCount} turno${filteredCount !== 1 ? 's' : ''}`
     }
 
     // Group appointments by day for week view (only needed for day/week)
@@ -230,6 +263,8 @@ export default async function AgendaPage({ params, searchParams }: PageProps) {
                             selectedResourceId={validResourceId}
                             selectedView={selectedView}
                             resourceLabel={business.resourceLabel}
+                            activeStatuses={activeStatuses}
+                            statusCounts={statusCounts}
                         />
 
                         {/* Appointments card */}
@@ -246,6 +281,7 @@ export default async function AgendaPage({ params, searchParams }: PageProps) {
                                         resourceLabel={business.resourceLabel}
                                         businessId={businessId}
                                         slug={business.slug}
+                                        activeStatuses={activeStatuses}
                                     />
                                 )}
                                 {selectedView === 'week' && (
@@ -256,6 +292,7 @@ export default async function AgendaPage({ params, searchParams }: PageProps) {
                                         resourceLabel={business.resourceLabel}
                                         businessId={businessId}
                                         slug={business.slug}
+                                        activeStatuses={activeStatuses}
                                     />
                                 )}
                                 {selectedView === 'month' && (
@@ -263,6 +300,8 @@ export default async function AgendaPage({ params, searchParams }: PageProps) {
                                         monthDays={getMonthDays(selectedDate)}
                                         appointmentCountByDay={appointmentCountByDay}
                                         timezone={business.timezone}
+                                        appointments={hasStatusFilter ? appointments : undefined}
+                                        activeStatuses={hasStatusFilter ? activeStatuses : undefined}
                                     />
                                 )}
                             </CardContent>
