@@ -574,3 +574,138 @@ export async function countFutureAppointmentsByResourceId(prisma: PrismaClient, 
         }
     })
 }
+
+// ============================================================================
+// Reminder-related queries (US-8.3)
+// ============================================================================
+
+/**
+ * Eligible appointment for reminders
+ * Contains all data needed to send a reminder email
+ */
+export interface EligibleAppointment {
+    id: string
+    status: AppointmentStatus
+    startAt: Date
+    business: {
+        id: string
+        name: string
+        timezone: string
+        resourceLabel: string
+        address: string | null
+        remindersEnabled: boolean
+        reminderOffsetsMinutes: number[]
+    }
+    service: {
+        id: string
+        name: string
+    }
+    resource: {
+        id: string
+        name: string
+    }
+    customer: {
+        fullName: string
+        email: string | null
+    }
+}
+
+/**
+ * Options for finding eligible appointments for reminders
+ */
+export interface FindEligibleAppointmentsOptions {
+    /** Offset in minutes (1440 = 24h, 120 = 2h) */
+    offsetMinutes: number
+    /** Start of query window (UTC) */
+    windowStart: Date
+    /** End of query window (UTC) */
+    windowEnd: Date
+    /** Filter by business ID (optional) */
+    businessId?: string
+    /** Filter by business IDs (optional) */
+    businessIds?: string[]
+}
+
+/**
+ * Find appointments eligible for reminders
+ *
+ * This query finds appointments that:
+ * 1. Have status SCHEDULED
+ * 2. Belong to businesses with remindersEnabled = true
+ * 3. Have the specified offset in their business's reminderOffsetsMinutes
+ * 4. Have startAt within the provided query window
+ *
+ * The query is designed to be timezone-aware by working with UTC times.
+ * The actual timezone conversion happens in the domain layer using Luxon.
+ *
+ * @param prisma - Prisma client
+ * @param options - Query options
+ * @returns Array of eligible appointments with all related data
+ */
+export async function findEligibleAppointmentsForReminders(
+    prisma: PrismaClient,
+    options: FindEligibleAppointmentsOptions
+): Promise<EligibleAppointment[]> {
+    const { offsetMinutes, windowStart, windowEnd, businessId, businessIds } = options
+    const businessIdsFilter = businessId ? undefined : businessIds
+
+    const appointments = await prisma.appointment.findMany({
+        where: {
+            status: 'SCHEDULED',
+            startAt: {
+                gte: windowStart,
+                lte: windowEnd
+            },
+            business: {
+                remindersEnabled: true,
+                reminderOffsetsMinutes: {
+                    has: offsetMinutes
+                },
+                ...(businessId ? { id: businessId } : {}),
+                ...(businessIdsFilter && businessIdsFilter.length > 0 ? { id: { in: businessIdsFilter } } : {})
+            }
+        },
+        include: {
+            business: {
+                select: {
+                    id: true,
+                    name: true,
+                    timezone: true,
+                    resourceLabel: true,
+                    address: true,
+                    remindersEnabled: true,
+                    reminderOffsetsMinutes: true
+                }
+            },
+            service: {
+                select: {
+                    id: true,
+                    name: true
+                }
+            },
+            resource: {
+                select: {
+                    id: true,
+                    name: true
+                }
+            },
+            customer: {
+                select: {
+                    fullName: true,
+                    email: true
+                }
+            }
+        },
+        orderBy: { startAt: 'asc' }
+    })
+
+    return appointments.map(apt => ({
+        id: apt.id,
+        status: apt.status,
+        startAt: apt.startAt,
+        business: apt.business,
+        service: apt.service,
+        resource: apt.resource,
+        customer: apt.customer
+    }))
+}

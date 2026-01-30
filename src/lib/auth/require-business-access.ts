@@ -3,6 +3,26 @@ import { prisma } from '@/data/prisma/prisma'
 import { BusinessRole } from '@prisma/client'
 
 /**
+ * Check if a user has access to a business (non-throwing version).
+ * Useful for server components that need to check access before rendering.
+ *
+ * @param userId - ID del usuario autenticado
+ * @param businessId - ID del negocio al que se intenta acceder
+ * @returns true si tiene acceso, false si no
+ */
+export async function checkBusinessAccess(userId: string, businessId: string): Promise<boolean> {
+    const member = await prisma.businessMember.findFirst({
+        where: {
+            businessId,
+            userId
+        },
+        select: { id: true }
+    })
+
+    return member !== null
+}
+
+/**
  * Helper para Route Handlers que requieren acceso a un negocio específico.
  * Valida que el usuario tenga membresía activa en el negocio.
  *

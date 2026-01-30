@@ -14,6 +14,8 @@ export interface Business {
     resourceLabel: string
     address: string | null
     area: string | null
+    remindersEnabled: boolean
+    reminderOffsetsMinutes: number[]
     createdAt: Date
     updatedAt: Date
 }

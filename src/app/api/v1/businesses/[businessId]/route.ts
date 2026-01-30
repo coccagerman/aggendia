@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { requireAuth } from '@/lib/auth'
 import { requireBusinessAccess } from '@/lib/auth/require-business-access'
 import { prisma } from '@/data/prisma/prisma'
-import { getBusinessById, updateBusinessResourceLabel } from '@/data/repositories/business.repo'
+import { getBusinessById, updateBusinessSettings } from '@/data/repositories/business.repo'
 import { updateBusinessSettingsSchema } from './dto'
 import { AppError, ValidationErrorCodes } from '@/domain/common/errors'
 
@@ -91,10 +91,10 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
             )
         }
 
-        const { resourceLabel } = validationResult.data
+        const { resourceLabel, remindersEnabled, reminderOffsetsMinutes } = validationResult.data
 
         // Check if there's anything to update
-        if (resourceLabel === undefined) {
+        if (resourceLabel === undefined && remindersEnabled === undefined && reminderOffsetsMinutes === undefined) {
             return NextResponse.json(
                 {
                     error: {
@@ -106,8 +106,12 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
             )
         }
 
-        // Update business resourceLabel
-        const updatedBusiness = await updateBusinessResourceLabel(prisma, businessId, resourceLabel)
+        // Update business settings
+        const updatedBusiness = await updateBusinessSettings(prisma, businessId, {
+            resourceLabel,
+            remindersEnabled,
+            reminderOffsetsMinutes
+        })
 
         return NextResponse.json({
             data: updatedBusiness

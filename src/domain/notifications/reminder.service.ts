@@ -1,0 +1,535 @@
+/**
+ * Domain service for reminder notifications
+ * Handles automatic reminder email sending for appointments
+ *
+ * @see docs/user-stories.md - US-8.2, US-8.3
+ *
+ * Key design decisions:
+ * - Non-blocking: errors are caught and logged, never propagated
+ * - Persistent: all attempts are recorded in notifications table
+ * - Idempotent: duplicate reminders are prevented by DB constraint
+ * - Timezone-aware: uses Luxon for precise DST handling
+ */
+
+import { PrismaClient } from '@prisma/client'
+import { DateTime } from 'luxon'
+import { SendNotificationResult } from './notification.types'
+import { createNotification, updateNotificationStatus, notificationExists } from '@/data/repositories/notification.repo'
+import { findEligibleAppointmentsForReminders } from '@/data/repositories/appointment.repo'
+import { getBusinessesForReminderOffset } from '@/data/repositories/business.repo'
+import { resend, defaultFromEmail, isEmailEnabled } from '@/lib/resend/client'
+import {
+    renderReminderEmail,
+    renderReminderEmailText,
+    ReminderEmailData
+} from '@/lib/resend/templates/reminder.template'
+
+/**
+ * Input for sending a reminder email
+ */
+export interface SendReminderEmailInput {
+    /** Appointment ID for tracking */
+    appointmentId: string
+    /** Business info */
+    business: {
+        id: string
+        name: string
+        timezone: string
+        resourceLabel: string
+        address?: string | null
+    }
+    /** Service info */
+    service: {
+        id: string
+        name: string
+    }
+    /** Resource info */
+    resource: {
+        id: string
+        name: string
+    }
+    /** Customer info */
+    customer: {
+        fullName: string
+        email: string | null
+    }
+    /** Appointment start time (UTC) */
+    startAt: Date
+    /** Offset in minutes (1440 = 24h, 120 = 2h) */
+    offsetMinutes: number
+}
+
+/**
+ * Result of processing reminders
+ */
+export interface ProcessRemindersResult {
+    totalProcessed: number
+    sent: number
+    failed: number
+    skipped: number
+    errors: string[]
+}
+
+/**
+ * Options for processing reminders
+ */
+export interface ProcessRemindersOptions {
+    /** Filter by business ID (for testing) */
+    businessId?: string
+    /** Dry run mode - don't actually send emails */
+    dryRun?: boolean
+    /** Custom "now" for testing */
+    now?: Date
+}
+
+/**
+ * Allowed reminder offsets in minutes
+ */
+export const ALLOWED_OFFSETS = [1440, 120] as const
+export type ReminderOffset = (typeof ALLOWED_OFFSETS)[number]
+
+/**
+ * Window margin in minutes for querying eligible appointments
+ * This accounts for cron execution interval (10 min) with safety margin
+ */
+const QUERY_WINDOW_MINUTES = 5
+
+/**
+ * Format date for email display
+ * Output: "Lunes 15 de enero, 14:00"
+ */
+function formatDateTimeForEmail(date: Date, timezone: string): string {
+    const dt = DateTime.fromJSDate(date, { zone: timezone })
+
+    const formattedDate = dt.toLocaleString(
+        {
+            weekday: 'long',
+            day: 'numeric',
+            month: 'long'
+        },
+        { locale: 'es' }
+    )
+
+    const formattedTime = dt.toLocaleString(DateTime.TIME_24_SIMPLE, { locale: 'es' })
+
+    // Capitalize first letter
+    const capitalizedDate = formattedDate.charAt(0).toUpperCase() + formattedDate.slice(1)
+
+    return `${capitalizedDate}, ${formattedTime}`
+}
+
+/**
+ * Get friendly timezone name
+ */
+function getTimezoneDisplayName(timezone: string): string {
+    const timezoneMap: Record<string, string> = {
+        'America/Argentina/Buenos_Aires': 'Argentina',
+        'America/Buenos_Aires': 'Argentina',
+        'America/Sao_Paulo': 'Brasil',
+        'America/Santiago': 'Chile',
+        'America/Lima': 'Perú',
+        'America/Bogota': 'Colombia',
+        'America/Mexico_City': 'México',
+        'America/New_York': 'Nueva York',
+        'America/Los_Angeles': 'Los Ángeles',
+        'Europe/Madrid': 'España',
+        UTC: 'UTC'
+    }
+
+    return timezoneMap[timezone] || timezone
+}
+
+/**
+ * Get reminder type label based on offset
+ */
+function getReminderType(offsetMinutes: number): '24h' | '2h' {
+    return offsetMinutes === 1440 ? '24h' : '2h'
+}
+
+/**
+ * Calculate scheduledFor time for a reminder
+ * Uses Luxon for precise timezone/DST handling
+ *
+ * @param appointmentStartAt - Appointment start time (UTC)
+ * @param offsetMinutes - Offset before appointment (1440 or 120)
+ * @param businessTimezone - Business timezone (IANA)
+ * @returns scheduledFor time in UTC
+ */
+export function calculateScheduledFor(appointmentStartAt: Date, offsetMinutes: number, businessTimezone: string): Date {
+    // Convert appointment start to business timezone
+    const startInTz = DateTime.fromJSDate(appointmentStartAt, { zone: businessTimezone })
+
+    // Subtract offset (respecting DST)
+    const scheduledForInTz = startInTz.minus({ minutes: offsetMinutes })
+
+    // Return as UTC Date
+    return scheduledForInTz.toUTC().toJSDate()
+}
+
+/**
+ * Calculate time window for querying eligible appointments
+ * Uses Luxon for precise timezone handling
+ *
+ * @param now - Current time
+ * @param offsetMinutes - Offset to look for (1440 or 120)
+ * @param businessTimezone - Business timezone
+ * @returns Object with start and end of query window (UTC)
+ */
+export function calculateQueryWindow(
+    now: Date,
+    offsetMinutes: number,
+    businessTimezone: string
+): { windowStart: Date; windowEnd: Date } {
+    // Convert now to business timezone
+    const nowInTz = DateTime.fromJSDate(now, { zone: businessTimezone })
+
+    // Target time is now + offset (appointment time we're looking for)
+    const targetInTz = nowInTz.plus({ minutes: offsetMinutes })
+
+    // Create window with margin to account for cron execution interval
+    const windowStartInTz = targetInTz.minus({ minutes: QUERY_WINDOW_MINUTES })
+    const windowEndInTz = targetInTz.plus({ minutes: QUERY_WINDOW_MINUTES })
+
+    return {
+        windowStart: windowStartInTz.toUTC().toJSDate(),
+        windowEnd: windowEndInTz.toUTC().toJSDate()
+    }
+}
+
+/**
+ * Send reminder email for an appointment
+ *
+ * This function:
+ * 1. Validates customer has email (skips if not)
+ * 2. Creates notification record with PENDING status
+ * 3. Attempts to send email via Resend
+ * 4. Updates notification status to SENT or FAILED
+ *
+ * IMPORTANT: This function NEVER throws exceptions.
+ * All errors are caught, logged, and persisted for later retry.
+ */
+export async function sendReminderEmail(
+    prisma: PrismaClient,
+    input: SendReminderEmailInput
+): Promise<SendNotificationResult> {
+    const { appointmentId, business, service, resource, customer, startAt, offsetMinutes } = input
+
+    // Calculate scheduledFor time
+    const scheduledFor = calculateScheduledFor(startAt, offsetMinutes, business.timezone)
+
+    // 1. Skip if customer has no email
+    if (!customer.email) {
+        console.info(`[Reminder] Skipping reminder email: no customer email`, {
+            appointmentId,
+            businessId: business.id
+        })
+        return {
+            success: false,
+            notificationId: '',
+            error: 'Customer has no email address'
+        }
+    }
+
+    // 2. Skip if email is not enabled (missing API key)
+    if (!isEmailEnabled()) {
+        console.warn(`[Reminder] Email sending disabled: RESEND_API_KEY not configured`, {
+            appointmentId,
+            businessId: business.id
+        })
+        return {
+            success: false,
+            notificationId: '',
+            error: 'Email sending is disabled'
+        }
+    }
+
+    let notificationId = ''
+
+    try {
+        // 3. Create notification record with PENDING status
+        const notification = await createNotification(prisma, {
+            businessId: business.id,
+            appointmentId,
+            channel: 'EMAIL',
+            type: 'REMINDER',
+            to: customer.email,
+            scheduledFor
+        })
+        notificationId = notification.id
+
+        // 4. Prepare email data
+        const emailData: ReminderEmailData = {
+            customerName: customer.fullName,
+            businessName: business.name,
+            serviceName: service.name,
+            resourceName: resource.name,
+            resourceLabel: business.resourceLabel,
+            formattedDateTime: formatDateTimeForEmail(startAt, business.timezone),
+            timezone: getTimezoneDisplayName(business.timezone),
+            address: business.address,
+            reminderType: getReminderType(offsetMinutes)
+        }
+
+        // 5. Send email via Resend
+        const subject =
+            offsetMinutes === 1440
+                ? `Recordatorio: tu turno es mañana - ${business.name}`
+                : `Recordatorio: tu turno es en 2 horas - ${business.name}`
+
+        const { error: sendError } = await resend!.emails.send({
+            from: defaultFromEmail,
+            to: customer.email,
+            subject,
+            html: renderReminderEmail(emailData),
+            text: renderReminderEmailText(emailData)
+        })
+
+        if (sendError) {
+            // 6a. Update notification status to FAILED
+            await updateNotificationStatus(prisma, notificationId, 'FAILED', undefined, sendError.message)
+
+            console.error(`[Reminder] Failed to send reminder email`, {
+                appointmentId,
+                businessId: business.id,
+                notificationId,
+                errorName: sendError.name
+            })
+
+            return {
+                success: false,
+                notificationId,
+                error: sendError.message
+            }
+        }
+
+        // 6b. Update notification status to SENT
+        await updateNotificationStatus(prisma, notificationId, 'SENT', new Date())
+
+        console.info(`[Reminder] Reminder email sent`, {
+            appointmentId,
+            businessId: business.id,
+            notificationId,
+            offsetMinutes
+        })
+
+        return {
+            success: true,
+            notificationId
+        }
+    } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+
+        console.error(`[Reminder] Unexpected error sending reminder`, {
+            appointmentId,
+            businessId: business.id,
+            notificationId: notificationId || 'not-created',
+            errorType: error instanceof Error ? error.name : 'Unknown'
+        })
+
+        // Try to update notification status if we have an ID
+        if (notificationId) {
+            try {
+                await updateNotificationStatus(prisma, notificationId, 'FAILED', undefined, errorMessage)
+            } catch (updateError) {
+                console.error(`[Reminder] Failed to update notification status`, {
+                    notificationId,
+                    errorType: updateError instanceof Error ? updateError.name : 'Unknown'
+                })
+            }
+        }
+
+        return {
+            success: false,
+            notificationId,
+            error: errorMessage
+        }
+    }
+}
+
+/**
+ * Process all eligible reminders
+ *
+ * This is the main orchestrator function that:
+ * 1. Finds all businesses with reminders enabled
+ * 2. For each configured offset, queries eligible appointments
+ * 3. Attempts to send reminder for each appointment
+ * 4. Returns aggregate metrics
+ *
+ * IMPORTANT: This function catches all errors internally and never throws.
+ * Errors are logged and included in the result.
+ */
+export async function processReminders(
+    prisma: PrismaClient,
+    options: ProcessRemindersOptions = {}
+): Promise<ProcessRemindersResult> {
+    const { businessId, dryRun = false, now = new Date() } = options
+
+    const result: ProcessRemindersResult = {
+        totalProcessed: 0,
+        sent: 0,
+        failed: 0,
+        skipped: 0,
+        errors: []
+    }
+
+    console.info(`[Reminder] Starting reminder processing`, {
+        dryRun,
+        businessId: businessId || 'all',
+        now: now.toISOString()
+    })
+
+    try {
+        // Process each allowed offset
+        for (const offset of ALLOWED_OFFSETS) {
+            console.info(`[Reminder] Processing offset ${offset} minutes (${offset === 1440 ? '24h' : '2h'})`)
+
+            const businesses = await getBusinessesForReminderOffset(prisma, offset, businessId)
+
+            if (businesses.length === 0) {
+                console.info(`[Reminder] No businesses configured for offset ${offset}`)
+                continue
+            }
+
+            const businessesByTimezone = new Map<string, string[]>()
+            for (const business of businesses) {
+                const existing = businessesByTimezone.get(business.timezone)
+                if (existing) {
+                    existing.push(business.id)
+                } else {
+                    businessesByTimezone.set(business.timezone, [business.id])
+                }
+            }
+
+            for (const [timezone, businessIds] of businessesByTimezone) {
+                const { windowStart, windowEnd } = calculateQueryWindow(now, offset, timezone)
+
+                // Find eligible appointments for this offset and business
+                const appointments = await findEligibleAppointmentsForReminders(prisma, {
+                    offsetMinutes: offset,
+                    windowStart,
+                    windowEnd,
+                    businessIds
+                })
+
+                console.info(`[Reminder] Found ${appointments.length} eligible appointments`, {
+                    businessIdsCount: businessIds.length,
+                    timezone,
+                    offsetMinutes: offset
+                })
+
+                // Process each appointment
+                for (const appointment of appointments) {
+                    result.totalProcessed++
+
+                    // Calculate scheduledFor for idempotency check
+                    const scheduledFor = calculateScheduledFor(
+                        appointment.startAt,
+                        offset,
+                        appointment.business.timezone
+                    )
+
+                    // Check if reminder already exists (idempotency)
+                    const exists = await notificationExists(prisma, appointment.id, 'REMINDER', scheduledFor)
+
+                    if (exists) {
+                        console.info(`[Reminder] Skipping: reminder already exists`, {
+                            appointmentId: appointment.id,
+                            offsetMinutes: offset
+                        })
+                        result.skipped++
+                        continue
+                    }
+
+                    // Check if appointment is still SCHEDULED (in case status changed)
+                    if (appointment.status !== 'SCHEDULED') {
+                        console.info(`[Reminder] Skipping: appointment not SCHEDULED`, {
+                            appointmentId: appointment.id,
+                            status: appointment.status
+                        })
+                        result.skipped++
+                        continue
+                    }
+
+                    // Check if business still has reminders enabled
+                    if (!appointment.business.remindersEnabled) {
+                        console.info(`[Reminder] Skipping: business reminders disabled`, {
+                            appointmentId: appointment.id,
+                            businessId: appointment.business.id
+                        })
+                        result.skipped++
+                        continue
+                    }
+
+                    // Check if this offset is in the business configuration
+                    if (!appointment.business.reminderOffsetsMinutes.includes(offset)) {
+                        console.info(`[Reminder] Skipping: offset not configured for business`, {
+                            appointmentId: appointment.id,
+                            businessId: appointment.business.id,
+                            offsetMinutes: offset,
+                            configuredOffsets: appointment.business.reminderOffsetsMinutes
+                        })
+                        result.skipped++
+                        continue
+                    }
+
+                    // Skip if customer has no email
+                    if (!appointment.customer.email) {
+                        console.info(`[Reminder] Skipping: no customer email`, {
+                            appointmentId: appointment.id
+                        })
+                        result.skipped++
+                        continue
+                    }
+
+                    // Dry run mode - don't actually send
+                    if (dryRun) {
+                        console.info(`[Reminder] DRY RUN: would send reminder`, {
+                            appointmentId: appointment.id,
+                            businessId: appointment.business.id,
+                            offsetMinutes: offset
+                        })
+                        result.sent++ // Count as "would be sent"
+                        continue
+                    }
+
+                    // Send the reminder
+                    const sendResult = await sendReminderEmail(prisma, {
+                        appointmentId: appointment.id,
+                        business: appointment.business,
+                        service: appointment.service,
+                        resource: appointment.resource,
+                        customer: appointment.customer,
+                        startAt: appointment.startAt,
+                        offsetMinutes: offset
+                    })
+
+                    if (sendResult.success) {
+                        result.sent++
+                    } else {
+                        result.failed++
+                        if (sendResult.error) {
+                            result.errors.push(`${appointment.id}: ${sendResult.error}`)
+                        }
+                    }
+                }
+            }
+        }
+    } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+        console.error(`[Reminder] Critical error during processing`, {
+            errorType: error instanceof Error ? error.name : 'Unknown',
+            errorMessage
+        })
+        result.errors.push(`Critical error: ${errorMessage}`)
+    }
+
+    console.info(`[Reminder] Processing complete`, {
+        totalProcessed: result.totalProcessed,
+        sent: result.sent,
+        failed: result.failed,
+        skipped: result.skipped,
+        errorCount: result.errors.length
+    })
+
+    return result
+}

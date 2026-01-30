@@ -44,6 +44,8 @@ model Business {
   resourceLabel            String   @default("Recurso")
   address                  String?
   area                     String?
+  remindersEnabled         Boolean  @default(true)
+  reminderOffsetsMinutes   Int[]    @default([1440, 120]) // 24h y 2h antes
   createdAt                DateTime @default(now())
   updatedAt                DateTime @updatedAt
 
