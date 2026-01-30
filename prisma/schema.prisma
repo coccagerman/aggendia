@@ -53,6 +53,7 @@ model Business {
   serviceResources  ServiceResource[]
   customers         Customer[]
   appointments      Appointment[]
+  notifications     Notification[]
 }
 
 model BusinessMember {
@@ -215,9 +216,55 @@ model Appointment {
   customer         Customer     @relation(fields: [customerId], references: [id], onDelete: Cascade)
   rescheduledFrom  Appointment? @relation("RescheduledAppointments", fields: [rescheduledFromId], references: [id])
   rescheduledTo    Appointment[] @relation("RescheduledAppointments")
+  notifications    Notification[]
 
   @@index([businessId, startAt])
   @@index([resourceId, startAt])
   @@index([customerId])
+  @@index([status])
+}
+
+// ============================================================================
+// US-8.1: Notifications
+// ============================================================================
+
+enum NotificationChannel {
+  EMAIL
+}
+
+enum NotificationType {
+  CONFIRMATION
+  REMINDER
+  CANCELLATION
+  RESCHEDULED
+}
+
+enum NotificationStatus {
+  PENDING
+  SENT
+  FAILED
+}
+
+model Notification {
+  id            String             @id @default(uuid())
+  businessId    String
+  appointmentId String
+  channel       NotificationChannel
+  type          NotificationType
+  to            String             // email address
+  status        NotificationStatus @default(PENDING)
+  scheduledFor  DateTime           // When the notification should be sent
+  sentAt        DateTime?          // When it was actually sent
+  error         String?            // Error message if failed
+  createdAt     DateTime           @default(now())
+  updatedAt     DateTime           @updatedAt
+
+  business    Business    @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  appointment Appointment @relation(fields: [appointmentId], references: [id], onDelete: Cascade)
+
+  // Idempotency: prevent duplicate notifications
+  @@unique([appointmentId, type, scheduledFor])
+  @@index([businessId])
+  @@index([appointmentId])
   @@index([status])
 }

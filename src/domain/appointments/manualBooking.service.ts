@@ -27,6 +27,7 @@ import { upsertCustomer } from '@/data/repositories/customer.repo'
 import { createAppointment, isSlotAvailable } from '@/data/repositories/appointment.repo'
 import { getAvailabilityByResourceId } from '@/data/repositories/availability.repo'
 import { isWithinAvailability } from '@/domain/availability/availability.service'
+import { sendConfirmationEmail } from '@/domain/notifications/notification.service'
 import { addMinutes } from 'date-fns'
 
 /**
@@ -154,7 +155,37 @@ export async function createManualAppointment(
         createdByUserId: input.createdByUserId
     })
 
-    // 11. Return formatted output
+    // 11. Send confirmation email (non-blocking, errors are logged not thrown)
+    // US-8.1: Email is sent after appointment is successfully created
+    sendConfirmationEmail(prisma, {
+        appointmentId: appointment.id,
+        business: {
+            id: business.id,
+            name: business.name,
+            timezone: business.timezone,
+            resourceLabel: business.resourceLabel,
+            address: business.address
+        },
+        service: {
+            id: appointment.service.id,
+            name: appointment.service.name
+        },
+        resource: {
+            id: appointment.resource.id,
+            name: appointment.resource.name
+        },
+        customer: {
+            fullName: appointment.customer.fullName,
+            email: appointment.customer.email,
+            phone: appointment.customer.phone
+        },
+        startAt: appointment.startAt
+    }).catch(err => {
+        // Extra safety: ensure any unexpected error doesn't bubble up
+        console.error('[ManualBooking] Unexpected error in sendConfirmationEmail:', err)
+    })
+
+    // 12. Return formatted output
     return {
         appointmentId: appointment.id,
         status: appointment.status as 'SCHEDULED',
