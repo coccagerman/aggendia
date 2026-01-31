@@ -184,6 +184,7 @@ model Customer {
   fullName   String
   email      String?
   phone      String?
+  phoneE164  String?  // Normalized phone in E.164 format for WhatsApp
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 

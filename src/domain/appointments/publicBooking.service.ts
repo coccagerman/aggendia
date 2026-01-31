@@ -20,7 +20,7 @@ import { upsertCustomer } from '@/data/repositories/customer.repo'
 import { createAppointment, isSlotAvailable } from '@/data/repositories/appointment.repo'
 import { getAvailabilityByResourceId } from '@/data/repositories/availability.repo'
 import { isWithinAvailability } from '@/domain/availability/availability.service'
-import { sendConfirmationEmail } from '@/domain/notifications/notification.service'
+import { sendConfirmationEmail, sendConfirmationWhatsApp } from '@/domain/notifications/notification.service'
 import { addMinutes } from 'date-fns'
 
 /**
@@ -183,7 +183,36 @@ export async function createPublicAppointment(
         console.error('[PublicBooking] Unexpected error in sendConfirmationEmail:', err)
     })
 
-    // 12. Return formatted output
+    // 12. Send confirmation WhatsApp (non-blocking, parallel to email)
+    // US-10.2: WhatsApp is sent after appointment is successfully created
+    sendConfirmationWhatsApp(prisma, {
+        appointmentId: appointment.id,
+        business: {
+            id: business.id,
+            name: business.name,
+            timezone: business.timezone,
+            resourceLabel: business.resourceLabel,
+            whatsappNotificationsEnabled: business.whatsappNotificationsEnabled
+        },
+        service: {
+            id: appointment.service.id,
+            name: appointment.service.name
+        },
+        resource: {
+            id: appointment.resource.id,
+            name: appointment.resource.name
+        },
+        customer: {
+            fullName: appointment.customer.fullName,
+            phoneE164: appointment.customer.phoneE164
+        },
+        startAt: appointment.startAt
+    }).catch(err => {
+        // Extra safety: ensure any unexpected error doesn't bubble up
+        console.error('[PublicBooking] Unexpected error in sendConfirmationWhatsApp:', err)
+    })
+
+    // 13. Return formatted output
     return {
         appointmentId: appointment.id,
         status: appointment.status as 'SCHEDULED',

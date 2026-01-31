@@ -5,7 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Label } from '@/components/ui/label'
-import { Loader2, MessageCircle, MessageCircleOff, Info } from 'lucide-react'
+import { Loader2, MessageCircle, MessageCircleOff } from 'lucide-react'
 import axios from 'axios'
 
 interface WhatsAppSettingsProps {
@@ -17,9 +17,7 @@ interface WhatsAppSettingsProps {
  * Component for managing WhatsApp notification settings per business.
  *
  * US-10.1: Allows admin to enable/disable WhatsApp as a notification channel.
- *
- * Note: This is a configuration toggle only. Actual message sending
- * will be implemented in US-10.2+.
+ * US-10.2: When enabled, confirmations are sent via WhatsApp Cloud API.
  */
 export function WhatsAppSettings({ businessId, initialEnabled }: WhatsAppSettingsProps) {
     const [enabled, setEnabled] = useState(initialEnabled)
@@ -85,18 +83,6 @@ export function WhatsAppSettings({ businessId, initialEnabled }: WhatsAppSetting
                         </Label>
                         <p className='text-sm text-muted-foreground'>
                             Los clientes recibirán confirmaciones y recordatorios por WhatsApp.
-                        </p>
-                    </div>
-                </div>
-
-                {/* Info message: Coming soon */}
-                <div className='flex items-start gap-3 p-4 bg-blue-50 rounded-md'>
-                    <Info className='h-5 w-5 text-blue-500 shrink-0 mt-0.5' />
-                    <div className='text-sm text-blue-800'>
-                        <p className='font-medium'>Próximamente disponible</p>
-                        <p className='mt-1'>
-                            El envío de mensajes por WhatsApp se habilitará próximamente. Podés activar esta opción
-                            ahora para estar listo cuando la funcionalidad esté disponible.
                         </p>
                     </div>
                 </div>

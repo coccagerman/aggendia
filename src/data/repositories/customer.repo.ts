@@ -4,6 +4,7 @@
  */
 
 import { PrismaClient, Customer } from '@prisma/client'
+import { normalizeToE164 } from '@/lib/phone'
 
 export interface CustomerInput {
     fullName: string
@@ -26,6 +27,7 @@ function normalizeEmail(email: string | null | undefined): string | null {
  * - If email is provided: match by (businessId, normalizedEmail)
  * - If only phone is provided: match by (businessId, phone)
  * - Updates fullName and secondary contact if customer exists
+ * - Normalizes phone to E.164 format for WhatsApp
  */
 export async function upsertCustomer(
     prisma: PrismaClient,
@@ -34,6 +36,7 @@ export async function upsertCustomer(
 ): Promise<Customer> {
     const { fullName, phone } = input
     const normalizedEmail = normalizeEmail(input.email)
+    const phoneE164 = normalizeToE164(phone)
 
     // Determine matching strategy
     let existingCustomer: Customer | null = null
@@ -58,25 +61,34 @@ export async function upsertCustomer(
 
     if (existingCustomer) {
         // Update existing customer
+        // Note: phoneE164 is updated if:
+        //   a) phone changed, OR
+        //   b) phoneE164 is null (lazy backfill for pre-existing customers)
+        const shouldUpdatePhone = phone && phone !== existingCustomer.phone
+        const shouldBackfillPhoneE164 = phone && !existingCustomer.phoneE164 && phoneE164
+
         return prisma.customer.update({
             where: { id: existingCustomer.id },
             data: {
                 fullName,
-                // Only update phone if provided and different
-                ...(phone && phone !== existingCustomer.phone ? { phone } : {}),
+                // Update phone if changed
+                ...(shouldUpdatePhone ? { phone, phoneE164 } : {}),
+                // Backfill phoneE164 if missing (lazy migration)
+                ...(shouldBackfillPhoneE164 && !shouldUpdatePhone ? { phoneE164 } : {}),
                 // Only update email if provided and different (already normalized)
                 ...(normalizedEmail && normalizedEmail !== existingCustomer.email ? { email: normalizedEmail } : {})
             }
         })
     }
 
-    // Create new customer with normalized email
+    // Create new customer with normalized email and phoneE164
     return prisma.customer.create({
         data: {
             businessId,
             fullName,
             email: normalizedEmail,
-            phone: phone || null
+            phone: phone || null,
+            phoneE164
         }
     })
 }

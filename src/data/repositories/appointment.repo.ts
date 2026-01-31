@@ -42,6 +42,7 @@ export interface AppointmentWithRelations extends Appointment {
         fullName: string
         email: string | null
         phone: string | null
+        phoneE164: string | null
     }
     business: {
         id: string
@@ -132,7 +133,7 @@ export async function createAppointment(
                     select: { id: true, name: true }
                 },
                 customer: {
-                    select: { id: true, fullName: true, email: true, phone: true }
+                    select: { id: true, fullName: true, email: true, phone: true, phoneE164: true }
                 },
                 business: {
                     select: { id: true, name: true, timezone: true }
@@ -187,7 +188,7 @@ export async function getAppointmentById(
                 select: { id: true, name: true }
             },
             customer: {
-                select: { id: true, fullName: true, email: true, phone: true }
+                select: { id: true, fullName: true, email: true, phone: true, phoneE164: true }
             },
             business: {
                 select: { id: true, name: true, timezone: true }
@@ -280,7 +281,7 @@ export async function getAppointmentsByBusinessAndDay(
                 select: { id: true, name: true }
             },
             customer: {
-                select: { id: true, fullName: true, email: true, phone: true }
+                select: { id: true, fullName: true, email: true, phone: true, phoneE164: true }
             },
             business: {
                 select: { id: true, name: true, timezone: true }
