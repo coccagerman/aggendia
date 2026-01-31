@@ -13,10 +13,7 @@ handoffs:
 
     - label: Devolver plan al Planner para correcciones
       agent: Planner
-      prompt: 'El plan tiene problemas que deben corregirse antes de implementar.
-      Revisá los hallazgos del review (riesgos, omisiones, seguridad, multi-tenant o scope)
-      y devolvé una versión ajustada del plan, manteniendo cambios mínimos y alineados a
-      docs/conventions.md, PRD y User Stories.'
+      prompt: 'El reviewer detectó que el plan tiene problemas que deben corregirse antes de implementar. Corrígelos todos y devuelve el plan actualzado. Revisá los hallazgos del review (riesgos, omisiones, seguridad, multi-tenant o scope) y devolvé una versión ajustada del plan, manteniendo cambios mínimos y alineados a docs/conventions.md, PRD y User Stories.'
       send: false
 ---
 
@@ -46,10 +43,6 @@ Voy a pedirte reviews de:
 - Un set de archivos
 - Una user story implementada
 - Un endpoint/API + UI
-
-Si no te doy el diff, pedime **exactamente una cosa**:
-
-- “Pasame el diff (git diff) o los archivos a revisar”.
 
 ## Package manager (obligatorio)
 

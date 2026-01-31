@@ -507,3 +507,133 @@ El filtro se aplica en todas las vistas de agenda.
 - Backend valida `business_id` en todas las queries.
 - Accesos cruzados devuelven 403/404.
 - (Opcional) RLS en Supabase como capa adicional.
+
+## Épica 10 — Notificaciones por WhatsApp
+
+Esta épica agrupa toda la funcionalidad relacionada con el envío de notificaciones automáticas por WhatsApp, sin afectar las historias previamente implementadas.
+
+---
+
+### US-10.1 Habilitar o deshabilitar WhatsApp por negocio
+
+**Como** admin  
+**Quiero** habilitar o deshabilitar las notificaciones por WhatsApp  
+**Para** decidir si ese canal se utiliza para comunicarme con mis clientes.
+
+**Aceptación**
+
+- El negocio puede habilitar o deshabilitar WhatsApp como canal de notificación.
+- Por defecto, WhatsApp está deshabilitado.
+- Si WhatsApp está deshabilitado:
+    - no se envían mensajes por ese canal
+    - el resto de los canales (email) sigue funcionando normalmente.
+- Cambiar esta configuración no afecta turnos ya creados.
+
+---
+
+### US-10.2 Enviar confirmación de turno por WhatsApp
+
+**Como** cliente  
+**Quiero** recibir una confirmación de mi turno por WhatsApp  
+**Para** tener el turno registrado en un canal que uso habitualmente.
+
+**Aceptación**
+
+- Cuando se crea un turno en estado `SCHEDULED`:
+    - por reserva pública
+    - o por creación manual del negocio
+- Si WhatsApp está habilitado:
+    - se crea una notificación de confirmación por WhatsApp.
+- El mensaje incluye, como mínimo:
+    - nombre del negocio
+    - servicio
+    - recurso
+    - fecha y hora del turno
+- El envío es asincrónico.
+- Si el envío falla:
+    - el turno permanece creado
+    - el error se registra
+    - no se generan duplicados.
+
+---
+
+### US-10.3 Enviar recordatorios por WhatsApp
+
+**Como** cliente  
+**Quiero** recibir recordatorios de mi turno por WhatsApp  
+**Para** no olvidarme de asistir.
+
+**Aceptación**
+
+- Los recordatorios por WhatsApp respetan:
+    - la configuración de offsets (24h / 2h)
+    - la configuración de canales del negocio.
+- Solo se envían a turnos `SCHEDULED`.
+- Los recordatorios se envían de forma asincrónica.
+- No se envían recordatorios duplicados por WhatsApp.
+- El estado del envío se registra (`SENT` / `FAILED`).
+
+---
+
+### US-10.4 Enviar notificaciones de cancelación y reprogramación por WhatsApp
+
+**Como** cliente  
+**Quiero** recibir notificaciones por WhatsApp cuando mi turno se cancela o se reprograma  
+**Para** estar informado sin tener que revisar el dashboard o el email.
+
+**Aceptación**
+
+- Al cancelar un turno:
+    - se envía una notificación por WhatsApp si el canal está habilitado.
+- Al reprogramar un turno:
+    - se envía una notificación con la nueva fecha y hora.
+- El envío es asincrónico.
+- Fallos de envío no afectan el estado del turno.
+- No se generan duplicados.
+
+---
+
+### US-10.5 Garantizar idempotencia de notificaciones por WhatsApp
+
+**Como** sistema  
+**Quiero** garantizar que los mensajes de WhatsApp no se envíen duplicados  
+**Para** evitar confundir o molestar a los clientes.
+
+**Aceptación**
+
+- Una notificación por WhatsApp se identifica de forma única por:
+    - turno
+    - canal (WhatsApp)
+    - tipo de notificación
+    - momento programado de envío
+- Reintentos o ejecuciones duplicadas del job:
+    - no generan envíos duplicados.
+- WhatsApp y email se consideran canales independientes.
+
+---
+
+### US-10.6 Manejar ausencia de teléfono válido del cliente
+
+**Como** sistema  
+**Quiero** evitar enviar WhatsApp a clientes sin un teléfono válido  
+**Para** prevenir errores innecesarios.
+
+**Aceptación**
+
+- Si el cliente no tiene un teléfono normalizado:
+    - no se crea notificación por WhatsApp.
+- El resto de los canales sigue funcionando normalmente.
+- Esta situación no bloquea la creación del turno.
+
+---
+
+**Nota de alcance**
+
+Esta épica **NO incluye**:
+
+- respuestas automáticas por WhatsApp
+- bots o flujos conversacionales
+- mensajes bidireccionales
+- confirmación de lectura de mensajes
+
+WhatsApp se utiliza únicamente como **canal de notificación saliente**.

@@ -9,7 +9,7 @@ Este documento define convenciones de arquitectura, estructura y estilo para con
 - **Separación clara de responsabilidades:**
   `api` (transporte) ≠ `domain` (reglas) ≠ `data` (persistencia).
 - **Multi-tenant seguro:** todo dato está aislado por `business_id`.
-- **Consistencia fuerte:** evitar double-booking (DB + validación de dominio).
+- **Consistencia fuerte:** evitar double-booking y duplicación de notificaciones (DB + validación de dominio).
 - **DX alta y código predecible:** tipado fuerte, validaciones y errores uniformes.
 - **Evolución simple:** permitir separar backend en el futuro sin reescribir reglas de negocio.
 - **Modelo explícito:** servicios y recursos existen por separado y se **mapean** explícitamente (Service ↔ Resource).
@@ -93,6 +93,13 @@ docs/
   adr-0001-stack.md
   conventions.md
 ```
+
+Nota sobre notificaciones:
+
+- `domain/notifications` contiene reglas de negocio (cuándo crear una notificación).
+- `data/repositories/notification.repo.ts` solo persiste y consulta notificaciones.
+- El envío efectivo (email / WhatsApp) se implementa en servicios de infraestructura o jobs,
+  nunca directamente en los Route Handlers.
 
 ### Reglas base
 
@@ -211,6 +218,19 @@ Notas:
 
 ---
 
+#### Notifications (interno)
+
+- GET `/api/v1/businesses/:businessId/notifications`
+    - filtros: `status`, `channel`, `type`, `appointmentId`
+- (opcional futuro) POST manual para reintentos controlados
+
+Notas:
+
+- No existen endpoints públicos de notificaciones.
+- Las notificaciones se crean automáticamente desde eventos de dominio.
+
+---
+
 ### Public (cliente)
 
 - GET `/api/v1/public/businesses/:slug`
@@ -278,6 +298,8 @@ Errores de negocio relevantes:
 - `APPOINTMENT_OUTSIDE_AVAILABILITY`
 - `APPOINTMENT_TOO_SOON`
 - `SERVICE_DELETED`
+- `NOTIFICATION_ALREADY_EXISTS`
+- `NOTIFICATION_CHANNEL_DISABLED`
 
 Los conflictos de agenda devuelven **409**.
 
@@ -309,7 +331,8 @@ Estrategia:
 ## 10) Seguridad y PII
 
 - Minimizar PII (nombre + email/teléfono).
-- No loguear datos sensibles.
+- No loguear datos sensibles ni contenidos de mensajes.
+- Los números de teléfono se consideran PII sensible.
 - Rate limiting futuro en endpoints públicos.
 
 ---
@@ -354,6 +377,8 @@ PRs pequeños y coherentes.
 - Timezone correcto
 - Conflictos (409) contemplados
 - UI maneja loading / error / empty
+- Notificaciones creadas de forma asincrónica
+- Idempotencia garantizada por dominio
 - En reservas públicas:
     - service ACTIVE
     - resource ACTIVE

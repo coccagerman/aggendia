@@ -13,6 +13,7 @@ Este documento describe los flujos funcionales clave del producto, cubriendo tan
 3. Configurar parámetros iniciales del negocio:
     - anticipación mínima para reservas
     - recordatorios (on/off y offsets)
+    - canales de notificación (email / WhatsApp)
 
 4. El dashboard muestra un checklist inicial:
     - recursos
@@ -120,7 +121,7 @@ Gestión posterior:
 - Crea o reutiliza el cliente
 - Crea un `appointment` en estado `SCHEDULED`
 - La DB impide solapamientos (anti double-booking)
-- Crea y envía notificación de confirmación
+- Crea notificaciones de confirmación (email y/o WhatsApp) de forma asincrónica
 
 **Resultado:** turno confirmado sin doble reserva.
 
@@ -143,6 +144,7 @@ Gestión posterior:
 - Respeta disponibilidad y anti-overlap
 - **NO aplica anticipación mínima** (ver US-7.3): permite crear turnos en el mismo día
 - **NO permite turnos en el pasado**: el horario debe ser futuro
+- Crea notificaciones de confirmación para el cliente según configuración del negocio
 
 **Resultado:** turno creado manualmente y visible en agenda.
 
@@ -177,6 +179,7 @@ Gestión posterior:
 - Cambia estado a `CANCELLED`
 - Libera el horario
 - Envía notificación de cancelación
+- Envía notificaciones de cancelación por los canales configurados (email / WhatsApp)
 
 **Resultado:** turno cancelado y cliente notificado.
 
@@ -194,6 +197,7 @@ Gestión posterior:
 - Crea un nuevo turno con `rescheduled_from_id` o actualiza el existente
 - La DB impide solapamientos
 - Envía notificación con el nuevo horario
+- Envía notificaciones con el nuevo horario por los canales configurados
 
 **Resultado:** turno reprogramado con trazabilidad.
 
@@ -222,7 +226,7 @@ Gestión posterior:
 1. Job periódico
 2. Busca turnos `SCHEDULED` próximos según configuración del negocio
 3. Crea notificaciones pendientes si no existían (idempotencia)
-4. Envía emails y registra estado
+4. Envía notificaciones por email y WhatsApp según configuración y registra estado
 
 **Resultado:** recordatorios enviados sin duplicados.
 
@@ -245,7 +249,7 @@ flowchart TD
   I --> J[Confirmar]
   J --> K{Validaciones dominio + anti-overlap}
   K -- Sí --> L[Crear Appointment SCHEDULED]
-  L --> M[Enviar confirmación]
+  L --> M[Crear notificaciones de confirmación]
   M --> N[Mostrar confirmación]
   K -- No --> O[Error controlado]
   O --> G
