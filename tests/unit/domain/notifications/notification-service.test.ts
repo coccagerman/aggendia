@@ -42,7 +42,8 @@ describe('sendConfirmationEmail', () => {
             name: 'Test Business',
             timezone: 'America/Argentina/Buenos_Aires',
             resourceLabel: 'Profesional',
-            address: 'Av. Test 123'
+            address: 'Av. Test 123',
+            emailNotificationsEnabled: true
         },
         service: {
             id: 'service-789',
@@ -96,6 +97,25 @@ describe('sendConfirmationEmail', () => {
             expect(result.success).toBe(false)
             expect(result.error).toBe('Email sending is disabled')
             expect(createNotification).not.toHaveBeenCalled()
+        })
+    })
+
+    describe('when email channel is disabled for business', () => {
+        it('should skip email sending and return failure result', async () => {
+            const inputWithEmailDisabled: SendConfirmationEmailInput = {
+                ...validInput,
+                business: {
+                    ...validInput.business,
+                    emailNotificationsEnabled: false
+                }
+            }
+
+            const result = await sendConfirmationEmail(mockPrisma, inputWithEmailDisabled)
+
+            expect(result.success).toBe(false)
+            expect(result.error).toBe('Email notifications are disabled')
+            expect(createNotification).not.toHaveBeenCalled()
+            expect(resend?.emails.send).not.toHaveBeenCalled()
         })
     })
 

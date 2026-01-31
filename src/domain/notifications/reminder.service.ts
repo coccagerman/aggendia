@@ -37,6 +37,7 @@ export interface SendReminderEmailInput {
         timezone: string
         resourceLabel: string
         address?: string | null
+        emailNotificationsEnabled: boolean
     }
     /** Service info */
     service: {
@@ -230,7 +231,20 @@ export async function sendReminderEmail(
         }
     }
 
-    // 2. Skip if email is not enabled (missing API key)
+    // 2. Skip if email notifications are disabled for business
+    if (!business.emailNotificationsEnabled) {
+        console.info(`[Reminder] Skipping reminder email: email channel disabled`, {
+            appointmentId,
+            businessId: business.id
+        })
+        return {
+            success: false,
+            notificationId: '',
+            error: 'Email notifications are disabled'
+        }
+    }
+
+    // 3. Skip if email is not enabled (missing API key)
     if (!isEmailEnabled()) {
         console.warn(`[Reminder] Email sending disabled: RESEND_API_KEY not configured`, {
             appointmentId,
@@ -429,7 +443,8 @@ export async function processReminders(
                     )
 
                     // Check if reminder already exists (idempotency)
-                    const exists = await notificationExists(prisma, appointment.id, 'REMINDER', scheduledFor)
+                    // Note: Currently only EMAIL reminders, WHATSAPP will be added in US-10.3
+                    const exists = await notificationExists(prisma, appointment.id, 'EMAIL', 'REMINDER', scheduledFor)
 
                     if (exists) {
                         console.info(`[Reminder] Skipping: reminder already exists`, {

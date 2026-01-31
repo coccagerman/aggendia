@@ -164,7 +164,8 @@ export async function createManualAppointment(
             name: business.name,
             timezone: business.timezone,
             resourceLabel: business.resourceLabel,
-            address: business.address
+            address: business.address,
+            emailNotificationsEnabled: business.emailNotificationsEnabled
         },
         service: {
             id: appointment.service.id,

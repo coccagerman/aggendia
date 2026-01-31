@@ -387,26 +387,50 @@ export default async function DashboardPage() {
                                                                 )}
                                                             </div>
 
-                                                            {/* Acceso rápido a Agenda */}
+                                                            {/* Acceso rápido a Agenda y Configuración */}
                                                             <div className='mt-4 border-t border-zinc-200 pt-4 dark:border-zinc-700'>
                                                                 <div className='flex items-center justify-between'>
                                                                     <h4 className='text-sm font-medium text-zinc-700 dark:text-zinc-300'>
-                                                                        Agenda
+                                                                        Accesos rápidos
                                                                     </h4>
-                                                                    <Tooltip>
-                                                                        <TooltipTrigger asChild>
-                                                                            <Button asChild size='sm' variant='outline'>
-                                                                                <Link
-                                                                                    href={`/dashboard/business/${business.id}/agenda`}
+                                                                    <div className='flex gap-2'>
+                                                                        <Tooltip>
+                                                                            <TooltipTrigger asChild>
+                                                                                <Button
+                                                                                    asChild
+                                                                                    size='sm'
+                                                                                    variant='outline'
                                                                                 >
-                                                                                    Ver Agenda
-                                                                                </Link>
-                                                                            </Button>
-                                                                        </TooltipTrigger>
-                                                                        <TooltipContent>
-                                                                            <p>Mirá los turnos del día</p>
-                                                                        </TooltipContent>
-                                                                    </Tooltip>
+                                                                                    <Link
+                                                                                        href={`/dashboard/business/${business.id}/agenda`}
+                                                                                    >
+                                                                                        Ver Agenda
+                                                                                    </Link>
+                                                                                </Button>
+                                                                            </TooltipTrigger>
+                                                                            <TooltipContent>
+                                                                                <p>Mirá los turnos del día</p>
+                                                                            </TooltipContent>
+                                                                        </Tooltip>
+                                                                        <Tooltip>
+                                                                            <TooltipTrigger asChild>
+                                                                                <Button
+                                                                                    asChild
+                                                                                    size='sm'
+                                                                                    variant='outline'
+                                                                                >
+                                                                                    <Link
+                                                                                        href={`/dashboard/business/${business.id}/settings`}
+                                                                                    >
+                                                                                        Configuración
+                                                                                    </Link>
+                                                                                </Button>
+                                                                            </TooltipTrigger>
+                                                                            <TooltipContent>
+                                                                                <p>Notificaciones y recordatorios</p>
+                                                                            </TooltipContent>
+                                                                        </Tooltip>
+                                                                    </div>
                                                                 </div>
                                                                 <p className='mt-2 text-sm text-zinc-500 dark:text-zinc-400'>
                                                                     Visualizá y organizá los turnos por día y{' '}

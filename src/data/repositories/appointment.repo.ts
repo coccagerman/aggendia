@@ -595,6 +595,7 @@ export interface EligibleAppointment {
         address: string | null
         remindersEnabled: boolean
         reminderOffsetsMinutes: number[]
+        emailNotificationsEnabled: boolean
     }
     service: {
         id: string
@@ -674,7 +675,8 @@ export async function findEligibleAppointmentsForReminders(
                     resourceLabel: true,
                     address: true,
                     remindersEnabled: true,
-                    reminderOffsetsMinutes: true
+                    reminderOffsetsMinutes: true,
+                    emailNotificationsEnabled: true
                 }
             },
             service: {

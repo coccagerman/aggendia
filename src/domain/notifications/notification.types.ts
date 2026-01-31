@@ -5,7 +5,7 @@
  */
 
 // Re-export Prisma enums for domain use
-export type NotificationChannel = 'EMAIL'
+export type NotificationChannel = 'EMAIL' | 'WHATSAPP'
 export type NotificationType = 'CONFIRMATION' | 'REMINDER' | 'CANCELLATION' | 'RESCHEDULED'
 export type NotificationStatus = 'PENDING' | 'SENT' | 'FAILED'
 
@@ -53,6 +53,7 @@ export interface SendConfirmationEmailInput {
         timezone: string
         resourceLabel: string
         address?: string | null
+        emailNotificationsEnabled: boolean
     }
     /** Service info */
     service: {

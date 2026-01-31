@@ -113,18 +113,23 @@ export async function getFailedNotifications(
 
 /**
  * Check if a notification already exists (idempotency check)
- * Returns true if a notification with same appointment, type, and scheduledFor exists
+ * Returns true if a notification with same appointment, channel, type, and scheduledFor exists
+ *
+ * Note: The unique constraint includes channel to allow independent notifications
+ * per channel (EMAIL and WHATSAPP) for the same appointment and type.
  */
 export async function notificationExists(
     prisma: PrismaClient,
     appointmentId: string,
+    channel: NotificationChannel,
     type: NotificationType,
     scheduledFor: Date
 ): Promise<boolean> {
     const existing = await prisma.notification.findUnique({
         where: {
-            appointmentId_type_scheduledFor: {
+            appointmentId_channel_type_scheduledFor: {
                 appointmentId,
+                channel,
                 type,
                 scheduledFor
             }

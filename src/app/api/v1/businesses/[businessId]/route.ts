@@ -40,7 +40,19 @@ export async function GET(request: NextRequest, context: RouteContext) {
         }
 
         return NextResponse.json({
-            data: business
+            data: {
+                id: business.id,
+                name: business.name,
+                slug: business.slug,
+                timezone: business.timezone,
+                resourceLabel: business.resourceLabel,
+                address: business.address,
+                area: business.area,
+                remindersEnabled: business.remindersEnabled,
+                reminderOffsetsMinutes: business.reminderOffsetsMinutes,
+                emailNotificationsEnabled: business.emailNotificationsEnabled,
+                whatsappNotificationsEnabled: business.whatsappNotificationsEnabled
+            }
         })
     } catch (error) {
         if (error instanceof AppError) {
@@ -91,10 +103,22 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
             )
         }
 
-        const { resourceLabel, remindersEnabled, reminderOffsetsMinutes } = validationResult.data
+        const {
+            resourceLabel,
+            remindersEnabled,
+            reminderOffsetsMinutes,
+            emailNotificationsEnabled,
+            whatsappNotificationsEnabled
+        } = validationResult.data
 
         // Check if there's anything to update
-        if (resourceLabel === undefined && remindersEnabled === undefined && reminderOffsetsMinutes === undefined) {
+        if (
+            resourceLabel === undefined &&
+            remindersEnabled === undefined &&
+            reminderOffsetsMinutes === undefined &&
+            emailNotificationsEnabled === undefined &&
+            whatsappNotificationsEnabled === undefined
+        ) {
             return NextResponse.json(
                 {
                     error: {
@@ -110,7 +134,9 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
         const updatedBusiness = await updateBusinessSettings(prisma, businessId, {
             resourceLabel,
             remindersEnabled,
-            reminderOffsetsMinutes
+            reminderOffsetsMinutes,
+            emailNotificationsEnabled,
+            whatsappNotificationsEnabled
         })
 
         return NextResponse.json({

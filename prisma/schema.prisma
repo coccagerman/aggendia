@@ -37,17 +37,19 @@ enum ServiceStatus {
 }
 
 model Business {
-  id                       String   @id @default(uuid())
-  name                     String
-  slug                     String   @unique
-  timezone                 String
-  resourceLabel            String   @default("Recurso")
-  address                  String?
-  area                     String?
-  remindersEnabled         Boolean  @default(true)
-  reminderOffsetsMinutes   Int[]    @default([1440, 120]) // 24h y 2h antes
-  createdAt                DateTime @default(now())
-  updatedAt                DateTime @updatedAt
+  id                            String   @id @default(uuid())
+  name                          String
+  slug                          String   @unique
+  timezone                      String
+  resourceLabel                 String   @default("Recurso")
+  address                       String?
+  area                          String?
+  remindersEnabled              Boolean  @default(true)
+  reminderOffsetsMinutes        Int[]    @default([1440, 120]) // 24h y 2h antes
+  emailNotificationsEnabled     Boolean  @default(true)
+  whatsappNotificationsEnabled  Boolean  @default(false)
+  createdAt                     DateTime @default(now())
+  updatedAt                     DateTime @updatedAt
 
   members           BusinessMember[]
   resources         Resource[]
@@ -232,6 +234,7 @@ model Appointment {
 
 enum NotificationChannel {
   EMAIL
+  WHATSAPP
 }
 
 enum NotificationType {
@@ -264,9 +267,11 @@ model Notification {
   business    Business    @relation(fields: [businessId], references: [id], onDelete: Cascade)
   appointment Appointment @relation(fields: [appointmentId], references: [id], onDelete: Cascade)
 
-  // Idempotency: prevent duplicate notifications
-  @@unique([appointmentId, type, scheduledFor])
+  // Idempotency: prevent duplicate notifications per channel
+  // Allows same appointment to have EMAIL and WHATSAPP notifications independently
+  @@unique([appointmentId, channel, type, scheduledFor])
   @@index([businessId])
   @@index([appointmentId])
   @@index([status])
+  @@index([channel])
 }

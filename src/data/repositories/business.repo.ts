@@ -8,6 +8,8 @@ export interface UpdateBusinessSettingsInput {
     resourceLabel?: string
     remindersEnabled?: boolean
     reminderOffsetsMinutes?: number[]
+    emailNotificationsEnabled?: boolean
+    whatsappNotificationsEnabled?: boolean
 }
 
 /**
@@ -106,7 +108,8 @@ export async function updateBusinessResourceLabel(
 
 /**
  * Actualiza la configuración del negocio.
- * Soporta: resourceLabel, remindersEnabled, reminderOffsetsMinutes
+ * Soporta: resourceLabel, remindersEnabled, reminderOffsetsMinutes,
+ *          emailNotificationsEnabled, whatsappNotificationsEnabled
  */
 export async function updateBusinessSettings(
     prisma: PrismaClient,
@@ -118,7 +121,13 @@ export async function updateBusinessSettings(
         data: {
             ...(input.resourceLabel !== undefined && { resourceLabel: input.resourceLabel }),
             ...(input.remindersEnabled !== undefined && { remindersEnabled: input.remindersEnabled }),
-            ...(input.reminderOffsetsMinutes !== undefined && { reminderOffsetsMinutes: input.reminderOffsetsMinutes })
+            ...(input.reminderOffsetsMinutes !== undefined && { reminderOffsetsMinutes: input.reminderOffsetsMinutes }),
+            ...(input.emailNotificationsEnabled !== undefined && {
+                emailNotificationsEnabled: input.emailNotificationsEnabled
+            }),
+            ...(input.whatsappNotificationsEnabled !== undefined && {
+                whatsappNotificationsEnabled: input.whatsappNotificationsEnabled
+            })
         }
     })
 }

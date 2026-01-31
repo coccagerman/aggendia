@@ -134,7 +134,7 @@ describe('Notification Repository - Integration Tests', () => {
             expect(notification.error).toBeNull()
         })
 
-        it('should enforce unique constraint on (appointmentId, type, scheduledFor)', async () => {
+        it('should enforce unique constraint on (appointmentId, channel, type, scheduledFor)', async () => {
             const scheduledFor = new Date('2026-06-15T10:00:00.000Z')
 
             // Create first notification
@@ -277,7 +277,7 @@ describe('Notification Repository - Integration Tests', () => {
                 scheduledFor
             })
 
-            const exists = await notificationExists(prisma, appointmentId, 'CANCELLATION', scheduledFor)
+            const exists = await notificationExists(prisma, appointmentId, 'EMAIL', 'CANCELLATION', scheduledFor)
             expect(exists).toBe(true)
         })
 
@@ -285,10 +285,39 @@ describe('Notification Repository - Integration Tests', () => {
             const exists = await notificationExists(
                 prisma,
                 appointmentId,
+                'EMAIL',
                 'RESCHEDULED',
                 new Date('2026-12-31T23:59:59.000Z')
             )
             expect(exists).toBe(false)
+        })
+
+        it('should differentiate between channels for same appointment and type', async () => {
+            const scheduledFor = new Date('2026-07-06T10:00:00.000Z')
+
+            // Create EMAIL notification
+            await createNotification(prisma, {
+                businessId,
+                appointmentId,
+                channel: 'EMAIL',
+                type: 'CONFIRMATION',
+                to: 'channel-test@example.com',
+                scheduledFor
+            })
+
+            // EMAIL should exist
+            const emailExists = await notificationExists(prisma, appointmentId, 'EMAIL', 'CONFIRMATION', scheduledFor)
+            expect(emailExists).toBe(true)
+
+            // WHATSAPP should not exist (not created yet)
+            const whatsappExists = await notificationExists(
+                prisma,
+                appointmentId,
+                'WHATSAPP',
+                'CONFIRMATION',
+                scheduledFor
+            )
+            expect(whatsappExists).toBe(false)
         })
     })
 })

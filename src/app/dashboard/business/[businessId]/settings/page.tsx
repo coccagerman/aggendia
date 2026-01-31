@@ -6,6 +6,7 @@ import { prisma } from '@/data/prisma/prisma'
 import { getBusinessById } from '@/data/repositories/business.repo'
 import { checkBusinessAccess } from '@/lib/auth/require-business-access'
 import { ReminderSettings } from '@/components/dashboard/reminder-settings'
+import { WhatsAppSettings } from '@/components/dashboard/whatsapp-settings'
 import { Button } from '@/components/ui/button'
 
 interface SettingsPageProps {
@@ -70,6 +71,9 @@ export default async function SettingsPage({ params }: SettingsPageProps) {
                         initialEnabled={business.remindersEnabled}
                         initialOffsets={business.reminderOffsetsMinutes}
                     />
+
+                    {/* WhatsApp Settings - US-10.1 */}
+                    <WhatsAppSettings businessId={businessId} initialEnabled={business.whatsappNotificationsEnabled} />
                 </div>
             </main>
         </div>

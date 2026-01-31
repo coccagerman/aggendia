@@ -335,7 +335,7 @@ describe('Reminder Integration Tests', () => {
             const scheduledFor = addMinutes(appointmentStart, -1440)
 
             // First check - should not exist
-            const existsBefore = await notificationExists(prisma, appointment.id, 'REMINDER', scheduledFor)
+            const existsBefore = await notificationExists(prisma, appointment.id, 'EMAIL', 'REMINDER', scheduledFor)
             expect(existsBefore).toBe(false)
 
             // Create notification
@@ -352,7 +352,7 @@ describe('Reminder Integration Tests', () => {
             })
 
             // Second check - should exist
-            const existsAfter = await notificationExists(prisma, appointment.id, 'REMINDER', scheduledFor)
+            const existsAfter = await notificationExists(prisma, appointment.id, 'EMAIL', 'REMINDER', scheduledFor)
             expect(existsAfter).toBe(true)
 
             // Cleanup

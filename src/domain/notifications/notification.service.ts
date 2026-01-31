@@ -106,7 +106,20 @@ export async function sendConfirmationEmail(
         }
     }
 
-    // 2. Skip if email is not enabled (missing API key)
+    // 2. Skip if email notifications are disabled for business
+    if (!business.emailNotificationsEnabled) {
+        console.info(`[Notification] Skipping confirmation email: email channel disabled`, {
+            appointmentId,
+            businessId: business.id
+        })
+        return {
+            success: false,
+            notificationId: '',
+            error: 'Email notifications are disabled'
+        }
+    }
+
+    // 3. Skip if email is not enabled (missing API key)
     if (!isEmailEnabled()) {
         console.warn(`[Notification] Email sending disabled: RESEND_API_KEY not configured`, {
             appointmentId,

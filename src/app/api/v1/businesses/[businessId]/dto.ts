@@ -8,6 +8,13 @@ const ALLOWED_REMINDER_OFFSETS = [1440, 120] as const
 
 /**
  * Schema para actualizar configuración del negocio (PATCH)
+ *
+ * Campos soportados:
+ * - resourceLabel: etiqueta visible para recursos
+ * - remindersEnabled: habilita/deshabilita recordatorios automáticos
+ * - reminderOffsetsMinutes: cuándo enviar recordatorios (24h y/o 2h antes)
+ * - emailNotificationsEnabled: habilita/deshabilita canal de email (US-10.1)
+ * - whatsappNotificationsEnabled: habilita/deshabilita canal de WhatsApp (US-10.1)
  */
 export const updateBusinessSettingsSchema = z
     .object({
@@ -32,7 +39,9 @@ export const updateBusinessSettingsSchema = z
             .refine(arr => new Set(arr).size === arr.length, {
                 message: 'Los offsets no pueden repetirse'
             })
-            .optional()
+            .optional(),
+        emailNotificationsEnabled: z.boolean().optional(),
+        whatsappNotificationsEnabled: z.boolean().optional()
     })
     .superRefine((data, ctx) => {
         if (data.remindersEnabled === true && data.reminderOffsetsMinutes?.length === 0) {

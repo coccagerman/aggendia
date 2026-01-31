@@ -16,6 +16,8 @@ export interface Business {
     area: string | null
     remindersEnabled: boolean
     reminderOffsetsMinutes: number[]
+    emailNotificationsEnabled: boolean
+    whatsappNotificationsEnabled: boolean
     createdAt: Date
     updatedAt: Date
 }
