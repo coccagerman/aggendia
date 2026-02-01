@@ -597,6 +597,7 @@ export interface EligibleAppointment {
         remindersEnabled: boolean
         reminderOffsetsMinutes: number[]
         emailNotificationsEnabled: boolean
+        whatsappNotificationsEnabled: boolean
     }
     service: {
         id: string
@@ -609,6 +610,7 @@ export interface EligibleAppointment {
     customer: {
         fullName: string
         email: string | null
+        phoneE164: string | null
     }
 }
 
@@ -677,7 +679,8 @@ export async function findEligibleAppointmentsForReminders(
                     address: true,
                     remindersEnabled: true,
                     reminderOffsetsMinutes: true,
-                    emailNotificationsEnabled: true
+                    emailNotificationsEnabled: true,
+                    whatsappNotificationsEnabled: true
                 }
             },
             service: {
@@ -695,7 +698,8 @@ export async function findEligibleAppointmentsForReminders(
             customer: {
                 select: {
                     fullName: true,
-                    email: true
+                    email: true,
+                    phoneE164: true
                 }
             }
         },

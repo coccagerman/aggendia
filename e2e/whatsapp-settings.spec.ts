@@ -28,8 +28,10 @@ test.describe('WhatsApp Settings E2E (US-10.1)', () => {
         // Navigate to settings page
         await page.goto(`/dashboard/business/${businessId}/settings`)
 
-        // Should see WhatsApp settings card - verify by the info message which is unique
-        await expect(page.getByText('El envío de mensajes por WhatsApp se habilitará próximamente')).toBeVisible()
+        // Should see WhatsApp settings card with title and description
+        await expect(page.getByTestId('whatsapp-settings')).toBeVisible()
+        await expect(page.getByText('Notificaciones por WhatsApp', { exact: true })).toBeVisible()
+        await expect(page.getByText('Enviá confirmaciones y recordatorios a tus clientes por WhatsApp.')).toBeVisible()
         await expect(page.getByLabel(/activar notificaciones por whatsapp/i)).toBeVisible()
     })
 

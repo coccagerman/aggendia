@@ -1,18 +1,20 @@
 /**
  * Unit tests for reminder service
- * Tests sendReminderEmail and processReminders business logic
+ * Tests sendReminderEmail, sendReminderWhatsApp and processReminders business logic
  *
- * @see docs/user-stories.md - US-8.2, US-8.3
+ * @see docs/user-stories.md - US-8.2, US-8.3, US-10.3
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import {
     sendReminderEmail,
+    sendReminderWhatsApp,
     SendReminderEmailInput,
     calculateScheduledFor,
     calculateQueryWindow,
     ALLOWED_OFFSETS
 } from '@/domain/notifications/reminder.service'
+import { SendReminderWhatsAppInput } from '@/domain/notifications/notification.types'
 
 // Mock the resend client module
 vi.mock('@/lib/resend/client', () => ({
@@ -23,6 +25,12 @@ vi.mock('@/lib/resend/client', () => ({
     },
     defaultFromEmail: 'test@example.com',
     isEmailEnabled: vi.fn()
+}))
+
+// Mock the WhatsApp client module
+vi.mock('@/lib/whatsapp/client', () => ({
+    sendTextMessage: vi.fn(),
+    isWhatsAppEnabled: vi.fn()
 }))
 
 // Mock the notification repository
@@ -38,6 +46,7 @@ vi.mock('@/data/repositories/appointment.repo', () => ({
 }))
 
 import { resend, isEmailEnabled } from '@/lib/resend/client'
+import { sendTextMessage, isWhatsAppEnabled } from '@/lib/whatsapp/client'
 import { createNotification, updateNotificationStatus } from '@/data/repositories/notification.repo'
 import { PrismaClient } from '@prisma/client'
 
@@ -330,6 +339,315 @@ describe('reminder.service', () => {
     describe('ALLOWED_OFFSETS constant', () => {
         it('should contain only 24h and 2h offsets', () => {
             expect(ALLOWED_OFFSETS).toEqual([1440, 120])
+        })
+    })
+
+    // =========================================================================
+    // US-10.3: sendReminderWhatsApp tests
+    // =========================================================================
+    describe('sendReminderWhatsApp', () => {
+        const validWhatsAppInput: SendReminderWhatsAppInput = {
+            appointmentId: 'appointment-123',
+            business: {
+                id: 'business-456',
+                name: 'Test Business',
+                timezone: 'America/Argentina/Buenos_Aires',
+                resourceLabel: 'Profesional',
+                remindersEnabled: true,
+                reminderOffsetsMinutes: [1440, 120],
+                whatsappNotificationsEnabled: true
+            },
+            service: {
+                id: 'service-789',
+                name: 'Corte de pelo'
+            },
+            resource: {
+                id: 'resource-abc',
+                name: 'Juan García'
+            },
+            customer: {
+                fullName: 'María López',
+                phoneE164: '+5491155667788'
+            },
+            startAt: new Date('2026-01-15T14:00:00.000Z'),
+            offsetMinutes: 1440
+        }
+
+        describe('when customer has no phoneE164', () => {
+            it('should skip WhatsApp sending and return failure result', async () => {
+                const inputWithoutPhone: SendReminderWhatsAppInput = {
+                    ...validWhatsAppInput,
+                    customer: {
+                        ...validWhatsAppInput.customer,
+                        phoneE164: null
+                    }
+                }
+
+                const result = await sendReminderWhatsApp(mockPrisma, inputWithoutPhone)
+
+                expect(result.success).toBe(false)
+                expect(result.error).toBe('Customer has no valid phone number')
+                expect(createNotification).not.toHaveBeenCalled()
+                expect(sendTextMessage).not.toHaveBeenCalled()
+            })
+        })
+
+        describe('when WhatsApp is disabled for business', () => {
+            it('should skip WhatsApp sending and return failure result', async () => {
+                const inputWithWhatsAppDisabled: SendReminderWhatsAppInput = {
+                    ...validWhatsAppInput,
+                    business: {
+                        ...validWhatsAppInput.business,
+                        whatsappNotificationsEnabled: false
+                    }
+                }
+
+                const result = await sendReminderWhatsApp(mockPrisma, inputWithWhatsAppDisabled)
+
+                expect(result.success).toBe(false)
+                expect(result.error).toBe('WhatsApp notifications are disabled')
+                expect(createNotification).not.toHaveBeenCalled()
+                expect(sendTextMessage).not.toHaveBeenCalled()
+            })
+        })
+
+        describe('when WhatsApp is disabled globally (no env vars)', () => {
+            it('should skip WhatsApp sending and return failure result', async () => {
+                vi.mocked(isWhatsAppEnabled).mockReturnValue(false)
+
+                const result = await sendReminderWhatsApp(mockPrisma, validWhatsAppInput)
+
+                expect(result.success).toBe(false)
+                expect(result.error).toBe('WhatsApp sending is disabled')
+                expect(createNotification).not.toHaveBeenCalled()
+            })
+        })
+
+        describe('when reminders are disabled for business (revalidation)', () => {
+            it('should skip WhatsApp sending and return failure result', async () => {
+                vi.mocked(isWhatsAppEnabled).mockReturnValue(true)
+
+                const inputWithRemindersDisabled: SendReminderWhatsAppInput = {
+                    ...validWhatsAppInput,
+                    business: {
+                        ...validWhatsAppInput.business,
+                        remindersEnabled: false
+                    }
+                }
+
+                const result = await sendReminderWhatsApp(mockPrisma, inputWithRemindersDisabled)
+
+                expect(result.success).toBe(false)
+                expect(result.error).toBe('Reminders are disabled')
+                expect(createNotification).not.toHaveBeenCalled()
+            })
+        })
+
+        describe('when offset is not configured for business (revalidation)', () => {
+            it('should skip WhatsApp sending and return failure result', async () => {
+                vi.mocked(isWhatsAppEnabled).mockReturnValue(true)
+
+                const inputWithWrongOffset: SendReminderWhatsAppInput = {
+                    ...validWhatsAppInput,
+                    business: {
+                        ...validWhatsAppInput.business,
+                        reminderOffsetsMinutes: [120] // Only 2h, not 24h
+                    },
+                    offsetMinutes: 1440 // Trying to send 24h reminder
+                }
+
+                const result = await sendReminderWhatsApp(mockPrisma, inputWithWrongOffset)
+
+                expect(result.success).toBe(false)
+                expect(result.error).toBe('Offset not configured')
+                expect(createNotification).not.toHaveBeenCalled()
+            })
+        })
+
+        describe('when WhatsApp is enabled and customer has phone', () => {
+            beforeEach(() => {
+                vi.mocked(isWhatsAppEnabled).mockReturnValue(true)
+            })
+
+            it('should create notification and send WhatsApp successfully for 24h reminder', async () => {
+                const mockNotification = {
+                    id: 'notification-456',
+                    businessId: validWhatsAppInput.business.id,
+                    appointmentId: validWhatsAppInput.appointmentId,
+                    channel: 'WHATSAPP' as const,
+                    type: 'REMINDER' as const,
+                    to: validWhatsAppInput.customer.phoneE164!,
+                    status: 'PENDING' as const,
+                    scheduledFor: new Date(),
+                    sentAt: null,
+                    error: null,
+                    createdAt: new Date(),
+                    updatedAt: new Date()
+                }
+
+                vi.mocked(createNotification).mockResolvedValue(mockNotification)
+                vi.mocked(sendTextMessage).mockResolvedValue({
+                    success: true,
+                    messageId: 'wamid.123'
+                })
+                vi.mocked(updateNotificationStatus).mockResolvedValue({
+                    ...mockNotification,
+                    status: 'SENT',
+                    sentAt: new Date()
+                })
+
+                const result = await sendReminderWhatsApp(mockPrisma, validWhatsAppInput)
+
+                expect(result.success).toBe(true)
+                expect(result.notificationId).toBe('notification-456')
+
+                // Check notification was created with correct type
+                expect(createNotification).toHaveBeenCalledWith(mockPrisma, {
+                    businessId: validWhatsAppInput.business.id,
+                    appointmentId: validWhatsAppInput.appointmentId,
+                    channel: 'WHATSAPP',
+                    type: 'REMINDER',
+                    to: validWhatsAppInput.customer.phoneE164,
+                    scheduledFor: expect.any(Date)
+                })
+
+                // Check WhatsApp message was sent with 24h reminder content
+                expect(sendTextMessage).toHaveBeenCalledWith(
+                    validWhatsAppInput.customer.phoneE164,
+                    expect.stringContaining('mañana')
+                )
+
+                // Check status was updated to SENT
+                expect(updateNotificationStatus).toHaveBeenCalledWith(
+                    mockPrisma,
+                    'notification-456',
+                    'SENT',
+                    expect.any(Date)
+                )
+            })
+
+            it('should use correct message for 2h reminder', async () => {
+                const input2h: SendReminderWhatsAppInput = {
+                    ...validWhatsAppInput,
+                    offsetMinutes: 120
+                }
+
+                const mockNotification = {
+                    id: 'notification-456',
+                    businessId: input2h.business.id,
+                    appointmentId: input2h.appointmentId,
+                    channel: 'WHATSAPP' as const,
+                    type: 'REMINDER' as const,
+                    to: input2h.customer.phoneE164!,
+                    status: 'PENDING' as const,
+                    scheduledFor: new Date(),
+                    sentAt: null,
+                    error: null,
+                    createdAt: new Date(),
+                    updatedAt: new Date()
+                }
+
+                vi.mocked(createNotification).mockResolvedValue(mockNotification)
+                vi.mocked(sendTextMessage).mockResolvedValue({
+                    success: true,
+                    messageId: 'wamid.123'
+                })
+                vi.mocked(updateNotificationStatus).mockResolvedValue({
+                    ...mockNotification,
+                    status: 'SENT',
+                    sentAt: new Date()
+                })
+
+                await sendReminderWhatsApp(mockPrisma, input2h)
+
+                // Check WhatsApp message was sent with 2h reminder content
+                expect(sendTextMessage).toHaveBeenCalledWith(
+                    input2h.customer.phoneE164,
+                    expect.stringContaining('2 horas')
+                )
+            })
+
+            it('should handle WhatsApp send failure and update status to FAILED', async () => {
+                const mockNotification = {
+                    id: 'notification-456',
+                    businessId: validWhatsAppInput.business.id,
+                    appointmentId: validWhatsAppInput.appointmentId,
+                    channel: 'WHATSAPP' as const,
+                    type: 'REMINDER' as const,
+                    to: validWhatsAppInput.customer.phoneE164!,
+                    status: 'PENDING' as const,
+                    scheduledFor: new Date(),
+                    sentAt: null,
+                    error: null,
+                    createdAt: new Date(),
+                    updatedAt: new Date()
+                }
+
+                vi.mocked(createNotification).mockResolvedValue(mockNotification)
+                vi.mocked(sendTextMessage).mockResolvedValue({
+                    success: false,
+                    error: 'Invalid phone number'
+                })
+                vi.mocked(updateNotificationStatus).mockResolvedValue({
+                    ...mockNotification,
+                    status: 'FAILED',
+                    error: 'Invalid phone number'
+                })
+
+                const result = await sendReminderWhatsApp(mockPrisma, validWhatsAppInput)
+
+                expect(result.success).toBe(false)
+                expect(result.notificationId).toBe('notification-456')
+                expect(result.error).toBe('Invalid phone number')
+
+                // Check status was updated to FAILED
+                expect(updateNotificationStatus).toHaveBeenCalledWith(
+                    mockPrisma,
+                    'notification-456',
+                    'FAILED',
+                    undefined,
+                    'Invalid phone number'
+                )
+            })
+
+            it('should handle unexpected errors and update status to FAILED', async () => {
+                const mockNotification = {
+                    id: 'notification-456',
+                    businessId: validWhatsAppInput.business.id,
+                    appointmentId: validWhatsAppInput.appointmentId,
+                    channel: 'WHATSAPP' as const,
+                    type: 'REMINDER' as const,
+                    to: validWhatsAppInput.customer.phoneE164!,
+                    status: 'PENDING' as const,
+                    scheduledFor: new Date(),
+                    sentAt: null,
+                    error: null,
+                    createdAt: new Date(),
+                    updatedAt: new Date()
+                }
+
+                vi.mocked(createNotification).mockResolvedValue(mockNotification)
+                vi.mocked(sendTextMessage).mockRejectedValue(new Error('Network error'))
+                vi.mocked(updateNotificationStatus).mockResolvedValue({
+                    ...mockNotification,
+                    status: 'FAILED',
+                    error: 'Network error'
+                })
+
+                const result = await sendReminderWhatsApp(mockPrisma, validWhatsAppInput)
+
+                expect(result.success).toBe(false)
+                expect(result.error).toBe('Network error')
+
+                // Check status was updated to FAILED
+                expect(updateNotificationStatus).toHaveBeenCalledWith(
+                    mockPrisma,
+                    'notification-456',
+                    'FAILED',
+                    undefined,
+                    'Network error'
+                )
+            })
         })
     })
 })

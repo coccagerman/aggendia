@@ -1,23 +1,25 @@
 /**
  * Domain service for reminder notifications
- * Handles automatic reminder email sending for appointments
+ * Handles automatic reminder email and WhatsApp sending for appointments
  *
- * @see docs/user-stories.md - US-8.2, US-8.3
+ * @see docs/user-stories.md - US-8.2, US-8.3, US-10.3
  *
  * Key design decisions:
  * - Non-blocking: errors are caught and logged, never propagated
  * - Persistent: all attempts are recorded in notifications table
  * - Idempotent: duplicate reminders are prevented by DB constraint
  * - Timezone-aware: uses Luxon for precise DST handling
+ * - Channel isolation: email and WhatsApp failures don't affect each other
  */
 
-import { PrismaClient } from '@prisma/client'
+import { Prisma, PrismaClient } from '@prisma/client'
 import { DateTime } from 'luxon'
-import { SendNotificationResult } from './notification.types'
+import { SendNotificationResult, SendReminderWhatsAppInput } from './notification.types'
 import { createNotification, updateNotificationStatus, notificationExists } from '@/data/repositories/notification.repo'
 import { findEligibleAppointmentsForReminders } from '@/data/repositories/appointment.repo'
 import { getBusinessesForReminderOffset } from '@/data/repositories/business.repo'
 import { resend, defaultFromEmail, isEmailEnabled } from '@/lib/resend/client'
+import { sendTextMessage, isWhatsAppEnabled } from '@/lib/whatsapp/client'
 import {
     renderReminderEmail,
     renderReminderEmailText,
@@ -96,10 +98,10 @@ export type ReminderOffset = (typeof ALLOWED_OFFSETS)[number]
 const QUERY_WINDOW_MINUTES = 5
 
 /**
- * Format date for email display
+ * Format date for notification display
  * Output: "Lunes 15 de enero, 14:00"
  */
-function formatDateTimeForEmail(date: Date, timezone: string): string {
+function formatDateTimeForNotification(date: Date, timezone: string): string {
     const dt = DateTime.fromJSDate(date, { zone: timezone })
 
     const formattedDate = dt.toLocaleString(
@@ -145,6 +147,44 @@ function getTimezoneDisplayName(timezone: string): string {
  */
 function getReminderType(offsetMinutes: number): '24h' | '2h' {
     return offsetMinutes === 1440 ? '24h' : '2h'
+}
+
+/**
+ * Data needed to compose the reminder message for WhatsApp
+ */
+interface ReminderMessageData {
+    businessName: string
+    serviceName: string
+    resourceLabel: string
+    resourceName: string
+    formattedDateTime: string
+    timezone: string
+    reminderType: '24h' | '2h'
+}
+
+/**
+ * Compose reminder message text for WhatsApp
+ *
+ * Isolated function to allow future migration to template-based messages.
+ * In DEV/sandbox: returns plain text message
+ * In PROD (future): will return template parameters instead
+ *
+ * @param data - Message composition data
+ * @returns Formatted text message
+ */
+function composeReminderMessage(data: ReminderMessageData): string {
+    const header =
+        data.reminderType === '24h' ? '📅 Recordatorio: tu turno es mañana' : '⏰ Recordatorio: tu turno es en 2 horas'
+
+    return `${header}
+
+📍 ${data.businessName}
+📋 Servicio: ${data.serviceName}
+👤 ${data.resourceLabel}: ${data.resourceName}
+📅 ${data.formattedDateTime}
+🕐 Zona horaria: ${data.timezone}
+
+¡Te esperamos!`
 }
 
 /**
@@ -278,7 +318,7 @@ export async function sendReminderEmail(
             serviceName: service.name,
             resourceName: resource.name,
             resourceLabel: business.resourceLabel,
-            formattedDateTime: formatDateTimeForEmail(startAt, business.timezone),
+            formattedDateTime: formatDateTimeForNotification(startAt, business.timezone),
             timezone: getTimezoneDisplayName(business.timezone),
             address: business.address,
             reminderType: getReminderType(offsetMinutes)
@@ -361,16 +401,214 @@ export async function sendReminderEmail(
 }
 
 /**
+ * Send reminder WhatsApp message for an appointment
+ *
+ * This function:
+ * 1. Validates customer has phoneE164 (skips if not)
+ * 2. Validates WhatsApp is enabled for business
+ * 3. Revalidates reminders configuration (defensive)
+ * 4. Creates notification record with PENDING status
+ * 5. Attempts to send message via WhatsApp Cloud API
+ * 6. Updates notification status to SENT or FAILED
+ *
+ * IMPORTANT: This function NEVER throws exceptions.
+ * All errors are caught, logged, and persisted for later retry.
+ *
+ * @see docs/user-stories.md - US-10.3
+ */
+export async function sendReminderWhatsApp(
+    prisma: PrismaClient,
+    input: SendReminderWhatsAppInput
+): Promise<SendNotificationResult> {
+    const { appointmentId, business, service, resource, customer, startAt, offsetMinutes } = input
+
+    // Calculate scheduledFor time
+    const scheduledFor = calculateScheduledFor(startAt, offsetMinutes, business.timezone)
+
+    // 1. Skip if customer has no phoneE164
+    if (!customer.phoneE164) {
+        console.info(`[Reminder] Skipping WhatsApp reminder: no valid phone`, {
+            appointmentId,
+            businessId: business.id
+        })
+        return {
+            success: false,
+            notificationId: '',
+            error: 'Customer has no valid phone number'
+        }
+    }
+
+    // 2. Skip if WhatsApp notifications are disabled for business
+    if (!business.whatsappNotificationsEnabled) {
+        console.info(`[Reminder] Skipping WhatsApp reminder: channel disabled`, {
+            appointmentId,
+            businessId: business.id
+        })
+        return {
+            success: false,
+            notificationId: '',
+            error: 'WhatsApp notifications are disabled'
+        }
+    }
+
+    // 3. Skip if WhatsApp is not enabled (missing env vars)
+    if (!isWhatsAppEnabled()) {
+        console.warn(`[Reminder] WhatsApp sending disabled: missing configuration`, {
+            appointmentId,
+            businessId: business.id
+        })
+        return {
+            success: false,
+            notificationId: '',
+            error: 'WhatsApp sending is disabled'
+        }
+    }
+
+    // 4. Revalidate reminders are enabled (defensive - config may have changed)
+    if (!business.remindersEnabled) {
+        console.info(`[Reminder] Skipping WhatsApp reminder: reminders disabled`, {
+            appointmentId,
+            businessId: business.id
+        })
+        return {
+            success: false,
+            notificationId: '',
+            error: 'Reminders are disabled'
+        }
+    }
+
+    // 5. Revalidate offset is configured (defensive)
+    if (!business.reminderOffsetsMinutes.includes(offsetMinutes)) {
+        console.info(`[Reminder] Skipping WhatsApp reminder: offset not configured`, {
+            appointmentId,
+            businessId: business.id,
+            offsetMinutes
+        })
+        return {
+            success: false,
+            notificationId: '',
+            error: 'Offset not configured'
+        }
+    }
+
+    let notificationId = ''
+
+    try {
+        // 6. Create notification record with PENDING status
+        const notification = await createNotification(prisma, {
+            businessId: business.id,
+            appointmentId,
+            channel: 'WHATSAPP',
+            type: 'REMINDER',
+            to: customer.phoneE164,
+            scheduledFor
+        })
+        notificationId = notification.id
+
+        // 7. Compose and send message
+        const messageData: ReminderMessageData = {
+            businessName: business.name,
+            serviceName: service.name,
+            resourceLabel: business.resourceLabel,
+            resourceName: resource.name,
+            formattedDateTime: formatDateTimeForNotification(startAt, business.timezone),
+            timezone: getTimezoneDisplayName(business.timezone),
+            reminderType: getReminderType(offsetMinutes)
+        }
+
+        const messageText = composeReminderMessage(messageData)
+        const result = await sendTextMessage(customer.phoneE164, messageText)
+
+        if (!result.success) {
+            // 8a. Update notification status to FAILED
+            await updateNotificationStatus(prisma, notificationId, 'FAILED', undefined, result.error)
+
+            // Log without PII
+            console.error(`[Reminder] Failed to send WhatsApp reminder`, {
+                appointmentId,
+                businessId: business.id,
+                notificationId,
+                offsetMinutes
+            })
+
+            return {
+                success: false,
+                notificationId,
+                error: result.error
+            }
+        }
+
+        // 8b. Update notification status to SENT
+        await updateNotificationStatus(prisma, notificationId, 'SENT', new Date())
+
+        // Log without PII
+        console.info(`[Reminder] WhatsApp reminder sent`, {
+            appointmentId,
+            businessId: business.id,
+            notificationId,
+            offsetMinutes,
+            messageId: result.messageId
+        })
+
+        return {
+            success: true,
+            notificationId
+        }
+    } catch (error) {
+        // Handle duplicate notification (idempotency)
+        if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
+            console.info(`[Reminder] WhatsApp reminder already exists (idempotent)`, {
+                appointmentId,
+                businessId: business.id
+            })
+            return {
+                success: false,
+                notificationId: '',
+                error: 'Notification already exists'
+            }
+        }
+
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+
+        console.error(`[Reminder] Unexpected error sending WhatsApp reminder`, {
+            appointmentId,
+            businessId: business.id,
+            notificationId: notificationId || 'not-created',
+            errorType: error instanceof Error ? error.name : 'Unknown'
+        })
+
+        // Try to update notification status if we have an ID
+        if (notificationId) {
+            try {
+                await updateNotificationStatus(prisma, notificationId, 'FAILED', undefined, errorMessage)
+            } catch (updateError) {
+                console.error(`[Reminder] Failed to update WhatsApp notification status`, {
+                    notificationId,
+                    errorType: updateError instanceof Error ? updateError.name : 'Unknown'
+                })
+            }
+        }
+
+        return {
+            success: false,
+            notificationId,
+            error: errorMessage
+        }
+    }
+}
+
+/**
  * Process all eligible reminders
  *
  * This is the main orchestrator function that:
  * 1. Finds all businesses with reminders enabled
  * 2. For each configured offset, queries eligible appointments
- * 3. Attempts to send reminder for each appointment
+ * 3. Attempts to send reminder for each appointment (both email and WhatsApp)
  * 4. Returns aggregate metrics
  *
  * IMPORTANT: This function catches all errors internally and never throws.
  * Errors are logged and included in the result.
+ * Each channel (email/WhatsApp) is processed in isolation - failures don't affect other channels.
  */
 export async function processReminders(
     prisma: PrismaClient,
@@ -442,19 +680,6 @@ export async function processReminders(
                         appointment.business.timezone
                     )
 
-                    // Check if reminder already exists (idempotency)
-                    // Note: Currently only EMAIL reminders, WHATSAPP will be added in US-10.3
-                    const exists = await notificationExists(prisma, appointment.id, 'EMAIL', 'REMINDER', scheduledFor)
-
-                    if (exists) {
-                        console.info(`[Reminder] Skipping: reminder already exists`, {
-                            appointmentId: appointment.id,
-                            offsetMinutes: offset
-                        })
-                        result.skipped++
-                        continue
-                    }
-
                     // Check if appointment is still SCHEDULED (in case status changed)
                     if (appointment.status !== 'SCHEDULED') {
                         console.info(`[Reminder] Skipping: appointment not SCHEDULED`, {
@@ -487,44 +712,132 @@ export async function processReminders(
                         continue
                     }
 
-                    // Skip if customer has no email
-                    if (!appointment.customer.email) {
-                        console.info(`[Reminder] Skipping: no customer email`, {
-                            appointmentId: appointment.id
-                        })
-                        result.skipped++
-                        continue
-                    }
+                    // =========================================================
+                    // CHANNEL: EMAIL (isolated block)
+                    // =========================================================
+                    try {
+                        // Check if email reminder already exists (idempotency)
+                        const emailExists = await notificationExists(
+                            prisma,
+                            appointment.id,
+                            'EMAIL',
+                            'REMINDER',
+                            scheduledFor
+                        )
 
-                    // Dry run mode - don't actually send
-                    if (dryRun) {
-                        console.info(`[Reminder] DRY RUN: would send reminder`, {
-                            appointmentId: appointment.id,
-                            businessId: appointment.business.id,
-                            offsetMinutes: offset
-                        })
-                        result.sent++ // Count as "would be sent"
-                        continue
-                    }
+                        if (emailExists) {
+                            console.info(`[Reminder] Skipping EMAIL: reminder already exists`, {
+                                appointmentId: appointment.id,
+                                offsetMinutes: offset
+                            })
+                            result.skipped++
+                        } else if (!appointment.customer.email) {
+                            console.info(`[Reminder] Skipping EMAIL: no customer email`, {
+                                appointmentId: appointment.id
+                            })
+                            result.skipped++
+                        } else if (dryRun) {
+                            console.info(`[Reminder] DRY RUN: would send EMAIL reminder`, {
+                                appointmentId: appointment.id,
+                                businessId: appointment.business.id,
+                                offsetMinutes: offset
+                            })
+                            result.sent++
+                        } else {
+                            // Send the email reminder
+                            const emailResult = await sendReminderEmail(prisma, {
+                                appointmentId: appointment.id,
+                                business: appointment.business,
+                                service: appointment.service,
+                                resource: appointment.resource,
+                                customer: appointment.customer,
+                                startAt: appointment.startAt,
+                                offsetMinutes: offset
+                            })
 
-                    // Send the reminder
-                    const sendResult = await sendReminderEmail(prisma, {
-                        appointmentId: appointment.id,
-                        business: appointment.business,
-                        service: appointment.service,
-                        resource: appointment.resource,
-                        customer: appointment.customer,
-                        startAt: appointment.startAt,
-                        offsetMinutes: offset
-                    })
-
-                    if (sendResult.success) {
-                        result.sent++
-                    } else {
-                        result.failed++
-                        if (sendResult.error) {
-                            result.errors.push(`${appointment.id}: ${sendResult.error}`)
+                            if (emailResult.success) {
+                                result.sent++
+                            } else {
+                                result.failed++
+                                if (emailResult.error) {
+                                    result.errors.push(`${appointment.id} (EMAIL): send_failed`)
+                                }
+                            }
                         }
+                    } catch (emailError) {
+                        // Log without PII, never re-throw - continue to WhatsApp
+                        console.error(`[Reminder] Unexpected error processing EMAIL`, {
+                            appointmentId: appointment.id,
+                            errorType: emailError instanceof Error ? emailError.name : 'Unknown'
+                        })
+                        result.failed++
+                    }
+
+                    // =========================================================
+                    // CHANNEL: WHATSAPP (isolated block)
+                    // =========================================================
+                    try {
+                        // Check if WhatsApp reminder already exists (idempotency)
+                        const whatsappExists = await notificationExists(
+                            prisma,
+                            appointment.id,
+                            'WHATSAPP',
+                            'REMINDER',
+                            scheduledFor
+                        )
+
+                        if (whatsappExists) {
+                            console.info(`[Reminder] Skipping WHATSAPP: reminder already exists`, {
+                                appointmentId: appointment.id,
+                                offsetMinutes: offset
+                            })
+                            result.skipped++
+                        } else if (!appointment.customer.phoneE164) {
+                            console.info(`[Reminder] Skipping WHATSAPP: no customer phone`, {
+                                appointmentId: appointment.id
+                            })
+                            result.skipped++
+                        } else if (!appointment.business.whatsappNotificationsEnabled) {
+                            console.info(`[Reminder] Skipping WHATSAPP: channel disabled for business`, {
+                                appointmentId: appointment.id,
+                                businessId: appointment.business.id
+                            })
+                            result.skipped++
+                        } else if (dryRun) {
+                            console.info(`[Reminder] DRY RUN: would send WHATSAPP reminder`, {
+                                appointmentId: appointment.id,
+                                businessId: appointment.business.id,
+                                offsetMinutes: offset
+                            })
+                            result.sent++
+                        } else {
+                            // Send the WhatsApp reminder
+                            const whatsappResult = await sendReminderWhatsApp(prisma, {
+                                appointmentId: appointment.id,
+                                business: appointment.business,
+                                service: appointment.service,
+                                resource: appointment.resource,
+                                customer: appointment.customer,
+                                startAt: appointment.startAt,
+                                offsetMinutes: offset
+                            })
+
+                            if (whatsappResult.success) {
+                                result.sent++
+                            } else {
+                                result.failed++
+                                if (whatsappResult.error) {
+                                    result.errors.push(`${appointment.id} (WHATSAPP): send_failed`)
+                                }
+                            }
+                        }
+                    } catch (whatsappError) {
+                        // Log without PII, never re-throw - continue to next appointment
+                        console.error(`[Reminder] Unexpected error processing WHATSAPP`, {
+                            appointmentId: appointment.id,
+                            errorType: whatsappError instanceof Error ? whatsappError.name : 'Unknown'
+                        })
+                        result.failed++
                     }
                 }
             }

@@ -2,7 +2,7 @@
  * Integration tests for reminder functionality
  * Tests the full flow of finding eligible appointments and processing reminders
  *
- * @see docs/user-stories.md - US-8.2, US-8.3
+ * @see docs/user-stories.md - US-8.2, US-8.3, US-10.3
  */
 
 import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest'
@@ -29,6 +29,12 @@ vi.mock('@/lib/resend/client', () => ({
     },
     defaultFromEmail: 'test@example.com',
     isEmailEnabled: vi.fn().mockReturnValue(true)
+}))
+
+// Mock WhatsApp sending to avoid actual messages in tests
+vi.mock('@/lib/whatsapp/client', () => ({
+    sendTextMessage: vi.fn().mockResolvedValue({ success: true, messageId: 'mock-wa-id' }),
+    isWhatsAppEnabled: vi.fn().mockReturnValue(true)
 }))
 
 describe('Reminder Integration Tests', () => {
@@ -358,6 +364,193 @@ describe('Reminder Integration Tests', () => {
             // Cleanup
             await prisma.notification.deleteMany({ where: { appointmentId: appointment.id } })
             await prisma.appointment.delete({ where: { id: appointment.id } })
+        })
+    })
+
+    // =========================================================================
+    // US-10.3: WhatsApp Reminder Integration Tests
+    // =========================================================================
+    describe('WhatsApp Reminder Integration (US-10.3)', () => {
+        it('should include whatsappNotificationsEnabled and phoneE164 in eligible appointments', async () => {
+            // Enable WhatsApp for the business
+            await updateBusinessSettings(prisma, businessId, {
+                whatsappNotificationsEnabled: true
+            })
+
+            // Create customer with phone (phoneE164 is generated internally from phone)
+            const customerWithPhone = await upsertCustomer(prisma, businessId, {
+                fullName: 'WhatsApp Test Customer',
+                email: 'wa-test@example.com',
+                phone: '+5491155667788'
+            })
+
+            // Create appointment within 24h window
+            const now = new Date()
+            const appointmentStart = addMinutes(addHours(now, 24), 3)
+            const appointmentEnd = addMinutes(appointmentStart, 30)
+            const occupiedEnd = appointmentEnd
+
+            const { windowStart, windowEnd } = calculateQueryWindow(now, 1440, TIMEZONE)
+
+            const appointment = await createAppointment(prisma, {
+                businessId,
+                resourceId,
+                serviceId,
+                customerId: customerWithPhone.id,
+                startAt: appointmentStart,
+                endAt: appointmentEnd,
+                occupiedEndAt: occupiedEnd,
+                notes: 'Test WhatsApp reminder'
+            })
+
+            // Query for 24h offset
+            const eligible = await findEligibleAppointmentsForReminders(prisma, {
+                offsetMinutes: 1440,
+                windowStart,
+                windowEnd,
+                businessId
+            })
+
+            const found = eligible.find(a => a.id === appointment.id)
+            expect(found).toBeDefined()
+            expect(found?.business.whatsappNotificationsEnabled).toBe(true)
+            expect(found?.customer.phoneE164).toBe('+5491155667788')
+
+            // Cleanup
+            await prisma.appointment.delete({ where: { id: appointment.id } })
+            await prisma.customer.delete({ where: { id: customerWithPhone.id } })
+            await updateBusinessSettings(prisma, businessId, {
+                whatsappNotificationsEnabled: false
+            })
+        })
+
+        it('should allow independent idempotency for EMAIL and WHATSAPP channels', async () => {
+            // Create an appointment
+            const now = new Date()
+            const appointmentStart = addMinutes(addHours(now, 24), 2)
+            const appointmentEnd = addMinutes(appointmentStart, 30)
+            const occupiedEnd = appointmentEnd
+
+            const appointment = await createAppointment(prisma, {
+                businessId,
+                resourceId,
+                serviceId,
+                customerId,
+                startAt: appointmentStart,
+                endAt: appointmentEnd,
+                occupiedEndAt: occupiedEnd,
+                notes: 'Test channel idempotency'
+            })
+
+            // Calculate scheduledFor (24h before appointment)
+            const scheduledFor = addMinutes(appointmentStart, -1440)
+
+            // Create EMAIL notification
+            await prisma.notification.create({
+                data: {
+                    businessId,
+                    appointmentId: appointment.id,
+                    channel: 'EMAIL',
+                    type: 'REMINDER',
+                    to: 'test@example.com',
+                    status: 'SENT',
+                    scheduledFor
+                }
+            })
+
+            // EMAIL should exist, WHATSAPP should not
+            const emailExists = await notificationExists(prisma, appointment.id, 'EMAIL', 'REMINDER', scheduledFor)
+            const whatsappExists = await notificationExists(
+                prisma,
+                appointment.id,
+                'WHATSAPP',
+                'REMINDER',
+                scheduledFor
+            )
+
+            expect(emailExists).toBe(true)
+            expect(whatsappExists).toBe(false)
+
+            // Create WHATSAPP notification (should succeed - different channel)
+            await prisma.notification.create({
+                data: {
+                    businessId,
+                    appointmentId: appointment.id,
+                    channel: 'WHATSAPP',
+                    type: 'REMINDER',
+                    to: '+5491155667788',
+                    status: 'SENT',
+                    scheduledFor
+                }
+            })
+
+            // Now both should exist
+            const emailExistsAfter = await notificationExists(prisma, appointment.id, 'EMAIL', 'REMINDER', scheduledFor)
+            const whatsappExistsAfter = await notificationExists(
+                prisma,
+                appointment.id,
+                'WHATSAPP',
+                'REMINDER',
+                scheduledFor
+            )
+
+            expect(emailExistsAfter).toBe(true)
+            expect(whatsappExistsAfter).toBe(true)
+
+            // Cleanup
+            await prisma.notification.deleteMany({ where: { appointmentId: appointment.id } })
+            await prisma.appointment.delete({ where: { id: appointment.id } })
+        })
+
+        it('should not find appointments when WhatsApp is disabled but include phoneE164 for potential future use', async () => {
+            // Ensure WhatsApp is disabled
+            await updateBusinessSettings(prisma, businessId, {
+                whatsappNotificationsEnabled: false
+            })
+
+            // Create customer with phone (phoneE164 is generated internally from phone)
+            const customerWithPhone = await upsertCustomer(prisma, businessId, {
+                fullName: 'WhatsApp Disabled Customer',
+                email: 'wa-disabled@example.com',
+                phone: '+5491199887766'
+            })
+
+            // Create appointment within 24h window
+            const now = new Date()
+            const appointmentStart = addMinutes(addHours(now, 24), 3)
+            const appointmentEnd = addMinutes(appointmentStart, 30)
+            const occupiedEnd = appointmentEnd
+
+            const { windowStart, windowEnd } = calculateQueryWindow(now, 1440, TIMEZONE)
+
+            const appointment = await createAppointment(prisma, {
+                businessId,
+                resourceId,
+                serviceId,
+                customerId: customerWithPhone.id,
+                startAt: appointmentStart,
+                endAt: appointmentEnd,
+                occupiedEndAt: occupiedEnd,
+                notes: 'Test WhatsApp disabled'
+            })
+
+            // Query for 24h offset - appointment should be found (query doesn't filter by WhatsApp enabled)
+            const eligible = await findEligibleAppointmentsForReminders(prisma, {
+                offsetMinutes: 1440,
+                windowStart,
+                windowEnd,
+                businessId
+            })
+
+            const found = eligible.find(a => a.id === appointment.id)
+            expect(found).toBeDefined()
+            // WhatsApp disabled but phoneE164 is still returned
+            expect(found?.business.whatsappNotificationsEnabled).toBe(false)
+            expect(found?.customer.phoneE164).toBe('+5491199887766')
+
+            // Cleanup
+            await prisma.appointment.delete({ where: { id: appointment.id } })
+            await prisma.customer.delete({ where: { id: customerWithPhone.id } })
         })
     })
 })

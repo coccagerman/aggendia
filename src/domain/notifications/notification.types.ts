@@ -118,3 +118,42 @@ export interface SendConfirmationWhatsAppInput {
     /** Appointment start time (UTC) */
     startAt: Date
 }
+
+/**
+ * Input for sending reminder WhatsApp message
+ * Contains all data needed to compose and send the WhatsApp reminder
+ * @see docs/user-stories.md - US-10.3
+ */
+export interface SendReminderWhatsAppInput {
+    /** Appointment ID for tracking */
+    appointmentId: string
+    /** Business info */
+    business: {
+        id: string
+        name: string
+        timezone: string
+        resourceLabel: string
+        remindersEnabled: boolean
+        reminderOffsetsMinutes: number[]
+        whatsappNotificationsEnabled: boolean
+    }
+    /** Service info */
+    service: {
+        id: string
+        name: string
+    }
+    /** Resource info */
+    resource: {
+        id: string
+        name: string
+    }
+    /** Customer info */
+    customer: {
+        fullName: string
+        phoneE164: string | null
+    }
+    /** Appointment start time (UTC) */
+    startAt: Date
+    /** Offset in minutes (1440 = 24h, 120 = 2h) */
+    offsetMinutes: number
+}
