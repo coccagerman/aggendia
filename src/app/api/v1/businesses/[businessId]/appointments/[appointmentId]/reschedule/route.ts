@@ -3,6 +3,7 @@
  * Reschedules an appointment to a new time slot
  *
  * @see docs/user-stories.md - US-6.3 Reprogramar turno
+ * @see docs/user-stories.md - US-10.4 Notificaciones de reprogramación
  */
 
 import { NextRequest, NextResponse } from 'next/server'
@@ -10,9 +11,15 @@ import { requireAuth } from '@/lib/auth'
 import { requireBusinessAccess } from '@/lib/auth/require-business-access'
 import { prisma } from '@/data/prisma/prisma'
 import { rescheduleAppointment, RescheduleAppointmentDeps } from '@/domain/appointments/appointment.service'
-import { getAppointmentForReschedule, createRescheduledAppointment } from '@/data/repositories/appointment.repo'
+import {
+    getAppointmentForReschedule,
+    createRescheduledAppointment,
+    getAppointmentById
+} from '@/data/repositories/appointment.repo'
 import { getAvailabilityByResourceId } from '@/data/repositories/availability.repo'
 import { getBlocksByResourceId } from '@/data/repositories/block.repo'
+import { getBusinessById } from '@/data/repositories/business.repo'
+import { createNotification } from '@/data/repositories/notification.repo'
 import { AppError, ValidationErrorCodes } from '@/domain/common/errors'
 import { rescheduleAppointmentSchema } from './dto'
 
@@ -82,7 +89,11 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
 
         const { newStartAt } = validationResult.data
 
-        // 4. Call domain service to reschedule appointment
+        // 4. Get original appointment data for notifications (before reschedule)
+        const originalAppointment = await getAppointmentById(prisma, businessId, appointmentId)
+        const originalStartAt = originalAppointment?.startAt
+
+        // 5. Call domain service to reschedule appointment
         const deps = createRescheduleAppointmentDeps()
         const result = await rescheduleAppointment(deps, {
             businessId,
@@ -90,7 +101,55 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
             newStartAt
         })
 
-        // 5. Return success response
+        // 6. Queue rescheduled notifications (PENDING records)
+        // Get the new appointment with minimal relations for notification queue
+        const newAppointment = await getAppointmentById(prisma, businessId, result.newAppointmentId)
+        if (newAppointment && originalStartAt) {
+            const business = await getBusinessById(prisma, businessId)
+            if (business) {
+                const createdAt = newAppointment.createdAt
+
+                // Queue EMAIL notification (will be processed by cron)
+                if (business.emailNotificationsEnabled && newAppointment.customer.email) {
+                    createNotification(prisma, {
+                        businessId,
+                        appointmentId: newAppointment.id,
+                        channel: 'EMAIL',
+                        type: 'RESCHEDULED',
+                        to: newAppointment.customer.email,
+                        scheduledFor: createdAt
+                    }).catch(err => {
+                        // Log but don't fail the request if notification creation fails
+                        // Note: only log error message, not full object (may contain PII)
+                        console.error('[Reschedule] Failed to queue email notification:', {
+                            appointmentId: newAppointment.id,
+                            error: err instanceof Error ? err.message : 'Unknown error'
+                        })
+                    })
+                }
+
+                // Queue WHATSAPP notification (will be processed by cron)
+                if (business.whatsappNotificationsEnabled && newAppointment.customer.phoneE164) {
+                    createNotification(prisma, {
+                        businessId,
+                        appointmentId: newAppointment.id,
+                        channel: 'WHATSAPP',
+                        type: 'RESCHEDULED',
+                        to: newAppointment.customer.phoneE164,
+                        scheduledFor: createdAt
+                    }).catch(err => {
+                        // Log but don't fail the request if notification creation fails
+                        // Note: only log error message, not full object (may contain PII)
+                        console.error('[Reschedule] Failed to queue WhatsApp notification:', {
+                            appointmentId: newAppointment.id,
+                            error: err instanceof Error ? err.message : 'Unknown error'
+                        })
+                    })
+                }
+            }
+        }
+
+        // 7. Return success response
         return NextResponse.json({ data: result })
     } catch (error) {
         // Handle known domain errors (AppError)

@@ -20,6 +20,7 @@ import { findEligibleAppointmentsForReminders } from '@/data/repositories/appoin
 import { getBusinessesForReminderOffset } from '@/data/repositories/business.repo'
 import { resend, defaultFromEmail, isEmailEnabled } from '@/lib/resend/client'
 import { sendTextMessage, isWhatsAppEnabled } from '@/lib/whatsapp/client'
+import { formatDateTimeForNotification, getTimezoneDisplayName } from '@/lib/notifications/notification-time'
 import {
     renderReminderEmail,
     renderReminderEmailText,
@@ -96,51 +97,6 @@ export type ReminderOffset = (typeof ALLOWED_OFFSETS)[number]
  * This accounts for cron execution interval (10 min) with safety margin
  */
 const QUERY_WINDOW_MINUTES = 5
-
-/**
- * Format date for notification display
- * Output: "Lunes 15 de enero, 14:00"
- */
-function formatDateTimeForNotification(date: Date, timezone: string): string {
-    const dt = DateTime.fromJSDate(date, { zone: timezone })
-
-    const formattedDate = dt.toLocaleString(
-        {
-            weekday: 'long',
-            day: 'numeric',
-            month: 'long'
-        },
-        { locale: 'es' }
-    )
-
-    const formattedTime = dt.toLocaleString(DateTime.TIME_24_SIMPLE, { locale: 'es' })
-
-    // Capitalize first letter
-    const capitalizedDate = formattedDate.charAt(0).toUpperCase() + formattedDate.slice(1)
-
-    return `${capitalizedDate}, ${formattedTime}`
-}
-
-/**
- * Get friendly timezone name
- */
-function getTimezoneDisplayName(timezone: string): string {
-    const timezoneMap: Record<string, string> = {
-        'America/Argentina/Buenos_Aires': 'Argentina',
-        'America/Buenos_Aires': 'Argentina',
-        'America/Sao_Paulo': 'Brasil',
-        'America/Santiago': 'Chile',
-        'America/Lima': 'Perú',
-        'America/Bogota': 'Colombia',
-        'America/Mexico_City': 'México',
-        'America/New_York': 'Nueva York',
-        'America/Los_Angeles': 'Los Ángeles',
-        'Europe/Madrid': 'España',
-        UTC: 'UTC'
-    }
-
-    return timezoneMap[timezone] || timezone
-}
 
 /**
  * Get reminder type label based on offset
@@ -318,7 +274,7 @@ export async function sendReminderEmail(
             serviceName: service.name,
             resourceName: resource.name,
             resourceLabel: business.resourceLabel,
-            formattedDateTime: formatDateTimeForNotification(startAt, business.timezone),
+            formattedDateTime: formatDateTimeForNotification(startAt, business.timezone, 'reminder'),
             timezone: getTimezoneDisplayName(business.timezone),
             address: business.address,
             reminderType: getReminderType(offsetMinutes)
@@ -511,7 +467,7 @@ export async function sendReminderWhatsApp(
             serviceName: service.name,
             resourceLabel: business.resourceLabel,
             resourceName: resource.name,
-            formattedDateTime: formatDateTimeForNotification(startAt, business.timezone),
+            formattedDateTime: formatDateTimeForNotification(startAt, business.timezone, 'reminder'),
             timezone: getTimezoneDisplayName(business.timezone),
             reminderType: getReminderType(offsetMinutes)
         }

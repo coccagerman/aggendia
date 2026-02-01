@@ -12,7 +12,15 @@
  */
 
 import { PrismaClient, Prisma } from '@prisma/client'
-import { SendConfirmationEmailInput, SendConfirmationWhatsAppInput, SendNotificationResult } from './notification.types'
+import {
+    SendConfirmationEmailInput,
+    SendConfirmationWhatsAppInput,
+    SendNotificationResult,
+    SendCancellationEmailInput,
+    SendCancellationWhatsAppInput,
+    SendRescheduledEmailInput,
+    SendRescheduledWhatsAppInput
+} from './notification.types'
 import { createNotification, updateNotificationStatus } from '@/data/repositories/notification.repo'
 import { resend, defaultFromEmail, isEmailEnabled } from '@/lib/resend/client'
 import { sendTextMessage, isWhatsAppEnabled } from '@/lib/whatsapp/client'
@@ -21,6 +29,16 @@ import {
     renderConfirmationEmailText,
     ConfirmationEmailData
 } from '@/lib/resend/templates/confirmation.template'
+import {
+    renderCancellationEmail,
+    renderCancellationEmailText,
+    CancellationEmailData
+} from '@/lib/resend/templates/cancellation.template'
+import {
+    renderRescheduledEmail,
+    renderRescheduledEmailText,
+    RescheduledEmailData
+} from '@/lib/resend/templates/rescheduled.template'
 
 /**
  * Format date for notification display (email and WhatsApp)
@@ -422,6 +440,727 @@ export async function sendConfirmationWhatsApp(
         })
 
         // Try to update notification status if we have an ID
+        if (notificationId) {
+            try {
+                await updateNotificationStatus(prisma, notificationId, 'FAILED', undefined, errorMessage)
+            } catch (updateError) {
+                console.error(`[Notification] Failed to update notification status`, {
+                    notificationId,
+                    errorType: updateError instanceof Error ? updateError.name : 'Unknown'
+                })
+            }
+        }
+
+        return {
+            success: false,
+            notificationId,
+            error: errorMessage
+        }
+    }
+}
+
+// ============================================================================
+// Cancellation Email - US-10.4
+// ============================================================================
+
+/**
+ * Send cancellation email when an appointment is cancelled
+ *
+ * This function:
+ * 1. Validates customer has email (skips if not)
+ * 2. Creates notification record with PENDING status
+ * 3. Attempts to send email via Resend
+ * 4. Updates notification status to SENT or FAILED
+ *
+ * IMPORTANT: This function NEVER throws exceptions.
+ * All errors are caught, logged, and persisted for later retry.
+ *
+ * @param prisma - Prisma client
+ * @param input - Appointment and customer data
+ * @returns Result with success status and notification ID
+ */
+export async function sendCancellationEmail(
+    prisma: PrismaClient,
+    input: SendCancellationEmailInput
+): Promise<SendNotificationResult> {
+    const { appointmentId, cancelledAt, business, service, resource, customer, startAt } = input
+
+    // 1. Skip if customer has no email
+    if (!customer.email) {
+        console.info(`[Notification] Skipping cancellation email: no customer email`, {
+            appointmentId,
+            businessId: business.id
+        })
+        return {
+            success: false,
+            notificationId: '',
+            error: 'Customer has no email address'
+        }
+    }
+
+    // 2. Skip if email notifications are disabled for business
+    if (!business.emailNotificationsEnabled) {
+        console.info(`[Notification] Skipping cancellation email: email channel disabled`, {
+            appointmentId,
+            businessId: business.id
+        })
+        return {
+            success: false,
+            notificationId: '',
+            error: 'Email notifications are disabled'
+        }
+    }
+
+    // 3. Skip if email is not enabled (missing API key)
+    if (!isEmailEnabled()) {
+        console.warn(`[Notification] Email sending disabled: RESEND_API_KEY not configured`, {
+            appointmentId,
+            businessId: business.id
+        })
+        return {
+            success: false,
+            notificationId: '',
+            error: 'Email sending is disabled'
+        }
+    }
+
+    let notificationId = ''
+
+    try {
+        // 4. Create notification record with PENDING status
+        // Use cancelledAt (updatedAt) as scheduledFor for idempotency
+        const notification = await createNotification(prisma, {
+            businessId: business.id,
+            appointmentId,
+            channel: 'EMAIL',
+            type: 'CANCELLATION',
+            to: customer.email,
+            scheduledFor: cancelledAt
+        })
+        notificationId = notification.id
+
+        // 5. Prepare email data
+        const emailData: CancellationEmailData = {
+            customerName: customer.fullName,
+            businessName: business.name,
+            serviceName: service.name,
+            resourceName: resource.name,
+            resourceLabel: business.resourceLabel,
+            formattedDateTime: formatDateTimeForNotification(startAt, business.timezone),
+            timezone: getTimezoneDisplayName(business.timezone)
+        }
+
+        // 6. Send email via Resend
+        const { error: sendError } = await resend!.emails.send({
+            from: defaultFromEmail,
+            to: customer.email,
+            subject: `Turno cancelado - ${business.name}`,
+            html: renderCancellationEmail(emailData),
+            text: renderCancellationEmailText(emailData)
+        })
+
+        if (sendError) {
+            // 7a. Update notification status to FAILED
+            await updateNotificationStatus(prisma, notificationId, 'FAILED', undefined, sendError.message)
+
+            console.error(`[Notification] Failed to send cancellation email`, {
+                appointmentId,
+                businessId: business.id,
+                notificationId,
+                errorName: sendError.name
+            })
+
+            return {
+                success: false,
+                notificationId,
+                error: sendError.message
+            }
+        }
+
+        // 7b. Update notification status to SENT
+        await updateNotificationStatus(prisma, notificationId, 'SENT', new Date())
+
+        console.info(`[Notification] Cancellation email sent`, {
+            appointmentId,
+            businessId: business.id,
+            notificationId
+        })
+
+        return {
+            success: true,
+            notificationId
+        }
+    } catch (error) {
+        // Handle duplicate notification (idempotency)
+        if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
+            console.info(`[Notification] Cancellation email already exists (idempotent)`, {
+                appointmentId,
+                businessId: business.id
+            })
+            return {
+                success: false,
+                notificationId: '',
+                error: 'Notification already exists'
+            }
+        }
+
+        // 8. Handle unexpected errors
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+
+        console.error(`[Notification] Unexpected error sending cancellation email`, {
+            appointmentId,
+            businessId: business.id,
+            notificationId: notificationId || 'not-created',
+            errorType: error instanceof Error ? error.name : 'Unknown'
+        })
+
+        if (notificationId) {
+            try {
+                await updateNotificationStatus(prisma, notificationId, 'FAILED', undefined, errorMessage)
+            } catch (updateError) {
+                console.error(`[Notification] Failed to update notification status`, {
+                    notificationId,
+                    errorType: updateError instanceof Error ? updateError.name : 'Unknown'
+                })
+            }
+        }
+
+        return {
+            success: false,
+            notificationId,
+            error: errorMessage
+        }
+    }
+}
+
+// ============================================================================
+// Cancellation WhatsApp - US-10.4
+// ============================================================================
+
+/**
+ * Data needed to compose the cancellation message
+ */
+interface CancellationMessageData {
+    businessName: string
+    serviceName: string
+    resourceLabel: string
+    resourceName: string
+    formattedDateTime: string
+    timezone: string
+}
+
+/**
+ * Compose cancellation message text for WhatsApp
+ */
+function composeCancellationMessage(data: CancellationMessageData): string {
+    return `❌ Turno cancelado
+
+📍 ${data.businessName}
+📋 Servicio: ${data.serviceName}
+👤 ${data.resourceLabel}: ${data.resourceName}
+📅 ${data.formattedDateTime} (cancelado)
+🕐 Zona horaria: ${data.timezone}
+
+Si deseas reservar un nuevo turno, visitá la página del negocio.`
+}
+
+/**
+ * Send cancellation WhatsApp message when an appointment is cancelled
+ *
+ * IMPORTANT: This function NEVER throws exceptions.
+ *
+ * @param prisma - Prisma client
+ * @param input - Appointment and customer data
+ * @returns Result with success status and notification ID
+ */
+export async function sendCancellationWhatsApp(
+    prisma: PrismaClient,
+    input: SendCancellationWhatsAppInput
+): Promise<SendNotificationResult> {
+    const { appointmentId, cancelledAt, business, service, resource, customer, startAt } = input
+
+    // 1. Skip if customer has no phoneE164
+    if (!customer.phoneE164) {
+        console.info(`[Notification] Skipping WhatsApp cancellation: no valid phone`, {
+            appointmentId,
+            businessId: business.id
+        })
+        return {
+            success: false,
+            notificationId: '',
+            error: 'Customer has no valid phone number'
+        }
+    }
+
+    // 2. Skip if WhatsApp notifications are disabled for business
+    if (!business.whatsappNotificationsEnabled) {
+        console.info(`[Notification] Skipping WhatsApp cancellation: channel disabled`, {
+            appointmentId,
+            businessId: business.id
+        })
+        return {
+            success: false,
+            notificationId: '',
+            error: 'WhatsApp notifications are disabled'
+        }
+    }
+
+    // 3. Skip if WhatsApp is not enabled (missing env vars)
+    if (!isWhatsAppEnabled()) {
+        console.warn(`[Notification] WhatsApp sending disabled: missing configuration`, {
+            appointmentId,
+            businessId: business.id
+        })
+        return {
+            success: false,
+            notificationId: '',
+            error: 'WhatsApp sending is disabled'
+        }
+    }
+
+    let notificationId = ''
+
+    try {
+        // 4. Create notification record with PENDING status
+        // Use cancelledAt (updatedAt) as scheduledFor for idempotency
+        const notification = await createNotification(prisma, {
+            businessId: business.id,
+            appointmentId,
+            channel: 'WHATSAPP',
+            type: 'CANCELLATION',
+            to: customer.phoneE164,
+            scheduledFor: cancelledAt
+        })
+        notificationId = notification.id
+
+        // 5. Compose and send message
+        const messageData: CancellationMessageData = {
+            businessName: business.name,
+            serviceName: service.name,
+            resourceLabel: business.resourceLabel,
+            resourceName: resource.name,
+            formattedDateTime: formatDateTimeForNotification(startAt, business.timezone),
+            timezone: getTimezoneDisplayName(business.timezone)
+        }
+
+        const messageText = composeCancellationMessage(messageData)
+        const result = await sendTextMessage(customer.phoneE164, messageText)
+
+        if (!result.success) {
+            // 6a. Update notification status to FAILED
+            await updateNotificationStatus(prisma, notificationId, 'FAILED', undefined, result.error)
+
+            console.error(`[Notification] Failed to send WhatsApp cancellation`, {
+                appointmentId,
+                businessId: business.id,
+                notificationId
+            })
+
+            return {
+                success: false,
+                notificationId,
+                error: result.error
+            }
+        }
+
+        // 6b. Update notification status to SENT
+        await updateNotificationStatus(prisma, notificationId, 'SENT', new Date())
+
+        console.info(`[Notification] WhatsApp cancellation sent`, {
+            appointmentId,
+            businessId: business.id,
+            notificationId,
+            messageId: result.messageId
+        })
+
+        return {
+            success: true,
+            notificationId
+        }
+    } catch (error) {
+        // Handle duplicate notification (idempotency)
+        if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
+            console.info(`[Notification] WhatsApp cancellation already exists (idempotent)`, {
+                appointmentId,
+                businessId: business.id
+            })
+            return {
+                success: false,
+                notificationId: '',
+                error: 'Notification already exists'
+            }
+        }
+
+        // 7. Handle unexpected errors
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+
+        console.error(`[Notification] Unexpected error sending WhatsApp cancellation`, {
+            appointmentId,
+            businessId: business.id,
+            notificationId: notificationId || 'not-created',
+            errorType: error instanceof Error ? error.name : 'Unknown'
+        })
+
+        if (notificationId) {
+            try {
+                await updateNotificationStatus(prisma, notificationId, 'FAILED', undefined, errorMessage)
+            } catch (updateError) {
+                console.error(`[Notification] Failed to update notification status`, {
+                    notificationId,
+                    errorType: updateError instanceof Error ? updateError.name : 'Unknown'
+                })
+            }
+        }
+
+        return {
+            success: false,
+            notificationId,
+            error: errorMessage
+        }
+    }
+}
+
+// ============================================================================
+// Rescheduled Email - US-10.4
+// ============================================================================
+
+/**
+ * Send rescheduled email when an appointment is reprogrammed
+ *
+ * IMPORTANT: This function NEVER throws exceptions.
+ *
+ * @param prisma - Prisma client
+ * @param input - Appointment and customer data
+ * @returns Result with success status and notification ID
+ */
+export async function sendRescheduledEmail(
+    prisma: PrismaClient,
+    input: SendRescheduledEmailInput
+): Promise<SendNotificationResult> {
+    const { appointmentId, createdAt, business, service, resource, customer, originalStartAt, newStartAt } = input
+
+    // 1. Skip if customer has no email
+    if (!customer.email) {
+        console.info(`[Notification] Skipping rescheduled email: no customer email`, {
+            appointmentId,
+            businessId: business.id
+        })
+        return {
+            success: false,
+            notificationId: '',
+            error: 'Customer has no email address'
+        }
+    }
+
+    // 2. Skip if email notifications are disabled for business
+    if (!business.emailNotificationsEnabled) {
+        console.info(`[Notification] Skipping rescheduled email: email channel disabled`, {
+            appointmentId,
+            businessId: business.id
+        })
+        return {
+            success: false,
+            notificationId: '',
+            error: 'Email notifications are disabled'
+        }
+    }
+
+    // 3. Skip if email is not enabled (missing API key)
+    if (!isEmailEnabled()) {
+        console.warn(`[Notification] Email sending disabled: RESEND_API_KEY not configured`, {
+            appointmentId,
+            businessId: business.id
+        })
+        return {
+            success: false,
+            notificationId: '',
+            error: 'Email sending is disabled'
+        }
+    }
+
+    let notificationId = ''
+
+    try {
+        // 4. Create notification record with PENDING status
+        // Use createdAt as scheduledFor for idempotency (new appointment creation time)
+        const notification = await createNotification(prisma, {
+            businessId: business.id,
+            appointmentId,
+            channel: 'EMAIL',
+            type: 'RESCHEDULED',
+            to: customer.email,
+            scheduledFor: createdAt
+        })
+        notificationId = notification.id
+
+        // 5. Prepare email data
+        const emailData: RescheduledEmailData = {
+            customerName: customer.fullName,
+            businessName: business.name,
+            serviceName: service.name,
+            resourceName: resource.name,
+            resourceLabel: business.resourceLabel,
+            originalFormattedDateTime: formatDateTimeForNotification(originalStartAt, business.timezone),
+            newFormattedDateTime: formatDateTimeForNotification(newStartAt, business.timezone),
+            timezone: getTimezoneDisplayName(business.timezone),
+            address: business.address
+        }
+
+        // 6. Send email via Resend
+        const { error: sendError } = await resend!.emails.send({
+            from: defaultFromEmail,
+            to: customer.email,
+            subject: `Turno reprogramado - ${business.name}`,
+            html: renderRescheduledEmail(emailData),
+            text: renderRescheduledEmailText(emailData)
+        })
+
+        if (sendError) {
+            // 7a. Update notification status to FAILED
+            await updateNotificationStatus(prisma, notificationId, 'FAILED', undefined, sendError.message)
+
+            console.error(`[Notification] Failed to send rescheduled email`, {
+                appointmentId,
+                businessId: business.id,
+                notificationId,
+                errorName: sendError.name
+            })
+
+            return {
+                success: false,
+                notificationId,
+                error: sendError.message
+            }
+        }
+
+        // 7b. Update notification status to SENT
+        await updateNotificationStatus(prisma, notificationId, 'SENT', new Date())
+
+        console.info(`[Notification] Rescheduled email sent`, {
+            appointmentId,
+            businessId: business.id,
+            notificationId
+        })
+
+        return {
+            success: true,
+            notificationId
+        }
+    } catch (error) {
+        // Handle duplicate notification (idempotency)
+        if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
+            console.info(`[Notification] Rescheduled email already exists (idempotent)`, {
+                appointmentId,
+                businessId: business.id
+            })
+            return {
+                success: false,
+                notificationId: '',
+                error: 'Notification already exists'
+            }
+        }
+
+        // 8. Handle unexpected errors
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+
+        console.error(`[Notification] Unexpected error sending rescheduled email`, {
+            appointmentId,
+            businessId: business.id,
+            notificationId: notificationId || 'not-created',
+            errorType: error instanceof Error ? error.name : 'Unknown'
+        })
+
+        if (notificationId) {
+            try {
+                await updateNotificationStatus(prisma, notificationId, 'FAILED', undefined, errorMessage)
+            } catch (updateError) {
+                console.error(`[Notification] Failed to update notification status`, {
+                    notificationId,
+                    errorType: updateError instanceof Error ? updateError.name : 'Unknown'
+                })
+            }
+        }
+
+        return {
+            success: false,
+            notificationId,
+            error: errorMessage
+        }
+    }
+}
+
+// ============================================================================
+// Rescheduled WhatsApp - US-10.4
+// ============================================================================
+
+/**
+ * Data needed to compose the rescheduled message
+ */
+interface RescheduledMessageData {
+    businessName: string
+    serviceName: string
+    resourceLabel: string
+    resourceName: string
+    originalFormattedDateTime: string
+    newFormattedDateTime: string
+    timezone: string
+}
+
+/**
+ * Compose rescheduled message text for WhatsApp
+ */
+function composeRescheduledMessage(data: RescheduledMessageData): string {
+    return `🔄 Turno reprogramado
+
+📍 ${data.businessName}
+📋 Servicio: ${data.serviceName}
+👤 ${data.resourceLabel}: ${data.resourceName}
+
+📅 Fecha anterior: ${data.originalFormattedDateTime}
+✅ Nueva fecha: ${data.newFormattedDateTime}
+🕐 Zona horaria: ${data.timezone}
+
+¡Te esperamos!`
+}
+
+/**
+ * Send rescheduled WhatsApp message when an appointment is reprogrammed
+ *
+ * IMPORTANT: This function NEVER throws exceptions.
+ *
+ * @param prisma - Prisma client
+ * @param input - Appointment and customer data
+ * @returns Result with success status and notification ID
+ */
+export async function sendRescheduledWhatsApp(
+    prisma: PrismaClient,
+    input: SendRescheduledWhatsAppInput
+): Promise<SendNotificationResult> {
+    const { appointmentId, createdAt, business, service, resource, customer, originalStartAt, newStartAt } = input
+
+    // 1. Skip if customer has no phoneE164
+    if (!customer.phoneE164) {
+        console.info(`[Notification] Skipping WhatsApp rescheduled: no valid phone`, {
+            appointmentId,
+            businessId: business.id
+        })
+        return {
+            success: false,
+            notificationId: '',
+            error: 'Customer has no valid phone number'
+        }
+    }
+
+    // 2. Skip if WhatsApp notifications are disabled for business
+    if (!business.whatsappNotificationsEnabled) {
+        console.info(`[Notification] Skipping WhatsApp rescheduled: channel disabled`, {
+            appointmentId,
+            businessId: business.id
+        })
+        return {
+            success: false,
+            notificationId: '',
+            error: 'WhatsApp notifications are disabled'
+        }
+    }
+
+    // 3. Skip if WhatsApp is not enabled (missing env vars)
+    if (!isWhatsAppEnabled()) {
+        console.warn(`[Notification] WhatsApp sending disabled: missing configuration`, {
+            appointmentId,
+            businessId: business.id
+        })
+        return {
+            success: false,
+            notificationId: '',
+            error: 'WhatsApp sending is disabled'
+        }
+    }
+
+    let notificationId = ''
+
+    try {
+        // 4. Create notification record with PENDING status
+        // Use createdAt as scheduledFor for idempotency (new appointment creation time)
+        const notification = await createNotification(prisma, {
+            businessId: business.id,
+            appointmentId,
+            channel: 'WHATSAPP',
+            type: 'RESCHEDULED',
+            to: customer.phoneE164,
+            scheduledFor: createdAt
+        })
+        notificationId = notification.id
+
+        // 5. Compose and send message
+        const messageData: RescheduledMessageData = {
+            businessName: business.name,
+            serviceName: service.name,
+            resourceLabel: business.resourceLabel,
+            resourceName: resource.name,
+            originalFormattedDateTime: formatDateTimeForNotification(originalStartAt, business.timezone),
+            newFormattedDateTime: formatDateTimeForNotification(newStartAt, business.timezone),
+            timezone: getTimezoneDisplayName(business.timezone)
+        }
+
+        const messageText = composeRescheduledMessage(messageData)
+        const result = await sendTextMessage(customer.phoneE164, messageText)
+
+        if (!result.success) {
+            // 6a. Update notification status to FAILED
+            await updateNotificationStatus(prisma, notificationId, 'FAILED', undefined, result.error)
+
+            console.error(`[Notification] Failed to send WhatsApp rescheduled`, {
+                appointmentId,
+                businessId: business.id,
+                notificationId
+            })
+
+            return {
+                success: false,
+                notificationId,
+                error: result.error
+            }
+        }
+
+        // 6b. Update notification status to SENT
+        await updateNotificationStatus(prisma, notificationId, 'SENT', new Date())
+
+        console.info(`[Notification] WhatsApp rescheduled sent`, {
+            appointmentId,
+            businessId: business.id,
+            notificationId,
+            messageId: result.messageId
+        })
+
+        return {
+            success: true,
+            notificationId
+        }
+    } catch (error) {
+        // Handle duplicate notification (idempotency)
+        if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
+            console.info(`[Notification] WhatsApp rescheduled already exists (idempotent)`, {
+                appointmentId,
+                businessId: business.id
+            })
+            return {
+                success: false,
+                notificationId: '',
+                error: 'Notification already exists'
+            }
+        }
+
+        // 7. Handle unexpected errors
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+
+        console.error(`[Notification] Unexpected error sending WhatsApp rescheduled`, {
+            appointmentId,
+            businessId: business.id,
+            notificationId: notificationId || 'not-created',
+            errorType: error instanceof Error ? error.name : 'Unknown'
+        })
+
         if (notificationId) {
             try {
                 await updateNotificationStatus(prisma, notificationId, 'FAILED', undefined, errorMessage)

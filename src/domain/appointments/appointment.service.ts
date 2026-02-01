@@ -93,7 +93,8 @@ export async function cancelAppointment(
         return {
             appointmentId: appointment.id,
             status: 'CANCELLED',
-            cancellationReason: appointment.cancellationReason
+            cancellationReason: appointment.cancellationReason,
+            wasAlreadyCancelled: true
         }
     }
 
@@ -125,7 +126,8 @@ export async function cancelAppointment(
             return {
                 appointmentId: currentAppointment.id,
                 status: 'CANCELLED',
-                cancellationReason: currentAppointment.cancellationReason
+                cancellationReason: currentAppointment.cancellationReason,
+                wasAlreadyCancelled: true
             }
         }
 
@@ -142,7 +144,8 @@ export async function cancelAppointment(
     return {
         appointmentId: updated.id,
         status: 'CANCELLED',
-        cancellationReason: updated.cancellationReason
+        cancellationReason: updated.cancellationReason,
+        wasAlreadyCancelled: false
     }
 }
 

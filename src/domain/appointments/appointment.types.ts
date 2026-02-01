@@ -61,6 +61,8 @@ export interface CancelAppointmentOutput {
     appointmentId: string
     status: 'CANCELLED'
     cancellationReason: string | null
+    /** True if appointment was already cancelled (idempotent operation) */
+    wasAlreadyCancelled: boolean
 }
 
 /**

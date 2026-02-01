@@ -49,7 +49,8 @@ describe('cancelAppointment', () => {
             expect(result).toEqual({
                 appointmentId,
                 status: 'CANCELLED',
-                cancellationReason: 'Test reason'
+                cancellationReason: 'Test reason',
+                wasAlreadyCancelled: false
             })
 
             expect(mockDeps.getAppointmentById).toHaveBeenCalledWith(businessId, appointmentId)
@@ -116,7 +117,8 @@ describe('cancelAppointment', () => {
             expect(result).toEqual({
                 appointmentId,
                 status: 'CANCELLED',
-                cancellationReason: 'Already cancelled'
+                cancellationReason: 'Already cancelled',
+                wasAlreadyCancelled: true
             })
 
             // Should NOT call updateAppointmentStatus (already cancelled)
@@ -147,7 +149,8 @@ describe('cancelAppointment', () => {
             expect(result).toEqual({
                 appointmentId,
                 status: 'CANCELLED',
-                cancellationReason: 'Cancelled by other process'
+                cancellationReason: 'Cancelled by other process',
+                wasAlreadyCancelled: true
             })
         })
     })

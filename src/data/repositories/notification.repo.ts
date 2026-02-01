@@ -141,6 +141,98 @@ export async function notificationExists(
 }
 
 /**
+ * Get pending notifications ready to be sent
+ * Returns notifications with PENDING status up to the specified limit
+ * Used by cron job to process queued notifications
+ */
+export type PendingNotificationWithAppointment = Notification & {
+    appointment: {
+        customer: { fullName: string; email: string | null; phoneE164: string | null }
+        service: { id: string; name: string }
+        resource: { id: string; name: string }
+        business: {
+            id: string
+            name: string
+            timezone: string
+            resourceLabel: string
+            address: string | null
+            emailNotificationsEnabled: boolean
+            whatsappNotificationsEnabled: boolean
+        }
+        startAt: Date
+        rescheduledFrom: { startAt: Date } | null
+    }
+}
+
+export async function getPendingNotifications(
+    prisma: PrismaClient,
+    limit: number = 100,
+    now: Date = new Date()
+): Promise<PendingNotificationWithAppointment[]> {
+    const notifications = await prisma.notification.findMany({
+        where: {
+            status: 'PENDING',
+            scheduledFor: { lte: now }
+        },
+        include: {
+            appointment: {
+                include: {
+                    customer: {
+                        select: {
+                            fullName: true,
+                            email: true,
+                            phoneE164: true
+                        }
+                    },
+                    service: {
+                        select: {
+                            id: true,
+                            name: true
+                        }
+                    },
+                    resource: {
+                        select: {
+                            id: true,
+                            name: true
+                        }
+                    },
+                    business: {
+                        select: {
+                            id: true,
+                            name: true,
+                            timezone: true,
+                            resourceLabel: true,
+                            address: true,
+                            emailNotificationsEnabled: true,
+                            whatsappNotificationsEnabled: true
+                        }
+                    },
+                    rescheduledFrom: {
+                        select: {
+                            startAt: true
+                        }
+                    }
+                }
+            }
+        },
+        orderBy: { scheduledFor: 'asc' },
+        take: limit
+    })
+
+    return notifications.map(n => ({
+        ...mapToNotification(n),
+        appointment: {
+            customer: n.appointment.customer,
+            service: n.appointment.service,
+            resource: n.appointment.resource,
+            business: n.appointment.business,
+            startAt: n.appointment.startAt,
+            rescheduledFrom: n.appointment.rescheduledFrom
+        }
+    }))
+}
+
+/**
  * Map Prisma model to domain type
  */
 function mapToNotification(prismaNotification: Prisma.NotificationGetPayload<object>): Notification {
