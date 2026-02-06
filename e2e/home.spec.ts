@@ -2,6 +2,7 @@
  * E2E Tests - Landing Page
  *
  * Tests de la página principal.
+ * Estos tests no requieren autenticación ni datos.
  */
 
 import { test, expect } from '@playwright/test'

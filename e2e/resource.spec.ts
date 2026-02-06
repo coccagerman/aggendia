@@ -2,23 +2,19 @@
  * E2E Tests - Resource Creation and Management Flow
  *
  * Tests end-to-end del flujo completo de creación y gestión de recursos.
+ * Cada test usa su propio usuario y negocio (UUID) para aislamiento paralelo.
  */
 
-import { test, expect } from '@playwright/test'
-import { generateTestEmail, signupUser } from './helpers/auth.helper'
-import { createBusiness, navigateToCreateResource } from './helpers/business.helper'
+import { test, expect } from './fixtures/business.fixture'
+import { navigateToCreateResource } from './helpers/business.helper'
+import { generateUniqueName } from './helpers/unique-id.helper'
 
 test.describe('Resource Creation E2E', () => {
-    test('complete resource creation flow', async ({ page }) => {
-        const email = generateTestEmail()
-        const password = 'TestPassword123!'
-        const businessName = `Business ${Date.now()}`
-        const resourceName = `Resource ${Date.now()}`
+    test('complete resource creation flow', async ({ authenticatedPage, testBusiness }) => {
+        const page = authenticatedPage
+        const resourceName = generateUniqueName('Resource')
 
-        // Setup: signup + crear negocio
-        await signupUser(page, email, password)
-        await createBusiness(page, businessName)
-        await expect(page.getByText(businessName)).toBeVisible()
+        await expect(page.getByText(testBusiness.businessName)).toBeVisible()
 
         // Navegar a crear recurso
         await navigateToCreateResource(page)
@@ -32,15 +28,10 @@ test.describe('Resource Creation E2E', () => {
         await expect(page.getByText(resourceName)).toBeVisible({ timeout: 5000 })
     })
 
-    test('shows error when creating duplicate resource', async ({ page }) => {
-        const email = generateTestEmail()
-        const password = 'TestPassword123!'
-        const businessName = `Business ${Date.now()}`
-        const resourceName = `Duplicate Resource ${Date.now()}`
-
-        // Setup: signup + crear negocio
-        await signupUser(page, email, password)
-        await createBusiness(page, businessName)
+    test('shows error when creating duplicate resource', async ({ authenticatedPage, testBusiness }) => {
+        const page = authenticatedPage
+        const resourceName = generateUniqueName('Duplicate Resource')
+        void testBusiness // ensure business fixture runs
 
         // Crear primer recurso
         await navigateToCreateResource(page)
@@ -66,15 +57,10 @@ test.describe('Resource Creation E2E', () => {
         }
     })
 
-    test('create resource with type PERSON shows correct badge', async ({ page }) => {
-        const email = generateTestEmail()
-        const password = 'TestPassword123!'
-        const businessName = `Business ${Date.now()}`
-        const resourceName = `Profesional ${Date.now()}`
-
-        // Setup: signup + crear negocio
-        await signupUser(page, email, password)
-        await createBusiness(page, businessName)
+    test('create resource with type PERSON shows correct badge', async ({ authenticatedPage, testBusiness }) => {
+        const page = authenticatedPage
+        const resourceName = generateUniqueName('Profesional')
+        void testBusiness // ensure business fixture runs
 
         // Crear recurso con type PERSON
         await navigateToCreateResource(page)
@@ -89,15 +75,10 @@ test.describe('Resource Creation E2E', () => {
         await expect(resourceItem.getByText('Activo')).toBeVisible()
     })
 
-    test('create resource with type ASSET shows correct display', async ({ page }) => {
-        const email = generateTestEmail()
-        const password = 'TestPassword123!'
-        const businessName = `Business ${Date.now()}`
-        const resourceName = `Cancha ${Date.now()}`
-
-        // Setup: signup + crear negocio
-        await signupUser(page, email, password)
-        await createBusiness(page, businessName)
+    test('create resource with type ASSET shows correct display', async ({ authenticatedPage, testBusiness }) => {
+        const page = authenticatedPage
+        const resourceName = generateUniqueName('Cancha')
+        void testBusiness // ensure business fixture runs
 
         // Crear recurso con type ASSET
         await navigateToCreateResource(page)
@@ -112,15 +93,10 @@ test.describe('Resource Creation E2E', () => {
         await expect(resourceItem.getByText('Activo')).toBeVisible()
     })
 
-    test('create resource without type (null) succeeds', async ({ page }) => {
-        const email = generateTestEmail()
-        const password = 'TestPassword123!'
-        const businessName = `Business ${Date.now()}`
-        const resourceName = `Recurso Sin Tipo ${Date.now()}`
-
-        // Setup: signup + crear negocio
-        await signupUser(page, email, password)
-        await createBusiness(page, businessName)
+    test('create resource without type (null) succeeds', async ({ authenticatedPage, testBusiness }) => {
+        const page = authenticatedPage
+        const resourceName = generateUniqueName('Recurso Sin Tipo')
+        void testBusiness // ensure business fixture runs
 
         // Crear recurso sin tipo (default = null)
         await navigateToCreateResource(page)
@@ -134,16 +110,11 @@ test.describe('Resource Creation E2E', () => {
         await expect(resourceItem.getByText('Activo')).toBeVisible()
     })
 
-    test('create multiple resources in same business shows both', async ({ page }) => {
-        const email = generateTestEmail()
-        const password = 'TestPassword123!'
-        const businessName = `Business ${Date.now()}`
-        const resource1Name = `Resource 1 ${Date.now()}`
-        const resource2Name = `Resource 2 ${Date.now()}`
-
-        // Setup: signup + crear negocio
-        await signupUser(page, email, password)
-        await createBusiness(page, businessName)
+    test('create multiple resources in same business shows both', async ({ authenticatedPage, testBusiness }) => {
+        const page = authenticatedPage
+        const resource1Name = generateUniqueName('Resource 1')
+        const resource2Name = generateUniqueName('Resource 2')
+        void testBusiness // ensure business fixture runs
 
         // Crear primer recurso
         await navigateToCreateResource(page)
@@ -167,16 +138,13 @@ test.describe('Resource Creation E2E', () => {
 })
 
 test.describe('Resource Edit E2E', () => {
-    test('edit resource name via dropdown menu', async ({ page }) => {
-        const email = generateTestEmail()
-        const password = 'TestPassword123!'
-        const businessName = `Business ${Date.now()}`
-        const originalName = `Recurso Original ${Date.now()}`
-        const newName = `Recurso Editado ${Date.now()}`
+    test('edit resource name via dropdown menu', async ({ authenticatedPage, testBusiness }) => {
+        const page = authenticatedPage
+        const originalName = generateUniqueName('Recurso Original')
+        const newName = generateUniqueName('Recurso Editado')
+        void testBusiness // ensure business fixture runs
 
-        // Setup: crear negocio y recurso
-        await signupUser(page, email, password)
-        await createBusiness(page, businessName)
+        // Crear recurso
         await navigateToCreateResource(page)
         await page.getByLabel(/nombre/i).fill(originalName)
         await page.getByRole('button', { name: /crear/i }).click()
@@ -199,15 +167,12 @@ test.describe('Resource Edit E2E', () => {
         await expect(page.getByText(originalName)).not.toBeVisible()
     })
 
-    test('deactivate resource shows confirmation dialog', async ({ page }) => {
-        const email = generateTestEmail()
-        const password = 'TestPassword123!'
-        const businessName = `Business ${Date.now()}`
-        const resourceName = `Recurso a Desactivar ${Date.now()}`
+    test('deactivate resource shows confirmation dialog', async ({ authenticatedPage, testBusiness }) => {
+        const page = authenticatedPage
+        const resourceName = generateUniqueName('Recurso a Desactivar')
+        void testBusiness // ensure business fixture runs
 
-        // Setup: crear negocio y recurso
-        await signupUser(page, email, password)
-        await createBusiness(page, businessName)
+        // Crear recurso
         await navigateToCreateResource(page)
         await page.getByLabel(/nombre/i).fill(resourceName)
         await page.getByRole('button', { name: /crear/i }).click()
@@ -231,15 +196,12 @@ test.describe('Resource Edit E2E', () => {
         await expect(resourceItem.getByText('Inactivo')).toBeVisible({ timeout: 5000 })
     })
 
-    test('reactivate inactive resource', async ({ page }) => {
-        const email = generateTestEmail()
-        const password = 'TestPassword123!'
-        const businessName = `Business ${Date.now()}`
-        const resourceName = `Recurso a Reactivar ${Date.now()}`
+    test('reactivate inactive resource', async ({ authenticatedPage, testBusiness }) => {
+        const page = authenticatedPage
+        const resourceName = generateUniqueName('Recurso a Reactivar')
+        void testBusiness // ensure business fixture runs
 
-        // Setup: crear negocio y recurso
-        await signupUser(page, email, password)
-        await createBusiness(page, businessName)
+        // Crear recurso
         await navigateToCreateResource(page)
         await page.getByLabel(/nombre/i).fill(resourceName)
         await page.getByRole('button', { name: /crear/i }).click()
@@ -260,16 +222,11 @@ test.describe('Resource Edit E2E', () => {
         await expect(resourceItem.getByText('Activo')).toBeVisible({ timeout: 5000 })
     })
 
-    test('edit resource shows error for duplicate name', async ({ page }) => {
-        const email = generateTestEmail()
-        const password = 'TestPassword123!'
-        const businessName = `Business ${Date.now()}`
-        const resource1Name = `Recurso Uno ${Date.now()}`
-        const resource2Name = `Recurso Dos ${Date.now()}`
-
-        // Setup: crear negocio y dos recursos
-        await signupUser(page, email, password)
-        await createBusiness(page, businessName)
+    test('edit resource shows error for duplicate name', async ({ authenticatedPage, testBusiness }) => {
+        const page = authenticatedPage
+        const resource1Name = generateUniqueName('Recurso Uno')
+        const resource2Name = generateUniqueName('Recurso Dos')
+        void testBusiness // ensure business fixture runs
 
         // Crear primer recurso
         await navigateToCreateResource(page)
@@ -297,15 +254,12 @@ test.describe('Resource Edit E2E', () => {
 })
 
 test.describe('Resource Delete E2E', () => {
-    test('delete resource removes it from listing', async ({ page }) => {
-        const email = generateTestEmail()
-        const password = 'TestPassword123!'
-        const businessName = `Business ${Date.now()}`
-        const resourceName = `Recurso a Eliminar ${Date.now()}`
+    test('delete resource removes it from listing', async ({ authenticatedPage, testBusiness }) => {
+        const page = authenticatedPage
+        const resourceName = generateUniqueName('Recurso a Eliminar')
+        void testBusiness // ensure business fixture runs
 
-        // Setup: crear negocio y recurso
-        await signupUser(page, email, password)
-        await createBusiness(page, businessName)
+        // Crear recurso
         await navigateToCreateResource(page)
         await page.getByLabel(/nombre/i).fill(resourceName)
         await page.getByRole('button', { name: /crear/i }).click()
@@ -332,15 +286,12 @@ test.describe('Resource Delete E2E', () => {
         await expect(resourceItem).not.toBeVisible({ timeout: 5000 })
     })
 
-    test('cancel delete keeps resource in listing', async ({ page }) => {
-        const email = generateTestEmail()
-        const password = 'TestPassword123!'
-        const businessName = `Business ${Date.now()}`
-        const resourceName = `Recurso No Eliminar ${Date.now()}`
+    test('cancel delete keeps resource in listing', async ({ authenticatedPage, testBusiness }) => {
+        const page = authenticatedPage
+        const resourceName = generateUniqueName('Recurso No Eliminar')
+        void testBusiness // ensure business fixture runs
 
-        // Setup: crear negocio y recurso
-        await signupUser(page, email, password)
-        await createBusiness(page, businessName)
+        // Crear recurso
         await navigateToCreateResource(page)
         await page.getByLabel(/nombre/i).fill(resourceName)
         await page.getByRole('button', { name: /crear/i }).click()
@@ -359,15 +310,12 @@ test.describe('Resource Delete E2E', () => {
         await expect(resourceItem).toBeVisible()
     })
 
-    test('delete inactive resource works', async ({ page }) => {
-        const email = generateTestEmail()
-        const password = 'TestPassword123!'
-        const businessName = `Business ${Date.now()}`
-        const resourceName = `Recurso Inactivo Delete ${Date.now()}`
+    test('delete inactive resource works', async ({ authenticatedPage, testBusiness }) => {
+        const page = authenticatedPage
+        const resourceName = generateUniqueName('Recurso Inactivo Delete')
+        void testBusiness // ensure business fixture runs
 
-        // Setup: crear negocio y recurso
-        await signupUser(page, email, password)
-        await createBusiness(page, businessName)
+        // Crear recurso
         await navigateToCreateResource(page)
         await page.getByLabel(/nombre/i).fill(resourceName)
         await page.getByRole('button', { name: /crear/i }).click()

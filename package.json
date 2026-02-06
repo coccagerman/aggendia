@@ -5,6 +5,7 @@
     "packageManager": "yarn@1.22.22",
     "scripts": {
         "dev": "next dev",
+        "dev:test": "dotenv -e .env.test -- yarn dev",
         "build": "next build",
         "start": "next start",
         "lint": "eslint",
@@ -15,8 +16,9 @@
         "test:watch": "dotenv -e .env.test -- vitest",
         "test:ui": "dotenv -e .env.test -- vitest --ui",
         "test:coverage": "dotenv -e .env.test -- vitest run --coverage",
-        "e2e": "dotenv -e .env.test -- playwright test",
-        "e2e:ui": "dotenv -e .env.test -- playwright test --ui",
+        "e2e:pre": "fuser -k 3000/tcp 2>/dev/null; rm -f .next/dev/lock; sleep 0.5",
+        "e2e": "yarn e2e:pre && dotenv -e .env.test -- playwright test",
+        "e2e:ui": "yarn e2e:pre && dotenv -e .env.test -- playwright test --ui",
         "test:lint": "yarn tsc --noEmit && yarn lint",
         "test:full": "yarn test:lint && yarn test:setup && yarn test:reset-db && yarn test && yarn e2e",
         "reminders:run": "tsx scripts/send-reminders.ts"

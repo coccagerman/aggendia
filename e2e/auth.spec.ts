@@ -2,28 +2,25 @@
  * E2E Tests - Auth Flow
  *
  * Tests end-to-end del flujo de autenticación.
+ * Cada test usa su propio usuario único (UUID) para aislamiento paralelo.
  */
 
-import { test, expect } from '@playwright/test'
-import { generateTestEmail, signupUser, loginUser } from './helpers/auth.helper'
+import { test, expect } from './fixtures'
+import { loginUser } from './helpers/auth.helper'
 
 test.describe('Auth Flow E2E', () => {
-    test('complete signup flow', async ({ page }) => {
-        const email = generateTestEmail()
-        const password = 'TestPassword123!'
-
-        await signupUser(page, email, password)
-
-        // Should be redirected to dashboard
-        await expect(page).toHaveURL('/dashboard')
-        await expect(page.getByText(/mis negocios/i)).toBeVisible()
+    test('complete signup flow', async ({ authenticatedPage }) => {
+        // authenticatedPage ya hizo signup automáticamente
+        // Solo verificamos que llegó al dashboard
+        await expect(authenticatedPage).toHaveURL('/dashboard')
+        await expect(authenticatedPage.getByText(/mis negocios/i)).toBeVisible()
     })
 
-    test('login with correct credentials', async ({ page }) => {
-        const email = generateTestEmail()
-        const password = 'TestPassword123!'
-
-        // First signup
+    test('login with correct credentials', async ({ page, testUser }) => {
+        const { email, password } = testUser
+        // Nota: testUser genera datos pero NO hace signup automático
+        // Para este test necesitamos hacer signup manual primero
+        const { signupUser } = await import('./helpers/auth.helper')
         await signupUser(page, email, password)
 
         // Clear cookies to simulate logout
@@ -36,11 +33,9 @@ test.describe('Auth Flow E2E', () => {
         await expect(page).toHaveURL('/dashboard')
     })
 
-    test('shows error with wrong password', async ({ page }) => {
-        const email = generateTestEmail()
-        const password = 'TestPassword123!'
-
-        // First signup
+    test('shows error with wrong password', async ({ page, testUser }) => {
+        const { email, password } = testUser
+        const { signupUser } = await import('./helpers/auth.helper')
         await signupUser(page, email, password)
         await page.context().clearCookies()
 

@@ -1,30 +1,14 @@
 /**
- * E2E Tests - Agenda Views (US-7.4)
+ * E2E Tests - Agenda Views (US-7.4, US-7.5)
  *
  * Tests end-to-end para las distintas granularidades de agenda (día, semana, mes).
+ * Usa fixtures para aislamiento completo entre tests paralelos.
  *
  * @see docs/user-stories.md - US-7.4 Ver agenda con distintas granularidades
  * @see docs/user-stories.md - US-7.5 Navegar la agenda en el tiempo
  */
 
-import { test, expect } from '@playwright/test'
-import { generateTestEmail, signupUser } from './helpers/auth.helper'
-import { createBusiness } from './helpers/business.helper'
-
-/**
- * Helper para setup básico de un negocio (sin servicios ni recursos)
- * Más rápido para tests de UI de agenda
- */
-async function setupBasicBusiness(page: import('@playwright/test').Page) {
-    const email = generateTestEmail()
-    const password = 'TestPassword123!'
-    const businessName = `Agenda Views Business ${Date.now()}`
-
-    await signupUser(page, email, password)
-    await createBusiness(page, businessName)
-
-    return { email, password, businessName }
-}
+import { test, expect } from './fixtures/business.fixture'
 
 /**
  * Helper para obtener el nombre del mes actual en español
@@ -69,19 +53,12 @@ function getNextMonthNameES(): string {
 }
 
 test.describe('US-7.4: Ver agenda con distintas granularidades', () => {
-    test.setTimeout(90000)
-
-    test('should show view selector with day/week/month options', async ({ page }) => {
-        await setupBasicBusiness(page)
+    test('should show view selector with day/week/month options', async ({ authenticatedPage, testBusiness }) => {
+        const page = authenticatedPage
+        const { businessId } = testBusiness
 
         // Navegar a la agenda
-        await page.goto('/dashboard')
-        await page.waitForLoadState('networkidle')
-        await page
-            .getByRole('link', { name: /ver agenda/i })
-            .first()
-            .click()
-        await page.waitForURL(/.*\/agenda/, { timeout: 10000 })
+        await page.goto(`/dashboard/business/${businessId}/agenda`)
         await page.waitForLoadState('networkidle')
 
         // Verificar que existe el selector de vista (muestra "Día" por defecto)
@@ -98,17 +75,12 @@ test.describe('US-7.4: Ver agenda con distintas granularidades', () => {
         await expect(listbox.getByText('Mes')).toBeVisible()
     })
 
-    test('should switch between day, week and month views', async ({ page }) => {
-        await setupBasicBusiness(page)
+    test('should switch between day, week and month views', async ({ authenticatedPage, testBusiness }) => {
+        const page = authenticatedPage
+        const { businessId } = testBusiness
 
         // Navegar a la agenda
-        await page.goto('/dashboard')
-        await page.waitForLoadState('networkidle')
-        await page
-            .getByRole('link', { name: /ver agenda/i })
-            .first()
-            .click()
-        await page.waitForURL(/.*\/agenda/, { timeout: 10000 })
+        await page.goto(`/dashboard/business/${businessId}/agenda`)
         await page.waitForLoadState('networkidle')
 
         // Verificar que la vista por defecto es día
@@ -123,8 +95,7 @@ test.describe('US-7.4: Ver agenda con distintas granularidades', () => {
         // Verificar URL contiene view=week
         await expect(page).toHaveURL(/view=week/, { timeout: 5000 })
 
-        // Verificar que muestra contenido de semana (rango de fechas con meses o mensaje vacío)
-        // Usamos regex dinámico basado en mes actual y siguiente
+        // Verificar que muestra contenido de semana
         const currentMonth = getCurrentMonthNameES()
         const nextMonth = getNextMonthNameES()
         const weekContentRegex = new RegExp(
@@ -146,7 +117,7 @@ test.describe('US-7.4: Ver agenda con distintas granularidades', () => {
         // Verificar URL contiene view=month
         await expect(page).toHaveURL(/view=month/, { timeout: 5000 })
 
-        // Verificar que muestra contenido de mes (nombre del mes actual o mensaje vacío)
+        // Verificar que muestra contenido de mes
         const monthContentRegex = new RegExp(`${currentMonth}|no hay turnos.*mes`, 'i')
         await expect(page.getByText(monthContentRegex).first()).toBeVisible({
             timeout: 5000
@@ -164,19 +135,12 @@ test.describe('US-7.4: Ver agenda con distintas granularidades', () => {
 })
 
 test.describe('US-7.5: Navegar la agenda en el tiempo', () => {
-    test.setTimeout(90000)
-
-    test('should navigate with prev/next buttons in day view', async ({ page }) => {
-        await setupBasicBusiness(page)
+    test('should navigate with prev/next buttons in day view', async ({ authenticatedPage, testBusiness }) => {
+        const page = authenticatedPage
+        const { businessId } = testBusiness
 
         // Navegar a la agenda
-        await page.goto('/dashboard')
-        await page.waitForLoadState('networkidle')
-        await page
-            .getByRole('link', { name: /ver agenda/i })
-            .first()
-            .click()
-        await page.waitForURL(/.*\/agenda/, { timeout: 10000 })
+        await page.goto(`/dashboard/business/${businessId}/agenda`)
         await page.waitForLoadState('networkidle')
 
         // Obtener la fecha inicial de hoy (formato YYYY-MM-DD)
@@ -198,23 +162,18 @@ test.describe('US-7.5: Navegar la agenda en el tiempo', () => {
         // Esperar que la URL cambie al date inicial
         await page.waitForURL(new RegExp(`date=${initialDate}`), { timeout: 5000 })
 
-        // Debería volver a la fecha original (extraer de URL)
+        // Debería volver a la fecha original
         const afterPrevMatch = page.url().match(/date=(\d{4}-\d{2}-\d{2})/)
         const afterPrevDate = afterPrevMatch ? afterPrevMatch[1] : ''
         expect(afterPrevDate).toBe(initialDate)
     })
 
-    test('should navigate week view by 7 days', async ({ page }) => {
-        await setupBasicBusiness(page)
+    test('should navigate week view by 7 days', async ({ authenticatedPage, testBusiness }) => {
+        const page = authenticatedPage
+        const { businessId } = testBusiness
 
         // Navegar a la agenda
-        await page.goto('/dashboard')
-        await page.waitForLoadState('networkidle')
-        await page
-            .getByRole('link', { name: /ver agenda/i })
-            .first()
-            .click()
-        await page.waitForURL(/.*\/agenda/, { timeout: 10000 })
+        await page.goto(`/dashboard/business/${businessId}/agenda`)
         await page.waitForLoadState('networkidle')
 
         // Cambiar a vista semana
@@ -243,17 +202,12 @@ test.describe('US-7.5: Navegar la agenda en el tiempo', () => {
         }
     })
 
-    test('should navigate month view by 1 month', async ({ page }) => {
-        await setupBasicBusiness(page)
+    test('should navigate month view by 1 month', async ({ authenticatedPage, testBusiness }) => {
+        const page = authenticatedPage
+        const { businessId } = testBusiness
 
         // Navegar a la agenda
-        await page.goto('/dashboard')
-        await page.waitForLoadState('networkidle')
-        await page
-            .getByRole('link', { name: /ver agenda/i })
-            .first()
-            .click()
-        await page.waitForURL(/.*\/agenda/, { timeout: 10000 })
+        await page.goto(`/dashboard/business/${businessId}/agenda`)
         await page.waitForLoadState('networkidle')
 
         // Cambiar a vista mes
@@ -269,10 +223,12 @@ test.describe('US-7.5: Navegar la agenda en el tiempo', () => {
 
         // Click en siguiente - esperar que el mes cambie en la URL
         await page.getByRole('button', { name: /siguiente/i }).click()
-        // Esperar que el mes cambie (de 01 a 02, o de cualquier mes al siguiente)
+        // Esperar que el mes cambie
         const nextMonthNum = ((today.getMonth() + 1) % 12) + 1
         const nextMonthStr = nextMonthNum.toString().padStart(2, '0')
-        await page.waitForURL(new RegExp(`date=\\d{4}-${nextMonthStr}`), { timeout: 5000 })
+        await page.waitForURL(new RegExp(`date=\\d{4}-${nextMonthStr}`), {
+            timeout: 5000
+        })
 
         // Extraer el mes de la URL después de navegar
         const afterMatch = page.url().match(/date=(\d{4}-\d{2})/)
@@ -282,22 +238,15 @@ test.describe('US-7.5: Navegar la agenda en el tiempo', () => {
 })
 
 test.describe('Agenda views empty states', () => {
-    test.setTimeout(60000)
-
-    test('should show empty state message appropriate to each view', async ({ page }) => {
-        await setupBasicBusiness(page)
+    test('should show empty state message appropriate to each view', async ({ authenticatedPage, testBusiness }) => {
+        const page = authenticatedPage
+        const { businessId } = testBusiness
 
         // Navegar a la agenda
-        await page.goto('/dashboard')
-        await page.waitForLoadState('networkidle')
-        await page
-            .getByRole('link', { name: /ver agenda/i })
-            .first()
-            .click()
-        await page.waitForURL(/.*\/agenda/, { timeout: 10000 })
+        await page.goto(`/dashboard/business/${businessId}/agenda`)
         await page.waitForLoadState('networkidle')
 
-        // Vista día - mensaje apropiado (hay 2 mensajes, uno en card header y otro en contenido)
+        // Vista día - mensaje apropiado
         await expect(page.getByText(/no hay turnos.*día|no hay turnos agendados/i).first()).toBeVisible({
             timeout: 5000
         })
@@ -309,7 +258,9 @@ test.describe('Agenda views empty states', () => {
         await expect(page).toHaveURL(/view=week/, { timeout: 5000 })
 
         // Vista semana - mensaje apropiado
-        await expect(page.getByText(/no hay turnos.*semana/i).first()).toBeVisible({ timeout: 5000 })
+        await expect(page.getByText(/no hay turnos.*semana/i).first()).toBeVisible({
+            timeout: 5000
+        })
 
         // Cambiar a vista mes
         const viewSelectorMonth = page
@@ -321,6 +272,8 @@ test.describe('Agenda views empty states', () => {
         await expect(page).toHaveURL(/view=month/, { timeout: 5000 })
 
         // Vista mes - mensaje apropiado
-        await expect(page.getByText(/no hay turnos.*mes/i).first()).toBeVisible({ timeout: 5000 })
+        await expect(page.getByText(/no hay turnos.*mes/i).first()).toBeVisible({
+            timeout: 5000
+        })
     })
 })

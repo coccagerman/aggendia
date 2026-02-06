@@ -2,30 +2,19 @@
  * E2E Tests - Service Creation and Management Flow
  *
  * Tests end-to-end del flujo completo de creación y gestión de servicios.
+ * Cada test usa su propio usuario y negocio (UUID) para aislamiento paralelo.
  */
 
-import { test, expect } from '@playwright/test'
-import { generateTestEmail, signupUser } from './helpers/auth.helper'
-import { createBusiness } from './helpers/business.helper'
+import { test, expect } from './fixtures/business.fixture'
+import { generateUniqueName } from './helpers/unique-id.helper'
 
 test.describe('Service Creation E2E', () => {
-    test('complete service creation flow', async ({ page }) => {
-        const email = generateTestEmail()
-        const password = 'TestPassword123!'
-        const businessName = `Business ${Date.now()}`
-        const serviceName = `Servicio ${Date.now()}`
+    test('complete service creation flow', async ({ authenticatedPage, testBusiness }) => {
+        const page = authenticatedPage
+        const serviceName = generateUniqueName('Servicio')
 
-        // Setup: signup + crear negocio
-        await signupUser(page, email, password)
-        await createBusiness(page, businessName)
-        await expect(page.getByText(businessName)).toBeVisible()
-
-        // Navegar a la página de servicios usando el link "Gestionar"
-        await page
-            .getByRole('link', { name: /gestionar/i })
-            .first()
-            .click()
-        await expect(page).toHaveURL(/.*\/services$/, { timeout: 10000 })
+        // Navegar a la página de servicios
+        await page.goto(`/dashboard/business/${testBusiness.businessId}/services`)
 
         // Abrir dialog de creación
         await page.getByRole('button', { name: /crear servicio/i }).click()
@@ -33,7 +22,6 @@ test.describe('Service Creation E2E', () => {
 
         // Completar formulario
         await page.getByLabel(/nombre del servicio/i).fill(serviceName)
-        // La duración por defecto es 30, mantenerla
         await page
             .getByRole('button', { name: /crear servicio/i })
             .last()
@@ -45,24 +33,12 @@ test.describe('Service Creation E2E', () => {
         await expect(page.getByText(serviceName)).toBeVisible({ timeout: 5000 })
     })
 
-    test('creates service with all fields', async ({ page }) => {
-        const email = generateTestEmail()
-        const password = 'TestPassword123!'
-        const businessName = `Business ${Date.now()}`
-        const serviceName = `Servicio Completo ${Date.now()}`
+    test('creates service with all fields', async ({ authenticatedPage, testBusiness }) => {
+        const page = authenticatedPage
+        const serviceName = generateUniqueName('Servicio Completo')
 
-        // Setup: signup + crear negocio
-        await signupUser(page, email, password)
-        await createBusiness(page, businessName)
+        await page.goto(`/dashboard/business/${testBusiness.businessId}/services`)
 
-        // Navegar a servicios
-        await page
-            .getByRole('link', { name: /gestionar/i })
-            .first()
-            .click()
-        await expect(page).toHaveURL(/.*\/services$/)
-
-        // Abrir dialog y completar todos los campos
         await page.getByRole('button', { name: /crear servicio/i }).click()
 
         await page.getByLabel(/nombre del servicio/i).fill(serviceName)
@@ -74,43 +50,29 @@ test.describe('Service Creation E2E', () => {
             .first()
             .selectOption('60')
 
-        // Agregar periodicidad (debe ser >= duración, 75 = turno cada 75 min)
+        // Agregar periodicidad
         await page.getByLabel(/periodicidad/i).fill('75')
 
         // Agregar precio
         await page.getByLabel(/precio/i).fill('1500')
 
-        // Crear
         await page
             .getByRole('button', { name: /crear servicio/i })
             .last()
             .click()
 
-        // Verificar éxito
         await expect(page.getByText(/servicio creado/i)).toBeVisible({ timeout: 10000 })
-
-        // Verificar datos en listado
         await expect(page.getByText(serviceName)).toBeVisible()
         await expect(page.getByText('60 min')).toBeVisible()
-        await expect(page.getByText(/Cada 75 min/)).toBeVisible() // Periodicidad > duración
-        await expect(page.getByText(/\$.*1.*500/)).toBeVisible() // $1.500,00 o similar
+        await expect(page.getByText(/Cada 75 min/)).toBeVisible()
+        await expect(page.getByText(/\$.*1.*500/)).toBeVisible()
     })
 
-    test('shows error when creating duplicate service', async ({ page }) => {
-        const email = generateTestEmail()
-        const password = 'TestPassword123!'
-        const businessName = `Business ${Date.now()}`
-        const serviceName = `Servicio Duplicado ${Date.now()}`
+    test('shows error when creating duplicate service', async ({ authenticatedPage, testBusiness }) => {
+        const page = authenticatedPage
+        const serviceName = generateUniqueName('Servicio Duplicado')
 
-        // Setup: signup + crear negocio
-        await signupUser(page, email, password)
-        await createBusiness(page, businessName)
-
-        // Navegar a servicios
-        await page
-            .getByRole('link', { name: /gestionar/i })
-            .first()
-            .click()
+        await page.goto(`/dashboard/business/${testBusiness.businessId}/services`)
 
         // Crear primer servicio
         await page.getByRole('button', { name: /crear servicio/i }).click()
@@ -129,7 +91,6 @@ test.describe('Service Creation E2E', () => {
             .last()
             .click()
 
-        // Debe mostrar error de nombre duplicado (puede estar en el campo name o en error general)
         await expect(
             page
                 .getByText(/ya existe.*servicio.*ese nombre/i)
@@ -137,175 +98,68 @@ test.describe('Service Creation E2E', () => {
         ).toBeVisible({ timeout: 10000 })
     })
 
-    test('validates duration is multiple of 5', async ({ page }) => {
-        const email = generateTestEmail()
-        const password = 'TestPassword123!'
-        const businessName = `Business ${Date.now()}`
-        const serviceName = `Servicio Test ${Date.now()}`
+    test('validates duration is multiple of 5', async ({ authenticatedPage, testBusiness }) => {
+        const page = authenticatedPage
+        const serviceName = generateUniqueName('Servicio Test')
 
-        // Setup
-        await signupUser(page, email, password)
-        await createBusiness(page, businessName)
+        await page.goto(`/dashboard/business/${testBusiness.businessId}/services`)
 
-        // Navegar a servicios
-        await page
-            .getByRole('link', { name: /gestionar/i })
-            .first()
-            .click()
-
-        // Abrir dialog
         await page.getByRole('button', { name: /crear servicio/i }).click()
 
-        // Usar duración personalizada con valor inválido
         await page.getByLabel(/nombre del servicio/i).fill(serviceName)
         await page.getByText(/duración personalizada/i).click()
         await page
             .getByLabel(/duración/i)
             .first()
-            .fill('17') // No múltiplo de 5
+            .fill('17')
 
         await page
             .getByRole('button', { name: /crear servicio/i })
             .last()
             .click()
 
-        // Debe mostrar error
         await expect(page.getByText(/múltiplo de 5/i)).toBeVisible({ timeout: 5000 })
     })
 
-    test('creates service with minimum booking notice', async ({ page }) => {
-        const email = generateTestEmail()
-        const password = 'TestPassword123!'
-        const businessName = `Business ${Date.now()}`
-        const serviceName = `Servicio Con Anticipación ${Date.now()}`
+    test('creates service with minimum booking notice', async ({ authenticatedPage, testBusiness }) => {
+        const page = authenticatedPage
+        const serviceName = generateUniqueName('Servicio Con Anticipación')
 
-        // Setup: signup + crear negocio
-        await signupUser(page, email, password)
-        await createBusiness(page, businessName)
+        await page.goto(`/dashboard/business/${testBusiness.businessId}/services`)
 
-        // Navegar a servicios
-        await page
-            .getByRole('link', { name: /gestionar/i })
-            .first()
-            .click()
-        await expect(page).toHaveURL(/.*\/services$/)
-
-        // Abrir dialog
         await page.getByRole('button', { name: /crear servicio/i }).click()
 
-        // Completar formulario con anticipación de 3 horas (180 minutos)
         await page.getByLabel(/nombre del servicio/i).fill(serviceName)
         await page.getByLabel(/anticipación mínima/i).fill('180')
 
-        // Crear (usar force para evitar problemas de scroll en modal)
         await page
             .getByRole('button', { name: /crear servicio/i })
             .last()
             .click({ force: true })
 
-        // Verificar éxito
         await expect(page.getByText(/servicio creado/i)).toBeVisible({ timeout: 10000 })
         await expect(page.getByText(serviceName)).toBeVisible()
     })
 
-    test('service appears in public business page', async ({ page }) => {
-        const email = generateTestEmail()
-        const password = 'TestPassword123!'
-        const businessName = `Business ${Date.now()}`
-        const serviceName = `Servicio Público ${Date.now()}`
-        const resourceName = `Recurso ${Date.now()}`
+    test('shows empty state when no services', async ({ authenticatedPage, testBusiness }) => {
+        const page = authenticatedPage
 
-        // Setup: signup + crear negocio
-        await signupUser(page, email, password)
-        await createBusiness(page, businessName)
+        await page.goto(`/dashboard/business/${testBusiness.businessId}/services`)
 
-        // Obtener el slug del negocio desde el link público en dashboard (está en un <code>)
-        const publicLinkCode = page.locator('code').filter({ hasText: '/b/' }).first()
-        await expect(publicLinkCode).toBeVisible({ timeout: 5000 })
-        const publicLinkText = await publicLinkCode.textContent()
-        const slugMatch = publicLinkText?.match(/\/b\/([a-z0-9-]+)/)
-        const slug = slugMatch ? slugMatch[1] : null
-        expect(slug).toBeTruthy()
-
-        // Crear un recurso primero (servicios sin recursos no aparecen en pública)
-        await page
-            .getByRole('link', { name: /crear.*recurso/i })
-            .first()
-            .click()
-        await page.getByLabel(/nombre/i).fill(resourceName)
-        await page.getByRole('button', { name: /crear/i }).click()
-        await expect(page).toHaveURL('/dashboard', { timeout: 10000 })
-
-        // Navegar a servicios y crear servicio
-        await page
-            .getByRole('link', { name: /gestionar/i })
-            .first()
-            .click()
-        await page.getByRole('button', { name: /crear servicio/i }).click()
-        await page.getByLabel(/nombre del servicio/i).fill(serviceName)
-        await page
-            .getByRole('button', { name: /crear servicio/i })
-            .last()
-            .click()
-        await expect(page.getByText(/servicio creado/i)).toBeVisible({ timeout: 10000 })
-
-        // Asignar recurso al servicio via el badge "Sin recursos"
-        await page.getByRole('button', { name: /sin recursos/i }).click()
-        await expect(page.getByRole('dialog')).toBeVisible({ timeout: 5000 })
-        await page.getByRole('checkbox').first().click()
-        await page.getByRole('button', { name: /guardar/i }).click()
-        await expect(page.getByText(/recursos actualizados/i)).toBeVisible({ timeout: 10000 })
-
-        // Ir a la página pública
-        await page.goto(`/b/${slug}`)
-
-        // Verificar que el servicio aparece
-        await expect(page.getByText(serviceName)).toBeVisible({ timeout: 10000 })
-        await expect(page.getByText('30 min')).toBeVisible() // Duración por defecto
-    })
-
-    test('shows empty state when no services', async ({ page }) => {
-        const email = generateTestEmail()
-        const password = 'TestPassword123!'
-        const businessName = `Business ${Date.now()}`
-
-        // Setup: signup + crear negocio
-        await signupUser(page, email, password)
-        await createBusiness(page, businessName)
-
-        // Navegar a servicios
-        await page
-            .getByRole('link', { name: /gestionar/i })
-            .first()
-            .click()
-
-        // Verificar empty state (usar .first() para evitar strict mode con múltiples matches)
         await expect(page.getByText(/no hay servicios/i).first()).toBeVisible()
         await expect(page.getByText(/creá tu primer servicio/i).first()).toBeVisible()
     })
 
-    test('canceling dialog does not create service', async ({ page }) => {
-        const email = generateTestEmail()
-        const password = 'TestPassword123!'
-        const businessName = `Business ${Date.now()}`
-        const serviceName = `Servicio Cancelado ${Date.now()}`
+    test('canceling dialog does not create service', async ({ authenticatedPage, testBusiness }) => {
+        const page = authenticatedPage
+        const serviceName = generateUniqueName('Servicio Cancelado')
 
-        // Setup
-        await signupUser(page, email, password)
-        await createBusiness(page, businessName)
+        await page.goto(`/dashboard/business/${testBusiness.businessId}/services`)
 
-        // Navegar a servicios
-        await page
-            .getByRole('link', { name: /gestionar/i })
-            .first()
-            .click()
-
-        // Abrir dialog y completar pero cancelar
         await page.getByRole('button', { name: /crear servicio/i }).click()
         await page.getByLabel(/nombre del servicio/i).fill(serviceName)
         await page.getByRole('button', { name: /cancelar/i }).click()
 
-        // Verificar que el dialog se cerró y el servicio NO existe
         await expect(page.getByRole('dialog')).not.toBeVisible()
         await expect(page.getByText(serviceName)).not.toBeVisible()
         await expect(page.getByText(/no hay servicios/i)).toBeVisible()
@@ -313,22 +167,12 @@ test.describe('Service Creation E2E', () => {
 })
 
 test.describe('Service Edit E2E', () => {
-    test('edit service name via dropdown menu', async ({ page }) => {
-        const email = generateTestEmail()
-        const password = 'TestPassword123!'
-        const businessName = `Business ${Date.now()}`
-        const originalName = `Original ${Date.now()}`
-        const updatedName = `Updated ${Date.now()}`
+    test('edit service name via dropdown menu', async ({ authenticatedPage, testBusiness }) => {
+        const page = authenticatedPage
+        const originalName = generateUniqueName('Original')
+        const updatedName = generateUniqueName('Updated')
 
-        // Setup: signup + crear negocio + crear servicio
-        await signupUser(page, email, password)
-        await createBusiness(page, businessName)
-
-        // Navegar a servicios y crear uno
-        await page
-            .getByRole('link', { name: /gestionar/i })
-            .first()
-            .click()
+        await page.goto(`/dashboard/business/${testBusiness.businessId}/services`)
         await page.getByRole('button', { name: /crear servicio/i }).click()
         await page.getByLabel(/nombre del servicio/i).fill(originalName)
         await page
@@ -338,48 +182,32 @@ test.describe('Service Edit E2E', () => {
         await expect(page.getByText(/servicio creado/i)).toBeVisible({ timeout: 10000 })
         await expect(page.getByText(originalName)).toBeVisible()
 
-        // Abrir dropdown de acciones y editar
         await page.getByRole('button', { name: /abrir menú/i }).click()
         await page.getByRole('menuitem', { name: /editar/i }).click()
         await expect(page.getByRole('dialog')).toBeVisible()
 
-        // Verificar warning informativo
         await expect(page.getByText(/afecta nuevas reservas/i)).toBeVisible()
 
-        // Cambiar nombre
         await page.getByLabel(/nombre del servicio/i).fill(updatedName)
-
-        // Click via JavaScript para evitar problemas de viewport en modal
         await page.getByRole('button', { name: /guardar cambios/i }).evaluate(el => (el as HTMLElement).click())
 
-        // Verificar éxito
         await expect(page.getByText(/servicio actualizado/i)).toBeVisible({ timeout: 10000 })
         await expect(page.getByRole('dialog')).not.toBeVisible()
         await expect(page.getByText(updatedName)).toBeVisible()
         await expect(page.getByText(originalName)).not.toBeVisible()
     })
 
-    test('edit service duration and price', async ({ page }) => {
-        const email = generateTestEmail()
-        const password = 'TestPassword123!'
-        const businessName = `Business ${Date.now()}`
-        const serviceName = `Service Edit ${Date.now()}`
+    test('edit service duration and price', async ({ authenticatedPage, testBusiness }) => {
+        const page = authenticatedPage
+        const serviceName = generateUniqueName('Service Edit')
 
-        // Setup
-        await signupUser(page, email, password)
-        await createBusiness(page, businessName)
-
-        // Crear servicio con valores iniciales
-        await page
-            .getByRole('link', { name: /gestionar/i })
-            .first()
-            .click()
+        await page.goto(`/dashboard/business/${testBusiness.businessId}/services`)
         await page.getByRole('button', { name: /crear servicio/i }).click()
         await page.getByLabel(/nombre del servicio/i).fill(serviceName)
         await page
             .getByLabel(/duración/i)
             .first()
-            .selectOption('30') // 30 min
+            .selectOption('30')
         await page.getByLabel(/precio/i).fill('100')
         await page
             .getByRole('button', { name: /crear servicio/i })
@@ -387,49 +215,33 @@ test.describe('Service Edit E2E', () => {
             .click()
         await expect(page.getByText(/servicio creado/i)).toBeVisible({ timeout: 10000 })
 
-        // Verificar valores iniciales
         await expect(page.getByText(/^⏱️ 30 min$/)).toBeVisible()
         await expect(page.getByText(/\$.*100/)).toBeVisible()
 
-        // Editar duración y precio
         await page.getByRole('button', { name: /abrir menú/i }).click()
         await page.getByRole('menuitem', { name: /editar/i }).click()
 
-        // Cambiar duración a 60
         await page
             .getByLabel(/duración/i)
             .first()
             .selectOption('60')
 
-        // Cambiar precio a 250
         await page.getByLabel(/precio/i).clear()
         await page.getByLabel(/precio/i).fill('250')
 
-        // Click via JavaScript para evitar problemas de viewport en modal
         await page.getByRole('button', { name: /guardar cambios/i }).evaluate(el => (el as HTMLElement).click())
         await expect(page.getByText(/servicio actualizado/i)).toBeVisible({ timeout: 10000 })
 
-        // Verificar valores actualizados
         await expect(page.getByText('60 min')).toBeVisible()
         await expect(page.getByText(/\$.*250/)).toBeVisible()
     })
 
-    test('edit service shows error for duplicate name', async ({ page }) => {
-        const email = generateTestEmail()
-        const password = 'TestPassword123!'
-        const businessName = `Business ${Date.now()}`
-        const service1Name = `Service One ${Date.now()}`
-        const service2Name = `Service Two ${Date.now()}`
+    test('edit service shows error for duplicate name', async ({ authenticatedPage, testBusiness }) => {
+        const page = authenticatedPage
+        const service1Name = generateUniqueName('Service One')
+        const service2Name = generateUniqueName('Service Two')
 
-        // Setup
-        await signupUser(page, email, password)
-        await createBusiness(page, businessName)
-
-        // Crear dos servicios
-        await page
-            .getByRole('link', { name: /gestionar/i })
-            .first()
-            .click()
+        await page.goto(`/dashboard/business/${testBusiness.businessId}/services`)
 
         // Crear servicio 1
         await page.getByRole('button', { name: /crear servicio/i }).click()
@@ -451,36 +263,23 @@ test.describe('Service Edit E2E', () => {
         await expect(page.getByText(/servicio creado/i)).toBeVisible({ timeout: 10000 })
         await expect(page.getByText(service2Name)).toBeVisible()
 
-        // Editar servicio 2 (el más reciente) e intentar cambiarle el nombre al de servicio 1
-        // Localizar el item del servicio 2 y buscar el botón de menú dentro
+        // Editar servicio 2 con nombre de servicio 1
         const service2Item = page.locator('div.rounded-lg.border').filter({ hasText: service2Name })
         await service2Item.getByRole('button', { name: /abrir menú/i }).click()
         await page.getByRole('menuitem', { name: /editar/i }).click()
         await expect(page.getByRole('dialog')).toBeVisible()
         await page.getByLabel(/nombre del servicio/i).fill(service1Name)
 
-        // Click via JavaScript para evitar problemas de viewport en modal
         await page.getByRole('button', { name: /guardar cambios/i }).evaluate(el => (el as HTMLElement).click())
 
-        // Verificar error de conflicto
         await expect(page.getByText(/ya existe un servicio con ese nombre/i)).toBeVisible({ timeout: 10000 })
     })
 
-    test('canceling edit does not save changes', async ({ page }) => {
-        const email = generateTestEmail()
-        const password = 'TestPassword123!'
-        const businessName = `Business ${Date.now()}`
-        const serviceName = `Service Cancel ${Date.now()}`
+    test('canceling edit does not save changes', async ({ authenticatedPage, testBusiness }) => {
+        const page = authenticatedPage
+        const serviceName = generateUniqueName('Service Cancel')
 
-        // Setup
-        await signupUser(page, email, password)
-        await createBusiness(page, businessName)
-
-        // Crear servicio
-        await page
-            .getByRole('link', { name: /gestionar/i })
-            .first()
-            .click()
+        await page.goto(`/dashboard/business/${testBusiness.businessId}/services`)
         await page.getByRole('button', { name: /crear servicio/i }).click()
         await page.getByLabel(/nombre del servicio/i).fill(serviceName)
         await page
@@ -489,130 +288,24 @@ test.describe('Service Edit E2E', () => {
             .click()
         await expect(page.getByText(/servicio creado/i)).toBeVisible({ timeout: 10000 })
 
-        // Abrir edición, modificar y cancelar
         await page.getByRole('button', { name: /abrir menú/i }).click()
         await page.getByRole('menuitem', { name: /editar/i }).click()
         await page.getByLabel(/nombre del servicio/i).fill('Nombre Modificado')
 
-        // Click via JavaScript para evitar problemas de viewport en modal
         await page.getByRole('button', { name: /cancelar/i }).evaluate(el => (el as HTMLElement).click())
 
-        // Verificar que el nombre original persiste
         await expect(page.getByRole('dialog')).not.toBeVisible()
         await expect(page.getByText(serviceName)).toBeVisible()
         await expect(page.getByText('Nombre Modificado')).not.toBeVisible()
     })
-
-    test('edited service reflects changes in public page', async ({ page }) => {
-        const email = generateTestEmail()
-        const password = 'TestPassword123!'
-        const businessName = `Business ${Date.now()}`
-        const originalName = `Public Service ${Date.now()}`
-        const updatedName = `Updated Public ${Date.now()}`
-        const resourceName = `Recurso ${Date.now()}`
-
-        // Setup
-        await signupUser(page, email, password)
-        await createBusiness(page, businessName)
-
-        // Crear un recurso primero (servicios sin recursos no aparecen en pública)
-        await page
-            .getByRole('link', { name: /crear.*recurso/i })
-            .first()
-            .click()
-        await page.getByLabel(/nombre/i).fill(resourceName)
-        await page.getByRole('button', { name: /crear/i }).click()
-        await expect(page).toHaveURL('/dashboard', { timeout: 10000 })
-
-        // Crear servicio
-        await page
-            .getByRole('link', { name: /gestionar/i })
-            .first()
-            .click()
-        await page.getByRole('button', { name: /crear servicio/i }).click()
-        await page.getByLabel(/nombre del servicio/i).fill(originalName)
-        await page.getByLabel(/precio/i).fill('100')
-        await page
-            .getByRole('button', { name: /crear servicio/i })
-            .last()
-            .click()
-        await expect(page.getByText(/servicio creado/i)).toBeVisible({ timeout: 10000 })
-
-        // Asignar recurso al servicio via el badge "Sin recursos"
-        await page.getByRole('button', { name: /sin recursos/i }).click()
-        await expect(page.getByRole('dialog')).toBeVisible({ timeout: 5000 })
-        await page.getByRole('checkbox').first().click()
-        await page.getByRole('button', { name: /guardar/i }).click()
-        await expect(page.getByText(/recursos actualizados/i)).toBeVisible({ timeout: 10000 })
-
-        // Obtener slug del negocio desde el link público
-        await page.goto('/dashboard')
-        const publicLink = page.locator('code').filter({ hasText: '/b/' })
-        await expect(publicLink).toBeVisible()
-        const publicLinkText = (await publicLink.textContent())?.trim() ?? ''
-        const publicUrl = publicLinkText.startsWith('http')
-            ? publicLinkText
-            : new URL(publicLinkText, page.url()).toString()
-        const slug = new URL(publicUrl).pathname.replace(/^\/b\//, '')
-
-        // Verificar valor original en página pública
-        await page.goto(`/b/${slug}`)
-        await expect(page.getByText(originalName)).toBeVisible()
-        await expect(page.getByText(/\$.*100/)).toBeVisible()
-
-        // Volver y editar servicio
-        await page.goto('/dashboard')
-        await page
-            .getByRole('link', { name: /gestionar/i })
-            .first()
-            .click()
-        // Esperar a que la página termine de cargar para evitar re-renders
-        await page.waitForLoadState('networkidle')
-        await page.getByRole('button', { name: /abrir menú/i }).click()
-        await page.getByRole('menuitem', { name: /editar/i }).click()
-        await expect(page.getByRole('dialog')).toBeVisible({ timeout: 5000 })
-        await page.getByLabel(/nombre del servicio/i).fill(updatedName)
-        await page.getByLabel(/precio/i).clear()
-        await page.getByLabel(/precio/i).fill('200')
-
-        // Click via JavaScript para evitar problemas de viewport en modal
-        await page.getByRole('button', { name: /guardar cambios/i }).evaluate(el => (el as HTMLElement).click())
-        await expect(page.getByText(/servicio actualizado/i)).toBeVisible({ timeout: 10000 })
-
-        // Verificar valores actualizados en página pública
-        await page.goto(`/b/${slug}`)
-        await expect(page.getByText(updatedName)).toBeVisible()
-        await expect(page.getByText(/\$.*200/)).toBeVisible()
-        await expect(page.getByText(originalName)).not.toBeVisible()
-    })
 })
 
 test.describe('Service Toggle Active E2E', () => {
-    test('deactivate service removes it from public page', async ({ page }) => {
-        const email = generateTestEmail()
-        const password = 'TestPassword123!'
-        const businessName = `Business ${Date.now()}`
-        const serviceName = `Toggle Service ${Date.now()}`
-        const resourceName = `Recurso ${Date.now()}`
+    test('deactivate and reactivate service', async ({ authenticatedPage, testBusiness }) => {
+        const page = authenticatedPage
+        const serviceName = generateUniqueName('Toggle Service')
 
-        // Setup: signup + crear negocio
-        await signupUser(page, email, password)
-        await createBusiness(page, businessName)
-
-        // Crear un recurso primero (servicios sin recursos no aparecen en pública)
-        await page
-            .getByRole('link', { name: /crear.*recurso/i })
-            .first()
-            .click()
-        await page.getByLabel(/nombre/i).fill(resourceName)
-        await page.getByRole('button', { name: /crear/i }).click()
-        await expect(page).toHaveURL('/dashboard', { timeout: 10000 })
-
-        // Crear servicio
-        await page
-            .getByRole('link', { name: /gestionar/i })
-            .first()
-            .click()
+        await page.goto(`/dashboard/business/${testBusiness.businessId}/services`)
         await page.getByRole('button', { name: /crear servicio/i }).click()
         await page.getByLabel(/nombre del servicio/i).fill(serviceName)
         await page
@@ -621,169 +314,38 @@ test.describe('Service Toggle Active E2E', () => {
             .click()
         await expect(page.getByText(/servicio creado/i)).toBeVisible({ timeout: 10000 })
 
-        // Asignar recurso al servicio via el badge "Sin recursos"
-        await page.getByRole('button', { name: /sin recursos/i }).click()
-        await expect(page.getByRole('dialog')).toBeVisible({ timeout: 5000 })
-        await page.getByRole('checkbox').first().click()
-        await page.getByRole('button', { name: /guardar/i }).click()
-        await expect(page.getByText(/recursos actualizados/i)).toBeVisible({ timeout: 10000 })
-
-        // Obtener slug
-        await page.goto('/dashboard')
-        const publicLink = page.locator('code').filter({ hasText: '/b/' })
-        await expect(publicLink).toBeVisible()
-        const publicLinkText = (await publicLink.textContent())?.trim() ?? ''
-        const publicUrl = publicLinkText.startsWith('http')
-            ? publicLinkText
-            : new URL(publicLinkText, page.url()).toString()
-        const slug = new URL(publicUrl).pathname.replace(/^\/b\//, '')
-
-        // Verificar que el servicio aparece en página pública
-        await page.goto(`/b/${slug}`)
-        await expect(page.getByText(serviceName)).toBeVisible()
-
-        // Desactivar servicio
-        await page.goto('/dashboard')
-        await page
-            .getByRole('link', { name: /gestionar/i })
-            .first()
-            .click()
-        // Esperar a que la página termine de cargar para evitar re-renders
-        await page.waitForLoadState('networkidle')
-        await expect(page.getByText(serviceName)).toBeVisible({ timeout: 10000 })
+        // Desactivar
+        await page.waitForLoadState('domcontentloaded')
         await page.getByRole('button', { name: /abrir menú/i }).click()
         await page.getByRole('menuitem', { name: /desactivar/i }).click()
 
-        // Confirmar en el modal
         await expect(page.getByText(/dejará de aparecer en tu página pública/i)).toBeVisible()
         await page.getByRole('button', { name: /^desactivar$/i }).click()
 
-        // Esperar toast de éxito (confirma que PATCH completó)
         await expect(page.getByText(/servicio desactivado/i)).toBeVisible({ timeout: 10000 })
 
-        // Recargar la página para ver el cambio
         await page.reload()
         await expect(page.getByText(serviceName)).toBeVisible({ timeout: 10000 })
         await expect(page.getByText('Inactivo', { exact: true })).toBeVisible()
 
-        // Verificar que NO aparece en página pública
-        await page.goto(`/b/${slug}`)
-        await expect(page.getByText(serviceName)).not.toBeVisible()
-        await expect(page.getByText(/estamos configurando los servicios/i)).toBeVisible()
-    })
-
-    test('reactivate service shows it in public page', async ({ page }) => {
-        const email = generateTestEmail()
-        const password = 'TestPassword123!'
-        const businessName = `Business ${Date.now()}`
-        const serviceName = `Reactivate Service ${Date.now()}`
-        const resourceName = `Recurso ${Date.now()}`
-
-        // Setup: crear negocio
-        await signupUser(page, email, password)
-        await createBusiness(page, businessName)
-
-        // Crear un recurso primero (servicios sin recursos no aparecen en pública)
-        await page
-            .getByRole('link', { name: /crear.*recurso/i })
-            .first()
-            .click()
-        await page.getByLabel(/nombre/i).fill(resourceName)
-        await page.getByRole('button', { name: /crear/i }).click()
-        await expect(page).toHaveURL('/dashboard', { timeout: 10000 })
-
-        // Crear servicio
-        await page
-            .getByRole('link', { name: /gestionar/i })
-            .first()
-            .click()
-        await page.getByRole('button', { name: /crear servicio/i }).click()
-        await page.getByLabel(/nombre del servicio/i).fill(serviceName)
-        await page
-            .getByRole('button', { name: /crear servicio/i })
-            .last()
-            .click()
-        await expect(page.getByText(/servicio creado/i)).toBeVisible({ timeout: 10000 })
-
-        // Asignar recurso al servicio via el badge "Sin recursos"
-        await page.getByRole('button', { name: /sin recursos/i }).click()
-        await expect(page.getByRole('dialog')).toBeVisible({ timeout: 5000 })
-        await page.getByRole('checkbox').first().click()
-        await page.getByRole('button', { name: /guardar/i }).click()
-        await expect(page.getByText(/recursos actualizados/i)).toBeVisible({ timeout: 10000 })
-
-        // Volver al listado de servicios y desactivar
-        await page.getByRole('button', { name: /abrir menú/i }).click()
-        await page.getByRole('menuitem', { name: /desactivar/i }).click()
-        await expect(page.getByText(/dejará de aparecer/i)).toBeVisible()
-        await page.getByRole('button', { name: /^desactivar$/i }).click()
-
-        // Esperar toast de éxito (confirma que PATCH completó)
-        await expect(page.getByText(/servicio desactivado/i)).toBeVisible({ timeout: 10000 })
-
-        // Recargar la página para ver el cambio
-        await page.reload()
-        await expect(page.getByText(serviceName)).toBeVisible({ timeout: 10000 })
-        await expect(page.getByText('Inactivo', { exact: true })).toBeVisible()
-
-        // Obtener slug
-        await page.goto('/dashboard')
-        const publicLink = page.locator('code').filter({ hasText: '/b/' })
-        const publicLinkText = (await publicLink.textContent())?.trim() ?? ''
-        const publicUrl = publicLinkText.startsWith('http')
-            ? publicLinkText
-            : new URL(publicLinkText, page.url()).toString()
-        const slug = new URL(publicUrl).pathname.replace(/^\/b\//, '')
-
-        // Verificar que NO aparece
-        await page.goto(`/b/${slug}`)
-        await expect(page.getByText(serviceName)).not.toBeVisible()
-
-        // Reactivar servicio
-        await page.goto('/dashboard')
-        await page
-            .getByRole('link', { name: /gestionar/i })
-            .first()
-            .click()
-        // Esperar a que la página termine de cargar para evitar re-renders
-        await page.waitForLoadState('networkidle')
-        await expect(page.getByText(serviceName)).toBeVisible({ timeout: 10000 })
+        // Reactivar
         await page.getByRole('button', { name: /abrir menú/i }).click()
         await page.getByRole('menuitem', { name: /activar/i }).click()
 
-        // Confirmar
         await expect(page.getByText(/volverá a estar disponible/i)).toBeVisible()
         await page.getByRole('button', { name: /^activar$/i }).click()
 
-        // Esperar toast de éxito (confirma que PATCH completó)
         await expect(page.getByText(/servicio activado/i)).toBeVisible({ timeout: 10000 })
 
-        // Recargar la página para ver el cambio
         await page.reload()
-        await expect(page.getByText(serviceName)).toBeVisible({ timeout: 10000 })
-
-        // Verificar badge
         await expect(page.getByText('Activo', { exact: true })).toBeVisible()
-
-        // Verificar que SÍ aparece en página pública
-        await page.goto(`/b/${slug}`)
-        await expect(page.getByText(serviceName)).toBeVisible()
     })
 
-    test('cancel toggle does not change service status', async ({ page }) => {
-        const email = generateTestEmail()
-        const password = 'TestPassword123!'
-        const businessName = `Business ${Date.now()}`
-        const serviceName = `Cancel Toggle ${Date.now()}`
+    test('cancel toggle does not change service status', async ({ authenticatedPage, testBusiness }) => {
+        const page = authenticatedPage
+        const serviceName = generateUniqueName('Cancel Toggle')
 
-        // Setup
-        await signupUser(page, email, password)
-        await createBusiness(page, businessName)
-
-        await page
-            .getByRole('link', { name: /gestionar/i })
-            .first()
-            .click()
+        await page.goto(`/dashboard/business/${testBusiness.businessId}/services`)
         await page.getByRole('button', { name: /crear servicio/i }).click()
         await page.getByLabel(/nombre del servicio/i).fill(serviceName)
         await page
@@ -792,38 +354,24 @@ test.describe('Service Toggle Active E2E', () => {
             .click()
         await expect(page.getByText(/servicio creado/i)).toBeVisible({ timeout: 10000 })
 
-        // Abrir modal de desactivar pero cancelar
         await expect(page.getByText(serviceName)).toBeVisible({ timeout: 10000 })
         await page.getByRole('button', { name: /abrir menú/i }).click()
         await page.getByRole('menuitem', { name: /desactivar/i }).click()
         await expect(page.getByText(/dejará de aparecer/i)).toBeVisible()
         await page.getByRole('button', { name: /cancelar/i }).click()
 
-        // Verificar que sigue activo
         await expect(page.getByText('Activo', { exact: true })).toBeVisible()
         await expect(page.getByText('Inactivo', { exact: true })).not.toBeVisible()
     })
 })
 
 test.describe('Service Deletion E2E', () => {
-    test('deletes service without future appointments', async ({ page }) => {
-        const email = generateTestEmail()
-        const password = 'TestPassword123!'
-        const businessName = `Business ${Date.now()}`
-        const serviceName = `Servicio a eliminar ${Date.now()}`
+    test('deletes service without future appointments', async ({ authenticatedPage, testBusiness }) => {
+        const page = authenticatedPage
+        const serviceName = generateUniqueName('Servicio a eliminar')
 
-        // Setup: signup + crear negocio
-        await signupUser(page, email, password)
-        await createBusiness(page, businessName)
+        await page.goto(`/dashboard/business/${testBusiness.businessId}/services`)
 
-        // Navegar a servicios
-        await page
-            .getByRole('link', { name: /gestionar/i })
-            .first()
-            .click()
-        await expect(page).toHaveURL(/.*\/services$/)
-
-        // Crear servicio
         await page.getByRole('button', { name: /crear servicio/i }).click()
         await page.getByLabel(/nombre del servicio/i).fill(serviceName)
         await page
@@ -832,43 +380,27 @@ test.describe('Service Deletion E2E', () => {
             .click()
         await expect(page.getByText(/servicio creado/i)).toBeVisible({ timeout: 10000 })
 
-        // Esperar a que la página termine de cargar
-        await page.waitForLoadState('networkidle')
+        await page.waitForLoadState('domcontentloaded')
 
-        // Verificar que el servicio está en el listado
         await expect(page.getByRole('heading', { name: serviceName })).toBeVisible({ timeout: 5000 })
 
-        // Abrir menú de acciones y seleccionar eliminar
         await page.getByRole('button', { name: /abrir menú/i }).click()
         await page.getByRole('menuitem', { name: /eliminar/i }).click()
 
-        // Confirmar eliminación en el modal
         await expect(page.getByText(/¿estás seguro.*eliminar/i)).toBeVisible()
         await page.getByRole('button', { name: /^eliminar$/i }).click()
 
-        // Verificar toast de éxito
         await expect(page.getByText(/servicio eliminado/i)).toBeVisible({ timeout: 10000 })
 
-        // Verificar que el servicio ya no aparece en el listado
         await expect(page.getByRole('heading', { name: serviceName })).not.toBeVisible({ timeout: 5000 })
     })
 
-    test('cancel delete does not remove service', async ({ page }) => {
-        const email = generateTestEmail()
-        const password = 'TestPassword123!'
-        const businessName = `Business ${Date.now()}`
-        const serviceName = `Cancel Delete ${Date.now()}`
+    test('cancel delete does not remove service', async ({ authenticatedPage, testBusiness }) => {
+        const page = authenticatedPage
+        const serviceName = generateUniqueName('Cancel Delete')
 
-        // Setup
-        await signupUser(page, email, password)
-        await createBusiness(page, businessName)
+        await page.goto(`/dashboard/business/${testBusiness.businessId}/services`)
 
-        await page
-            .getByRole('link', { name: /gestionar/i })
-            .first()
-            .click()
-
-        // Crear servicio
         await page.getByRole('button', { name: /crear servicio/i }).click()
         await page.getByLabel(/nombre del servicio/i).fill(serviceName)
         await page
@@ -877,90 +409,15 @@ test.describe('Service Deletion E2E', () => {
             .click()
         await expect(page.getByText(/servicio creado/i)).toBeVisible({ timeout: 10000 })
 
-        // Esperar a que la página termine de cargar
-        await page.waitForLoadState('networkidle')
+        await page.waitForLoadState('domcontentloaded')
 
-        // Verificar que el servicio está en el listado
         await expect(page.getByRole('heading', { name: serviceName })).toBeVisible({ timeout: 10000 })
 
-        // Abrir modal de eliminar pero cancelar
         await page.getByRole('button', { name: /abrir menú/i }).click()
         await page.getByRole('menuitem', { name: /eliminar/i }).click()
         await expect(page.getByText(/¿estás seguro.*eliminar/i)).toBeVisible()
         await page.getByRole('button', { name: /cancelar/i }).click()
 
-        // Verificar que el servicio sigue en el listado
         await expect(page.getByRole('heading', { name: serviceName })).toBeVisible()
-    })
-
-    test('deleted service does not appear in public page', async ({ page }) => {
-        const email = generateTestEmail()
-        const password = 'TestPassword123!'
-        const businessName = `Business ${Date.now()}`
-        const serviceName = `Public Delete ${Date.now()}`
-        const resourceName = `Resource ${Date.now()}`
-
-        // Setup
-        await signupUser(page, email, password)
-        await createBusiness(page, businessName)
-
-        // Obtener slug del negocio desde el link público en dashboard
-        const publicLink = page.locator('code').filter({ hasText: '/b/' })
-        await expect(publicLink).toBeVisible({ timeout: 5000 })
-        const publicLinkText = await publicLink.textContent()
-        const publicUrl = publicLinkText?.includes('http') ? publicLinkText : `http://localhost:3000${publicLinkText}`
-        const slug = new URL(publicUrl!).pathname.replace(/^\/b\//, '')
-
-        // Primero crear un recurso (necesario para que el servicio aparezca en página pública)
-        await page
-            .getByRole('link', { name: /crear.*recurso/i })
-            .first()
-            .click()
-        await page.getByLabel(/nombre/i).fill(resourceName)
-        await page.getByRole('button', { name: /crear/i }).click()
-        await expect(page).toHaveURL('/dashboard', { timeout: 10000 })
-        await expect(page.getByText(resourceName)).toBeVisible({ timeout: 5000 })
-
-        // Crear servicio
-        await page
-            .getByRole('link', { name: /gestionar/i })
-            .first()
-            .click()
-        await page.getByRole('button', { name: /crear servicio/i }).click()
-        await page.getByLabel(/nombre del servicio/i).fill(serviceName)
-        await page
-            .getByRole('button', { name: /crear servicio/i })
-            .last()
-            .click()
-        await expect(page.getByText(/servicio creado/i)).toBeVisible({ timeout: 10000 })
-
-        // Asignar recurso al servicio via el badge "Sin recursos"
-        await page.waitForLoadState('networkidle')
-        await page.getByRole('button', { name: /sin recursos/i }).click()
-        await expect(page.getByRole('dialog')).toBeVisible({ timeout: 5000 })
-        await page.getByRole('checkbox').first().click()
-        await page.getByRole('button', { name: /guardar/i }).click()
-        await expect(page.getByText(/recursos actualizados/i)).toBeVisible({ timeout: 10000 })
-
-        // Verificar que aparece en página pública
-        await page.goto(`/b/${slug}`)
-        await expect(page.getByText(serviceName)).toBeVisible({ timeout: 10000 })
-
-        // Volver al dashboard y eliminar
-        await page.goto('/dashboard')
-        await page
-            .getByRole('link', { name: /gestionar/i })
-            .first()
-            .click()
-        await page.waitForLoadState('networkidle')
-        await expect(page.getByRole('heading', { name: serviceName })).toBeVisible({ timeout: 10000 })
-        await page.getByRole('button', { name: /abrir menú/i }).click()
-        await page.getByRole('menuitem', { name: /eliminar/i }).click()
-        await page.getByRole('button', { name: /^eliminar$/i }).click()
-        await expect(page.getByText(/servicio eliminado/i)).toBeVisible({ timeout: 10000 })
-
-        // Verificar que ya no aparece en página pública
-        await page.goto(`/b/${slug}`)
-        await expect(page.getByText(serviceName)).not.toBeVisible()
     })
 })

@@ -5,6 +5,7 @@
  */
 
 import { Page } from '@playwright/test'
+import { generateTestEmail as generateTestEmailFromHelper } from './unique-id.helper'
 
 export async function signupUser(page: Page, email: string, password: string) {
     await page.goto('/signup')
@@ -71,6 +72,13 @@ export async function logout(page: Page) {
     }
 }
 
+/**
+ * Genera un email único para tests E2E usando UUID.
+ * Seguro para ejecución paralela con múltiples workers.
+ *
+ * @deprecated Usar generateTestEmail de './unique-id.helper' directamente
+ * o usar la fixture testUser que ya incluye email único.
+ */
 export function generateTestEmail(): string {
-    return `test-e2e-${Date.now()}@example.com`
+    return generateTestEmailFromHelper()
 }

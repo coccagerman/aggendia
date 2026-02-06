@@ -2,30 +2,27 @@
  * E2E Tests - Business Creation Flow
  *
  * Tests end-to-end del flujo completo de creación de negocio.
+ * Cada test usa su propio usuario único (UUID) para aislamiento paralelo.
  */
 
-import { test, expect } from '@playwright/test'
-import { generateTestEmail, signupUser } from './helpers/auth.helper'
+import { test, expect } from './fixtures'
+import { generateUniqueName } from './helpers/unique-id.helper'
 
 test.describe('Business Creation E2E', () => {
-    test('complete business creation flow', async ({ page }) => {
-        const email = generateTestEmail()
-        const password = 'TestPassword123!'
+    test('complete business creation flow', async ({ authenticatedPage }) => {
+        const page = authenticatedPage
+        const businessName = generateUniqueName('Test Business')
 
-        // 1. Signup
-        await signupUser(page, email, password)
-
-        // 2. Should be on dashboard
+        // Should be on dashboard (fixture ya hizo signup)
         await expect(page).toHaveURL('/dashboard')
 
-        // 3. Click "Crear negocio" button
+        // Click "Crear negocio" button
         await page.getByRole('link', { name: /crear negocio/i }).click()
 
-        // 4. Should navigate to business creation form
+        // Should navigate to business creation form
         await expect(page).toHaveURL('/dashboard/business/new')
 
-        // 5. Fill the form
-        const businessName = `Test Business ${Date.now()}`
+        // Fill the form
         await page.getByLabel(/nombre/i).fill(businessName)
 
         // Select timezone
@@ -39,21 +36,19 @@ test.describe('Business Creation E2E', () => {
         await page.getByLabel(/dirección/i).fill('Calle Test 123')
         await page.getByLabel(/ciudad/i).fill('CABA')
 
-        // 6. Submit form
+        // Submit form
         await page.getByRole('button', { name: /crear negocio/i }).click()
 
-        // 7. Should redirect back to dashboard
+        // Should redirect back to dashboard
         await expect(page).toHaveURL('/dashboard', { timeout: 10000 })
 
-        // 8. Business should appear in the list
+        // Business should appear in the list
         await expect(page.getByText(businessName)).toBeVisible({ timeout: 5000 })
     })
 
-    test('shows validation errors for empty form', async ({ page }) => {
-        const email = generateTestEmail()
-        const password = 'TestPassword123!'
+    test('shows validation errors for empty form', async ({ authenticatedPage }) => {
+        const page = authenticatedPage
 
-        await signupUser(page, email, password)
         await page.getByRole('link', { name: /crear negocio/i }).click()
 
         // Try to submit empty form

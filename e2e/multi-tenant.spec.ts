@@ -1,187 +1,117 @@
 /**
- * E2E Tests - Multi-tenant Isolation
+ * E2E Tests - Multi-tenant Isolation (US-9.1)
  *
  * Tests end-to-end para verificar que la protección multi-tenant
- * funciona correctamente desde la UI:
- * - Un usuario no puede acceder a páginas de negocios a los que no pertenece
- * - Las listas muestran solo datos del negocio actual
+ * funciona correctamente desde la UI.
  *
- * @see docs/user-stories.md - US-9.1
+ * NOTA: Estos tests son especiales porque requieren DOS usuarios distintos
+ * para verificar el aislamiento. Por eso crean usuarios adicionales dentro del test.
  */
 
-import { test, expect, Page } from '@playwright/test'
+import { test, expect } from './fixtures/business.fixture'
 import { generateTestEmail, signupUser } from './helpers/auth.helper'
-import { createBusiness, navigateToCreateResource } from './helpers/business.helper'
+import { createBusiness } from './helpers/business.helper'
+import { generateUniqueName } from './helpers/unique-id.helper'
 
 test.describe('Multi-tenant Isolation E2E', () => {
-    /**
-     * Helper to get the businessId from the URL when in a business-specific page
-     */
-    async function getCurrentBusinessId(page: Page): Promise<string | null> {
-        const url = page.url()
-        const match = url.match(/\/dashboard\/business\/([^/]+)/)
-        return match ? match[1] : null
-    }
+    test("user cannot access another user's business via URL", async ({ testBusiness, browser }) => {
+        // User A is already set up via fixture
+        const businessIdA = testBusiness.businessId
+        const businessNameA = testBusiness.businessName
 
-    /**
-     * Helper to navigate to a business's agenda and return the businessId
-     */
-    async function navigateToBusinessAgenda(page: Page): Promise<string> {
-        // Click "Ver Agenda" link to navigate to business dashboard
-        await page
-            .getByRole('link', { name: /ver agenda/i })
-            .first()
-            .click()
-        await page.waitForURL('**/dashboard/business/**/agenda')
+        // === Setup User B in a separate context ===
+        const contextB = await browser.newContext()
+        const pageB = await contextB.newPage()
 
-        const businessId = await getCurrentBusinessId(page)
-        if (!businessId) throw new Error('Could not get businessId from URL')
-        return businessId
-    }
-
-    /**
-     * Helper to create a resource for a business
-     */
-    async function createResource(page: Page, resourceName: string) {
-        await navigateToCreateResource(page)
-        await page.getByLabel(/nombre/i).fill(resourceName)
-        await page.getByRole('button', { name: /crear/i }).click()
-        await expect(page).toHaveURL('/dashboard', { timeout: 10000 })
-    }
-
-    test("user cannot access another user's business via URL", async ({ page }) => {
-        // === Setup User A with Business A ===
-        const emailA = generateTestEmail()
-        const passwordA = 'TestPassword123!'
-        const businessNameA = `Negocio A ${Date.now()}`
-
-        await signupUser(page, emailA, passwordA)
-        await createBusiness(page, businessNameA)
-
-        // Navigate to business agenda to get the businessId
-        const businessIdA = await navigateToBusinessAgenda(page)
-        expect(businessIdA).toBeTruthy()
-
-        // Logout User A
-        await page.context().clearCookies()
-
-        // === Setup User B with Business B ===
         const emailB = generateTestEmail()
         const passwordB = 'TestPassword123!'
-        const businessNameB = `Negocio B ${Date.now()}`
+        const businessNameB = generateUniqueName('negocio-b')
 
-        await signupUser(page, emailB, passwordB)
-        await createBusiness(page, businessNameB)
-
-        // Get Business B's ID before attempting cross-access
-        const businessIdB = await navigateToBusinessAgenda(page)
-        expect(businessIdB).toBeTruthy()
-        expect(businessIdB).not.toBe(businessIdA)
+        await signupUser(pageB, emailB, passwordB)
+        await createBusiness(pageB, businessNameB)
 
         // === User B tries to access Business A via direct URL ===
-        await page.goto(`/dashboard/business/${businessIdA}`)
+        await pageB.goto(`/dashboard/business/${businessIdA}`)
+        await pageB.waitForLoadState('networkidle')
 
-        // Should be denied - either redirected to dashboard or shown error
-        // The implementation may vary, but user should NOT see Business A content
-        await page.waitForLoadState('networkidle')
-
-        // Verify user doesn't see Business A's name anywhere on the page
-        const businessAVisible = await page
+        // Verify user doesn't see Business A's name
+        const businessAVisible = await pageB
             .getByText(businessNameA)
             .isVisible()
             .catch(() => false)
         expect(businessAVisible).toBe(false)
 
-        // User should either:
-        // 1. Be redirected to dashboard
-        // 2. See an access denied message
-        // 3. See their own business (Business B)
-        const url = page.url()
+        // User should see 404 or be redirected
+        const url = pageB.url()
         const isOnDashboard = url.includes('/dashboard')
-        const isNotFoundPage = await page
+        const isNotFoundPage = await pageB
             .getByRole('heading', { name: '404' })
             .isVisible()
             .catch(() => false)
 
-        // The important thing is they're not viewing Business A's content
-        if (isNotFoundPage) {
-            // 404 page shown - this is valid multi-tenant protection
-            expect(isNotFoundPage).toBe(true)
-        } else {
-            // User was redirected - verify they're NOT on Business A
-            // and ideally on their own Business B or dashboard root
-            expect(url).not.toContain(businessIdA)
-
-            // Positive validation: if redirected to a business page, it should be Business B
-            const currentBusinessId = await getCurrentBusinessId(page)
-            if (currentBusinessId) {
-                expect(currentBusinessId).toBe(businessIdB)
-            }
-        }
         expect(isNotFoundPage || isOnDashboard).toBe(true)
+
+        await contextB.close()
     })
 
-    test('user only sees their own businesses in the dashboard list', async ({ page }) => {
+    test('user only sees their own businesses in the dashboard list', async ({ browser }) => {
         // === Setup User A with Business A ===
+        const contextA = await browser.newContext()
+        const pageA = await contextA.newPage()
+
         const emailA = generateTestEmail()
         const passwordA = 'TestPassword123!'
-        const businessNameA = `Solo Mio A ${Date.now()}`
+        const businessNameA = generateUniqueName('solo-mio-a')
 
-        await signupUser(page, emailA, passwordA)
-        await createBusiness(page, businessNameA)
-
-        // Logout
-        await page.context().clearCookies()
+        await signupUser(pageA, emailA, passwordA)
+        await createBusiness(pageA, businessNameA)
+        await contextA.close()
 
         // === Setup User B with Business B ===
+        const contextB = await browser.newContext()
+        const pageB = await contextB.newPage()
+
         const emailB = generateTestEmail()
         const passwordB = 'TestPassword123!'
-        const businessNameB = `Solo Mio B ${Date.now()}`
+        const businessNameB = generateUniqueName('solo-mio-b')
 
-        await signupUser(page, emailB, passwordB)
-        await createBusiness(page, businessNameB)
+        await signupUser(pageB, emailB, passwordB)
+        await createBusiness(pageB, businessNameB)
 
         // Go to dashboard
-        await page.goto('/dashboard')
-        await page.waitForLoadState('networkidle')
+        await pageB.goto('/dashboard')
+        await pageB.waitForLoadState('networkidle')
 
         // User B should see Business B
-        await expect(page.getByText(businessNameB)).toBeVisible()
+        await expect(pageB.getByText(businessNameB)).toBeVisible()
 
         // User B should NOT see Business A
-        const businessAVisible = await page
+        const businessAVisible = await pageB
             .getByText(businessNameA)
             .isVisible()
             .catch(() => false)
         expect(businessAVisible).toBe(false)
+
+        await contextB.close()
     })
 
-    test("API returns 403 when accessing another business's resources", async ({ page, request }) => {
-        // === Setup User A with Business A ===
-        const emailA = generateTestEmail()
-        const passwordA = 'TestPassword123!'
-        const businessNameA = `API Test A ${Date.now()}`
-
-        await signupUser(page, emailA, passwordA)
-        await createBusiness(page, businessNameA)
-
-        // Navigate to get the businessId
-        const businessIdA = await navigateToBusinessAgenda(page)
-
-        // Logout User A
-        await page.context().clearCookies()
+    test("API returns 403 when accessing another business's resources", async ({ testBusiness, browser, request }) => {
+        // User A is already set up via fixture
+        const businessIdA = testBusiness.businessId
 
         // === Setup User B ===
+        const contextB = await browser.newContext()
+        const pageB = await contextB.newPage()
+
         const emailB = generateTestEmail()
         const passwordB = 'TestPassword123!'
-        const businessNameB = `API Test B ${Date.now()}`
+        const businessNameB = generateUniqueName('api-test-b')
 
-        await signupUser(page, emailB, passwordB)
-        await createBusiness(page, businessNameB)
+        await signupUser(pageB, emailB, passwordB)
+        await createBusiness(pageB, businessNameB)
 
         // === User B tries to call API for Business A ===
-        // Get the session cookies from the browser context
-        const cookies = await page.context().cookies()
+        const cookies = await contextB.cookies()
         const cookieHeader = cookies.map(c => `${c.name}=${c.value}`).join('; ')
 
         // Try to access Business A's resources via API
@@ -197,44 +127,69 @@ test.describe('Multi-tenant Isolation E2E', () => {
         const body = await response.json()
         expect(body.error).toBeDefined()
         expect(body.error.code).toBe('AUTH_FORBIDDEN')
+
+        await contextB.close()
     })
 
-    test("resources list shows only current business's resources", async ({ page }) => {
+    test("resources list shows only current business's resources", async ({ browser }) => {
         // === Setup User A with Business A and Resource ===
+        const contextA = await browser.newContext()
+        const pageA = await contextA.newPage()
+
         const emailA = generateTestEmail()
         const passwordA = 'TestPassword123!'
-        const businessNameA = `Resources Test A ${Date.now()}`
-        const resourceNameA = `Recurso Exclusivo A ${Date.now()}`
+        const businessNameA = generateUniqueName('resources-test-a')
+        const resourceNameA = generateUniqueName('recurso-exclusivo-a')
 
-        await signupUser(page, emailA, passwordA)
-        await createBusiness(page, businessNameA)
-        await createResource(page, resourceNameA)
+        await signupUser(pageA, emailA, passwordA)
+        await createBusiness(pageA, businessNameA)
 
-        // Logout
-        await page.context().clearCookies()
+        // Create resource for User A
+        await pageA
+            .getByRole('link', { name: /crear.*recurso/i })
+            .first()
+            .click()
+        await pageA.getByLabel(/nombre/i).fill(resourceNameA)
+        await pageA.getByRole('button', { name: /crear/i }).click()
+        await expect(pageA).toHaveURL('/dashboard', { timeout: 10000 })
+
+        await contextA.close()
 
         // === Setup User B with Business B and Resource ===
+        const contextB = await browser.newContext()
+        const pageB = await contextB.newPage()
+
         const emailB = generateTestEmail()
         const passwordB = 'TestPassword123!'
-        const businessNameB = `Resources Test B ${Date.now()}`
-        const resourceNameB = `Recurso Exclusivo B ${Date.now()}`
+        const businessNameB = generateUniqueName('resources-test-b')
+        const resourceNameB = generateUniqueName('recurso-exclusivo-b')
 
-        await signupUser(page, emailB, passwordB)
-        await createBusiness(page, businessNameB)
-        await createResource(page, resourceNameB)
+        await signupUser(pageB, emailB, passwordB)
+        await createBusiness(pageB, businessNameB)
+
+        // Create resource for User B
+        await pageB
+            .getByRole('link', { name: /crear.*recurso/i })
+            .first()
+            .click()
+        await pageB.getByLabel(/nombre/i).fill(resourceNameB)
+        await pageB.getByRole('button', { name: /crear/i }).click()
+        await expect(pageB).toHaveURL('/dashboard', { timeout: 10000 })
 
         // Verify User B only sees Resource B in dashboard
-        await page.goto('/dashboard')
-        await page.waitForLoadState('networkidle')
+        await pageB.goto('/dashboard')
+        await pageB.waitForLoadState('networkidle')
 
         // User B should see their resource
-        await expect(page.getByText(resourceNameB)).toBeVisible()
+        await expect(pageB.getByText(resourceNameB)).toBeVisible()
 
         // User B should NOT see User A's resource
-        const resourceAVisible = await page
+        const resourceAVisible = await pageB
             .getByText(resourceNameA)
             .isVisible()
             .catch(() => false)
         expect(resourceAVisible).toBe(false)
+
+        await contextB.close()
     })
 })

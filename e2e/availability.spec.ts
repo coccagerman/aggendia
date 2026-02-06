@@ -2,11 +2,12 @@
  * E2E Tests - Availability Management Flow
  *
  * Tests end-to-end del flujo de gestión de disponibilidad semanal.
+ * Cada test usa su propio usuario y negocio (UUID) para aislamiento paralelo.
  */
 
-import { test, expect } from '@playwright/test'
-import { generateTestEmail, signupUser } from './helpers/auth.helper'
-import { createBusiness, navigateToCreateResource } from './helpers/business.helper'
+import { test, expect } from './fixtures/business.fixture'
+import { navigateToCreateResource } from './helpers/business.helper'
+import { generateUniqueName } from './helpers/unique-id.helper'
 
 async function createResource(page: import('@playwright/test').Page, resourceName: string) {
     await navigateToCreateResource(page)
@@ -20,41 +21,20 @@ async function navigateToResourceDetail(page: import('@playwright/test').Page, b
 }
 
 test.describe('Resource Availability E2E', () => {
-    test('can add availability range to a day', async ({ page }) => {
-        const email = generateTestEmail()
-        const password = 'TestPassword123!'
-        const businessName = `Business ${Date.now()}`
-        const resourceName = `Avail Resource ${Date.now()}`
+    test('can add availability range to a day', async ({ authenticatedPage, testBusiness }) => {
+        const page = authenticatedPage
+        const resourceName = generateUniqueName('Avail Resource')
 
-        // Setup
-        await signupUser(page, email, password)
-        await createBusiness(page, businessName)
         await createResource(page, resourceName)
 
-        // Get IDs from URL / page content
-        // Navigate to resource list via dashboard link
-        const resourceLink = page.getByText(resourceName)
-        await expect(resourceLink).toBeVisible()
-
-        // Get businessId from page (we need to navigate to resource detail)
-        // First, find the "Crear Recurso" link to get the businessId
-        const createResourceLink = page.getByRole('link', { name: /crear.*recurso/i }).first()
-        const href = await createResourceLink.getAttribute('href')
-        const businessId = href?.match(/business\/([^/]+)/)?.[1]
-        expect(businessId).toBeDefined()
-
-        // Get resourceId - we need to query the API or navigate to find it
-        // For now, navigate via clicking on the resource actions then getting URL
-        // Alternative: make the resource name a link
-
-        // Simplify: Use API to get resourceId
-        const response = await page.request.get(`/api/v1/businesses/${businessId}/resources`)
+        // Get resourceId via API
+        const response = await page.request.get(`/api/v1/businesses/${testBusiness.businessId}/resources`)
         const data = await response.json()
         const resource = data.data.find((r: { name: string }) => r.name === resourceName)
         expect(resource).toBeDefined()
 
         // Navigate to resource detail
-        await navigateToResourceDetail(page, businessId!, resource.id)
+        await navigateToResourceDetail(page, testBusiness.businessId, resource.id)
 
         // Click on Disponibilidad tab
         await page.getByRole('tab', { name: /disponibilidad/i }).click()
@@ -63,7 +43,7 @@ test.describe('Resource Availability E2E', () => {
         await expect(page.getByText('Lunes')).toBeVisible()
         await expect(page.getByText('Sin horarios definidos').first()).toBeVisible()
 
-        // Add a range to Monday (Lunes is index 1)
+        // Add a range to Monday
         const lunesSection = page.locator('div').filter({ hasText: /^LunesAgregarSin horarios definidos$/ })
         await lunesSection.getByRole('button', { name: /agregar/i }).click()
 
@@ -77,27 +57,18 @@ test.describe('Resource Availability E2E', () => {
         await expect(page.getByText(/disponibilidad guardada/i)).toBeVisible({ timeout: 10000 })
     })
 
-    test('shows validation error for invalid range', async ({ page }) => {
-        const email = generateTestEmail()
-        const password = 'TestPassword123!'
-        const businessName = `Business ${Date.now()}`
-        const resourceName = `Invalid Range Resource ${Date.now()}`
+    test('shows validation error for invalid range', async ({ authenticatedPage, testBusiness }) => {
+        const page = authenticatedPage
+        const resourceName = generateUniqueName('Invalid Range Resource')
 
-        // Setup
-        await signupUser(page, email, password)
-        await createBusiness(page, businessName)
         await createResource(page, resourceName)
 
-        // Get IDs
-        const createResourceLink = page.getByRole('link', { name: /crear.*recurso/i }).first()
-        const href = await createResourceLink.getAttribute('href')
-        const businessId = href?.match(/business\/([^/]+)/)?.[1]
-
-        const response = await page.request.get(`/api/v1/businesses/${businessId}/resources`)
+        // Get resourceId
+        const response = await page.request.get(`/api/v1/businesses/${testBusiness.businessId}/resources`)
         const data = await response.json()
         const resource = data.data.find((r: { name: string }) => r.name === resourceName)
 
-        await navigateToResourceDetail(page, businessId!, resource.id)
+        await navigateToResourceDetail(page, testBusiness.businessId, resource.id)
         await page.getByRole('tab', { name: /disponibilidad/i }).click()
 
         // Add a range to Monday
@@ -117,27 +88,18 @@ test.describe('Resource Availability E2E', () => {
         await expect(page.getByText(/inicio debe ser menor/i)).toBeVisible()
     })
 
-    test('can remove availability range', async ({ page }) => {
-        const email = generateTestEmail()
-        const password = 'TestPassword123!'
-        const businessName = `Business ${Date.now()}`
-        const resourceName = `Remove Range Resource ${Date.now()}`
+    test('can remove availability range', async ({ authenticatedPage, testBusiness }) => {
+        const page = authenticatedPage
+        const resourceName = generateUniqueName('Remove Range Resource')
 
-        // Setup
-        await signupUser(page, email, password)
-        await createBusiness(page, businessName)
         await createResource(page, resourceName)
 
-        // Get IDs
-        const createResourceLink = page.getByRole('link', { name: /crear.*recurso/i }).first()
-        const href = await createResourceLink.getAttribute('href')
-        const businessId = href?.match(/business\/([^/]+)/)?.[1]
-
-        const response = await page.request.get(`/api/v1/businesses/${businessId}/resources`)
+        // Get resourceId
+        const response = await page.request.get(`/api/v1/businesses/${testBusiness.businessId}/resources`)
         const data = await response.json()
         const resource = data.data.find((r: { name: string }) => r.name === resourceName)
 
-        await navigateToResourceDetail(page, businessId!, resource.id)
+        await navigateToResourceDetail(page, testBusiness.businessId, resource.id)
         await page.getByRole('tab', { name: /disponibilidad/i }).click()
 
         // Add a range
@@ -171,27 +133,18 @@ test.describe('Resource Availability E2E', () => {
         await expect(page.getByText('Sin horarios definidos').first()).toBeVisible()
     })
 
-    test('discard changes resets to initial state', async ({ page }) => {
-        const email = generateTestEmail()
-        const password = 'TestPassword123!'
-        const businessName = `Business ${Date.now()}`
-        const resourceName = `Discard Resource ${Date.now()}`
+    test('discard changes resets to initial state', async ({ authenticatedPage, testBusiness }) => {
+        const page = authenticatedPage
+        const resourceName = generateUniqueName('Discard Resource')
 
-        // Setup
-        await signupUser(page, email, password)
-        await createBusiness(page, businessName)
         await createResource(page, resourceName)
 
-        // Get IDs
-        const createResourceLink = page.getByRole('link', { name: /crear.*recurso/i }).first()
-        const href = await createResourceLink.getAttribute('href')
-        const businessId = href?.match(/business\/([^/]+)/)?.[1]
-
-        const response = await page.request.get(`/api/v1/businesses/${businessId}/resources`)
+        // Get resourceId
+        const response = await page.request.get(`/api/v1/businesses/${testBusiness.businessId}/resources`)
         const data = await response.json()
         const resource = data.data.find((r: { name: string }) => r.name === resourceName)
 
-        await navigateToResourceDetail(page, businessId!, resource.id)
+        await navigateToResourceDetail(page, testBusiness.businessId, resource.id)
         await page.getByRole('tab', { name: /disponibilidad/i }).click()
 
         // Add a range
@@ -210,16 +163,28 @@ test.describe('Resource Availability E2E', () => {
 })
 
 test.describe('Availability API Security E2E', () => {
-    test('cannot access availability of another business resource', async ({ page }) => {
+    test('cannot access availability of another business resource', async ({ page, testUser }) => {
+        const { signupUser } = await import('./helpers/auth.helper')
+        const { createBusiness } = await import('./helpers/business.helper')
+        const { generateTestEmail } = await import('./helpers/unique-id.helper')
+
         // User 1 creates business + resource
-        const email1 = generateTestEmail()
-        const password = 'TestPassword123!'
-        const businessName1 = `Business1 ${Date.now()}`
-        const resourceName1 = `Resource1 ${Date.now()}`
+        const email1 = testUser.email
+        const password = testUser.password
+        const businessName1 = generateUniqueName('Business1')
+        const resourceName1 = generateUniqueName('Resource1')
 
         await signupUser(page, email1, password)
         await createBusiness(page, businessName1)
-        await createResource(page, resourceName1)
+
+        // Create resource
+        await page
+            .getByRole('link', { name: /crear.*recurso/i })
+            .first()
+            .click()
+        await page.getByLabel(/nombre/i).fill(resourceName1)
+        await page.getByRole('button', { name: /crear/i }).click()
+        await expect(page).toHaveURL('/dashboard', { timeout: 10000 })
 
         // Get businessId and resourceId for user 1
         const createResourceLink = page.getByRole('link', { name: /crear.*recurso/i }).first()
@@ -231,12 +196,11 @@ test.describe('Availability API Security E2E', () => {
         const resource1 = data1.data.find((r: { name: string }) => r.name === resourceName1)
 
         // Logout
-        await page.getByRole('button', { name: /cerrar sesión/i }).click()
-        await expect(page).toHaveURL('/login')
+        await page.context().clearCookies()
 
         // User 2 creates their own business
         const email2 = generateTestEmail()
-        const businessName2 = `Business2 ${Date.now()}`
+        const businessName2 = generateUniqueName('Business2')
 
         await signupUser(page, email2, password)
         await createBusiness(page, businessName2)
