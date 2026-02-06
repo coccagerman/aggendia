@@ -18,10 +18,17 @@ vi.mock('@/lib/auth/require-business-access', () => ({
     requireBusinessAccess: vi.fn()
 }))
 
+// Mock notification service to verify calls without sending real emails
+vi.mock('@/domain/notifications/notification.service', () => ({
+    sendRescheduledEmail: vi.fn().mockResolvedValue({ success: true, notificationId: 'mock-email-id' }),
+    sendRescheduledWhatsApp: vi.fn().mockResolvedValue({ success: true, notificationId: 'mock-whatsapp-id' })
+}))
+
 // Import route handler AFTER mocks are set up
 import { PATCH } from '@/app/api/v1/businesses/[businessId]/appointments/[appointmentId]/reschedule/route'
 import { requireAuth } from '@/lib/auth'
 import { requireBusinessAccess } from '@/lib/auth/require-business-access'
+import { sendRescheduledEmail, sendRescheduledWhatsApp } from '@/domain/notifications/notification.service'
 
 // Import other dependencies
 import { prisma } from '@/data/prisma/prisma'
@@ -159,6 +166,12 @@ describe('Reschedule Appointment API - Integration Tests', () => {
         // Reset mocks before each test
         vi.mocked(requireAuth).mockReset()
         vi.mocked(requireBusinessAccess).mockReset()
+        vi.mocked(sendRescheduledEmail)
+            .mockReset()
+            .mockResolvedValue({ success: true, notificationId: 'mock-email-id' })
+        vi.mocked(sendRescheduledWhatsApp)
+            .mockReset()
+            .mockResolvedValue({ success: true, notificationId: 'mock-whatsapp-id' })
     })
 
     describe('Authentication and Authorization', () => {
@@ -507,6 +520,73 @@ describe('Reschedule Appointment API - Integration Tests', () => {
 
             // Cleanup
             await prisma.appointment.delete({ where: { id: firstAppointment.id } })
+        })
+    })
+
+    describe('Notifications', () => {
+        it('calls sendRescheduledEmail after successful rescheduling', async () => {
+            const { id: appointmentId, startAt: originalStartAt } = await createTestAppointment('SCHEDULED')
+            const newStartAt = getValidFutureSlot(9, 10) // Use unique slot far in future
+            mockAuthSuccess()
+
+            const request = new NextRequest(
+                `http://localhost/api/v1/businesses/${businessId}/appointments/${appointmentId}/reschedule`,
+                {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ newStartAt })
+                }
+            )
+
+            const response = await PATCH(request, { params: Promise.resolve({ businessId, appointmentId }) })
+            const data = await response.json()
+            expect(response.status).toBe(200)
+
+            // Wait for fire-and-forget promises to settle
+            await new Promise(resolve => setTimeout(resolve, 50))
+
+            expect(sendRescheduledEmail).toHaveBeenCalledTimes(1)
+            expect(sendRescheduledEmail).toHaveBeenCalledWith(
+                expect.anything(), // prisma client
+                expect.objectContaining({
+                    appointmentId: data.data.newAppointmentId,
+                    business: expect.objectContaining({ id: businessId }),
+                    originalStartAt,
+                    customer: expect.objectContaining({ fullName: 'Cliente Test' })
+                })
+            )
+        })
+
+        it('calls sendRescheduledWhatsApp after successful rescheduling', async () => {
+            const { id: appointmentId, startAt: originalStartAt } = await createTestAppointment('SCHEDULED')
+            const newStartAt = getValidFutureSlot(9, 11) // Use unique slot far in future
+            mockAuthSuccess()
+
+            const request = new NextRequest(
+                `http://localhost/api/v1/businesses/${businessId}/appointments/${appointmentId}/reschedule`,
+                {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ newStartAt })
+                }
+            )
+
+            const response = await PATCH(request, { params: Promise.resolve({ businessId, appointmentId }) })
+            const data = await response.json()
+            expect(response.status).toBe(200)
+
+            // Wait for fire-and-forget promises to settle
+            await new Promise(resolve => setTimeout(resolve, 50))
+
+            expect(sendRescheduledWhatsApp).toHaveBeenCalledTimes(1)
+            expect(sendRescheduledWhatsApp).toHaveBeenCalledWith(
+                expect.anything(),
+                expect.objectContaining({
+                    appointmentId: data.data.newAppointmentId,
+                    business: expect.objectContaining({ id: businessId }),
+                    originalStartAt
+                })
+            )
         })
     })
 

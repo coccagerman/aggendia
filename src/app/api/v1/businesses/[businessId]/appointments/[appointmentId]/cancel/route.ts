@@ -13,7 +13,7 @@ import { prisma } from '@/data/prisma/prisma'
 import { cancelAppointment, CancelAppointmentDeps } from '@/domain/appointments/appointment.service'
 import { getAppointmentById, updateAppointmentStatus } from '@/data/repositories/appointment.repo'
 import { getBusinessById } from '@/data/repositories/business.repo'
-import { createNotification } from '@/data/repositories/notification.repo'
+import { sendCancellationEmail, sendCancellationWhatsApp } from '@/domain/notifications/notification.service'
 import { AppError, ValidationErrorCodes } from '@/domain/common/errors'
 import { cancelAppointmentSchema } from './dto'
 import { AppointmentStatus } from '@/domain/appointments/appointment.types'
@@ -105,53 +105,77 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
             cancellationReason
         })
 
-        // 5. Queue cancellation notifications (PENDING records)
-        // Only queue if this was an actual cancellation, not an idempotent response
+        // 5. Send cancellation notifications (non-blocking, fire-and-forget)
+        // Only send if this was an actual cancellation, not an idempotent response
         if (!result.wasAlreadyCancelled) {
-            // Fetch appointment with minimal relations for notification queue
             const appointment = await getAppointmentById(prisma, businessId, appointmentId)
             if (appointment) {
                 const business = await getBusinessById(prisma, businessId)
                 if (business) {
                     const cancelledAt = appointment.updatedAt
 
-                    // Queue EMAIL notification (will be processed by cron)
-                    if (business.emailNotificationsEnabled && appointment.customer.email) {
-                        createNotification(prisma, {
-                            businessId,
+                    // Send cancellation email (creates PENDING record + sends immediately)
+                    sendCancellationEmail(prisma, {
+                        appointmentId: appointment.id,
+                        cancelledAt,
+                        business: {
+                            id: business.id,
+                            name: business.name,
+                            timezone: business.timezone,
+                            resourceLabel: business.resourceLabel,
+                            address: business.address,
+                            emailNotificationsEnabled: business.emailNotificationsEnabled
+                        },
+                        service: {
+                            id: appointment.service.id,
+                            name: appointment.service.name
+                        },
+                        resource: {
+                            id: appointment.resource.id,
+                            name: appointment.resource.name
+                        },
+                        customer: {
+                            fullName: appointment.customer.fullName,
+                            email: appointment.customer.email
+                        },
+                        startAt: appointment.startAt
+                    }).catch(err => {
+                        console.error('[Cancel] Unexpected error in sendCancellationEmail:', {
                             appointmentId: appointment.id,
-                            channel: 'EMAIL',
-                            type: 'CANCELLATION',
-                            to: appointment.customer.email,
-                            scheduledFor: cancelledAt
-                        }).catch(err => {
-                            // Log but don't fail the request if notification creation fails
-                            // Note: only log error message, not full object (may contain PII)
-                            console.error('[Cancel] Failed to queue email notification:', {
-                                appointmentId: appointment.id,
-                                error: err instanceof Error ? err.message : 'Unknown error'
-                            })
+                            error: err instanceof Error ? err.message : 'Unknown error'
                         })
-                    }
+                    })
 
-                    // Queue WHATSAPP notification (will be processed by cron)
-                    if (business.whatsappNotificationsEnabled && appointment.customer.phoneE164) {
-                        createNotification(prisma, {
-                            businessId,
+                    // Send cancellation WhatsApp (creates PENDING record + sends immediately)
+                    sendCancellationWhatsApp(prisma, {
+                        appointmentId: appointment.id,
+                        cancelledAt,
+                        business: {
+                            id: business.id,
+                            name: business.name,
+                            timezone: business.timezone,
+                            resourceLabel: business.resourceLabel,
+                            whatsappNotificationsEnabled: business.whatsappNotificationsEnabled
+                        },
+                        service: {
+                            id: appointment.service.id,
+                            name: appointment.service.name
+                        },
+                        resource: {
+                            id: appointment.resource.id,
+                            name: appointment.resource.name
+                        },
+                        customer: {
+                            fullName: appointment.customer.fullName,
+                            phoneE164: appointment.customer.phoneE164
+                        },
+                        startAt: appointment.startAt
+                    }).catch(err => {
+                        console.error('[Cancel] Unexpected error in sendCancellationWhatsApp:', {
                             appointmentId: appointment.id,
-                            channel: 'WHATSAPP',
-                            type: 'CANCELLATION',
-                            to: appointment.customer.phoneE164,
-                            scheduledFor: cancelledAt
-                        }).catch(err => {
-                            // Log but don't fail the request if notification creation fails
-                            // Note: only log error message, not full object (may contain PII)
-                            console.error('[Cancel] Failed to queue WhatsApp notification:', {
-                                appointmentId: appointment.id,
-                                error: err instanceof Error ? err.message : 'Unknown error'
-                            })
+                            error: err instanceof Error ? err.message : 'Unknown error'
                         })
-                    }
+                    })
                 }
             }
         }

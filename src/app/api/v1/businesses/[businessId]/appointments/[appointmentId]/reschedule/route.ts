@@ -19,7 +19,7 @@ import {
 import { getAvailabilityByResourceId } from '@/data/repositories/availability.repo'
 import { getBlocksByResourceId } from '@/data/repositories/block.repo'
 import { getBusinessById } from '@/data/repositories/business.repo'
-import { createNotification } from '@/data/repositories/notification.repo'
+import { sendRescheduledEmail, sendRescheduledWhatsApp } from '@/domain/notifications/notification.service'
 import { AppError, ValidationErrorCodes } from '@/domain/common/errors'
 import { rescheduleAppointmentSchema } from './dto'
 
@@ -101,51 +101,75 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
             newStartAt
         })
 
-        // 6. Queue rescheduled notifications (PENDING records)
-        // Get the new appointment with minimal relations for notification queue
+        // 6. Send rescheduled notifications (non-blocking, fire-and-forget)
         const newAppointment = await getAppointmentById(prisma, businessId, result.newAppointmentId)
         if (newAppointment && originalStartAt) {
             const business = await getBusinessById(prisma, businessId)
             if (business) {
-                const createdAt = newAppointment.createdAt
-
-                // Queue EMAIL notification (will be processed by cron)
-                if (business.emailNotificationsEnabled && newAppointment.customer.email) {
-                    createNotification(prisma, {
-                        businessId,
+                // Send rescheduled email (creates PENDING record + sends immediately)
+                sendRescheduledEmail(prisma, {
+                    appointmentId: newAppointment.id,
+                    createdAt: newAppointment.createdAt,
+                    business: {
+                        id: business.id,
+                        name: business.name,
+                        timezone: business.timezone,
+                        resourceLabel: business.resourceLabel,
+                        address: business.address,
+                        emailNotificationsEnabled: business.emailNotificationsEnabled
+                    },
+                    service: {
+                        id: newAppointment.service.id,
+                        name: newAppointment.service.name
+                    },
+                    resource: {
+                        id: newAppointment.resource.id,
+                        name: newAppointment.resource.name
+                    },
+                    customer: {
+                        fullName: newAppointment.customer.fullName,
+                        email: newAppointment.customer.email
+                    },
+                    originalStartAt,
+                    newStartAt: newAppointment.startAt
+                }).catch(err => {
+                    console.error('[Reschedule] Unexpected error in sendRescheduledEmail:', {
                         appointmentId: newAppointment.id,
-                        channel: 'EMAIL',
-                        type: 'RESCHEDULED',
-                        to: newAppointment.customer.email,
-                        scheduledFor: createdAt
-                    }).catch(err => {
-                        // Log but don't fail the request if notification creation fails
-                        // Note: only log error message, not full object (may contain PII)
-                        console.error('[Reschedule] Failed to queue email notification:', {
-                            appointmentId: newAppointment.id,
-                            error: err instanceof Error ? err.message : 'Unknown error'
-                        })
+                        error: err instanceof Error ? err.message : 'Unknown error'
                     })
-                }
+                })
 
-                // Queue WHATSAPP notification (will be processed by cron)
-                if (business.whatsappNotificationsEnabled && newAppointment.customer.phoneE164) {
-                    createNotification(prisma, {
-                        businessId,
+                // Send rescheduled WhatsApp (creates PENDING record + sends immediately)
+                sendRescheduledWhatsApp(prisma, {
+                    appointmentId: newAppointment.id,
+                    createdAt: newAppointment.createdAt,
+                    business: {
+                        id: business.id,
+                        name: business.name,
+                        timezone: business.timezone,
+                        resourceLabel: business.resourceLabel,
+                        whatsappNotificationsEnabled: business.whatsappNotificationsEnabled
+                    },
+                    service: {
+                        id: newAppointment.service.id,
+                        name: newAppointment.service.name
+                    },
+                    resource: {
+                        id: newAppointment.resource.id,
+                        name: newAppointment.resource.name
+                    },
+                    customer: {
+                        fullName: newAppointment.customer.fullName,
+                        phoneE164: newAppointment.customer.phoneE164
+                    },
+                    originalStartAt,
+                    newStartAt: newAppointment.startAt
+                }).catch(err => {
+                    console.error('[Reschedule] Unexpected error in sendRescheduledWhatsApp:', {
                         appointmentId: newAppointment.id,
-                        channel: 'WHATSAPP',
-                        type: 'RESCHEDULED',
-                        to: newAppointment.customer.phoneE164,
-                        scheduledFor: createdAt
-                    }).catch(err => {
-                        // Log but don't fail the request if notification creation fails
-                        // Note: only log error message, not full object (may contain PII)
-                        console.error('[Reschedule] Failed to queue WhatsApp notification:', {
-                            appointmentId: newAppointment.id,
-                            error: err instanceof Error ? err.message : 'Unknown error'
-                        })
+                        error: err instanceof Error ? err.message : 'Unknown error'
                     })
-                }
+                })
             }
         }
 

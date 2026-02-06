@@ -18,10 +18,17 @@ vi.mock('@/lib/auth/require-business-access', () => ({
     requireBusinessAccess: vi.fn()
 }))
 
+// Mock notification service to verify calls without sending real emails
+vi.mock('@/domain/notifications/notification.service', () => ({
+    sendCancellationEmail: vi.fn().mockResolvedValue({ success: true, notificationId: 'mock-email-id' }),
+    sendCancellationWhatsApp: vi.fn().mockResolvedValue({ success: true, notificationId: 'mock-whatsapp-id' })
+}))
+
 // Import route handler AFTER mocks are set up
 import { PATCH } from '@/app/api/v1/businesses/[businessId]/appointments/[appointmentId]/cancel/route'
 import { requireAuth } from '@/lib/auth'
 import { requireBusinessAccess } from '@/lib/auth/require-business-access'
+import { sendCancellationEmail, sendCancellationWhatsApp } from '@/domain/notifications/notification.service'
 
 // Import other dependencies
 import { prisma } from '@/data/prisma/prisma'
@@ -162,6 +169,12 @@ describe('Cancel Appointment API - Integration Tests', () => {
         // Reset mocks before each test
         vi.mocked(requireAuth).mockReset()
         vi.mocked(requireBusinessAccess).mockReset()
+        vi.mocked(sendCancellationEmail)
+            .mockReset()
+            .mockResolvedValue({ success: true, notificationId: 'mock-email-id' })
+        vi.mocked(sendCancellationWhatsApp)
+            .mockReset()
+            .mockResolvedValue({ success: true, notificationId: 'mock-whatsapp-id' })
     })
 
     describe('Authentication and Authorization', () => {
@@ -394,6 +407,85 @@ describe('Cancel Appointment API - Integration Tests', () => {
 
             expect(response.status).toBe(400)
             expect(data.error.code).toBe('VALIDATION_ERROR')
+        })
+    })
+
+    describe('Notifications', () => {
+        it('calls sendCancellationEmail after successful cancellation', async () => {
+            const appointmentId = await createTestAppointment('SCHEDULED')
+            mockAuthSuccess()
+
+            const request = new NextRequest(
+                `http://localhost/api/v1/businesses/${businessId}/appointments/${appointmentId}/cancel`,
+                { method: 'PATCH' }
+            )
+
+            const response = await PATCH(request, { params: Promise.resolve({ businessId, appointmentId }) })
+            expect(response.status).toBe(200)
+
+            // Wait for fire-and-forget promises to settle
+            await new Promise(resolve => setTimeout(resolve, 50))
+
+            expect(sendCancellationEmail).toHaveBeenCalledTimes(1)
+            expect(sendCancellationEmail).toHaveBeenCalledWith(
+                expect.anything(), // prisma client
+                expect.objectContaining({
+                    appointmentId,
+                    business: expect.objectContaining({ id: businessId }),
+                    customer: expect.objectContaining({ fullName: 'Cliente Test' })
+                })
+            )
+        })
+
+        it('calls sendCancellationWhatsApp after successful cancellation', async () => {
+            const appointmentId = await createTestAppointment('SCHEDULED')
+            mockAuthSuccess()
+
+            const request = new NextRequest(
+                `http://localhost/api/v1/businesses/${businessId}/appointments/${appointmentId}/cancel`,
+                { method: 'PATCH' }
+            )
+
+            const response = await PATCH(request, { params: Promise.resolve({ businessId, appointmentId }) })
+            expect(response.status).toBe(200)
+
+            // Wait for fire-and-forget promises to settle
+            await new Promise(resolve => setTimeout(resolve, 50))
+
+            expect(sendCancellationWhatsApp).toHaveBeenCalledTimes(1)
+            expect(sendCancellationWhatsApp).toHaveBeenCalledWith(
+                expect.anything(),
+                expect.objectContaining({
+                    appointmentId,
+                    business: expect.objectContaining({ id: businessId })
+                })
+            )
+        })
+
+        it('does NOT send notifications for idempotent cancellation (already cancelled)', async () => {
+            const appointmentId = await createTestAppointment('SCHEDULED')
+
+            // Cancel directly in DB
+            await prisma.appointment.update({
+                where: { id: appointmentId },
+                data: { status: 'CANCELLED', cancellationReason: 'Ya cancelado' }
+            })
+
+            mockAuthSuccess()
+
+            const request = new NextRequest(
+                `http://localhost/api/v1/businesses/${businessId}/appointments/${appointmentId}/cancel`,
+                { method: 'PATCH' }
+            )
+
+            const response = await PATCH(request, { params: Promise.resolve({ businessId, appointmentId }) })
+            expect(response.status).toBe(200)
+
+            await new Promise(resolve => setTimeout(resolve, 50))
+
+            // Should NOT send notifications when already cancelled (idempotent)
+            expect(sendCancellationEmail).not.toHaveBeenCalled()
+            expect(sendCancellationWhatsApp).not.toHaveBeenCalled()
         })
     })
 
