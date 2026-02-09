@@ -221,6 +221,7 @@ model Appointment {
   cancellationReason String?
   createdByUserId    String?           // null si fue creado por cliente público
   rescheduledFromId  String?           // referencia a appointment original si fue reprogramado
+  secretToken        String            @default(uuid()) // capability URL token para autogestión del cliente
   createdAt          DateTime          @default(now())
   updatedAt          DateTime          @updatedAt
 
@@ -236,6 +237,7 @@ model Appointment {
   @@index([resourceId, startAt])
   @@index([customerId])
   @@index([status])
+  @@unique([secretToken])
 }
 
 // ============================================================================

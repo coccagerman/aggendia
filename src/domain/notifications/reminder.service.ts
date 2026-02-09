@@ -21,6 +21,7 @@ import { getBusinessesForReminderOffset } from '@/data/repositories/business.rep
 import { resend, defaultFromEmail, isEmailEnabled } from '@/lib/resend/client'
 import { sendTemplateMessage, isWhatsAppEnabled, WHATSAPP_TEMPLATES } from '@/lib/whatsapp/client'
 import { formatDateTimeForNotification, getTimezoneDisplayName } from '@/lib/notifications/notification-time'
+import { buildAppointmentManageUrl } from '@/lib/notifications/manage-url'
 import {
     renderReminderEmail,
     renderReminderEmailText,
@@ -61,6 +62,8 @@ export interface SendReminderEmailInput {
     startAt: Date
     /** Offset in minutes (1440 = 24h, 120 = 2h) */
     offsetMinutes: number
+    /** Self-service manage URL for cancel/reschedule (optional) */
+    manageUrl?: string | null
 }
 
 /**
@@ -116,6 +119,7 @@ interface ReminderMessageData {
     formattedDateTime: string
     timezone: string
     reminderType: '24h' | '2h'
+    manageUrl?: string | null
 }
 
 /**
@@ -131,7 +135,7 @@ interface ReminderMessageData {
 function composeReminderMessage(data: ReminderMessageData): string {
     const header = data.reminderType === '24h' ? 'Tu turno es mañana' : 'Tu turno es en 2 horas'
 
-    return [
+    const lines = [
         header,
         `📍 ${data.businessName}`,
         `📋 Servicio: ${data.serviceName}`,
@@ -139,7 +143,11 @@ function composeReminderMessage(data: ReminderMessageData): string {
         `📅 ${data.formattedDateTime}`,
         `🕐 Zona horaria: ${data.timezone}`,
         `¡Te esperamos!`
-    ].join(' | ')
+    ]
+    if (data.manageUrl) {
+        lines.push(`🔗 Cancelar o reprogramar: ${data.manageUrl}`)
+    }
+    return lines.join(' | ')
 }
 
 /**
@@ -276,7 +284,8 @@ export async function sendReminderEmail(
             formattedDateTime: formatDateTimeForNotification(startAt, business.timezone, 'reminder'),
             timezone: getTimezoneDisplayName(business.timezone),
             address: business.address,
-            reminderType: getReminderType(offsetMinutes)
+            reminderType: getReminderType(offsetMinutes),
+            manageUrl: input.manageUrl
         }
 
         // 5. Send email via Resend
@@ -375,7 +384,7 @@ export async function sendReminderWhatsApp(
     prisma: PrismaClient,
     input: SendReminderWhatsAppInput
 ): Promise<SendNotificationResult> {
-    const { appointmentId, business, service, resource, customer, startAt, offsetMinutes } = input
+    const { appointmentId, business, service, resource, customer, startAt, offsetMinutes, manageUrl } = input
 
     // Calculate scheduledFor time
     const scheduledFor = calculateScheduledFor(startAt, offsetMinutes, business.timezone)
@@ -468,7 +477,8 @@ export async function sendReminderWhatsApp(
             resourceName: resource.name,
             formattedDateTime: formatDateTimeForNotification(startAt, business.timezone, 'reminder'),
             timezone: getTimezoneDisplayName(business.timezone),
-            reminderType: getReminderType(offsetMinutes)
+            reminderType: getReminderType(offsetMinutes),
+            manageUrl
         }
 
         const messageText = composeReminderMessage(messageData)
@@ -700,6 +710,11 @@ export async function processReminders(
                             result.sent++
                         } else {
                             // Send the email reminder
+                            const manageUrl = buildAppointmentManageUrl(
+                                appointment.business.slug,
+                                appointment.id,
+                                appointment.secretToken
+                            )
                             const emailResult = await sendReminderEmail(prisma, {
                                 appointmentId: appointment.id,
                                 business: appointment.business,
@@ -707,7 +722,8 @@ export async function processReminders(
                                 resource: appointment.resource,
                                 customer: appointment.customer,
                                 startAt: appointment.startAt,
-                                offsetMinutes: offset
+                                offsetMinutes: offset,
+                                manageUrl
                             })
 
                             if (emailResult.success) {
@@ -767,6 +783,11 @@ export async function processReminders(
                             result.sent++
                         } else {
                             // Send the WhatsApp reminder
+                            const reminderManageUrl = buildAppointmentManageUrl(
+                                appointment.business.slug,
+                                appointment.id,
+                                appointment.secretToken
+                            )
                             const whatsappResult = await sendReminderWhatsApp(prisma, {
                                 appointmentId: appointment.id,
                                 business: appointment.business,
@@ -774,7 +795,8 @@ export async function processReminders(
                                 resource: appointment.resource,
                                 customer: appointment.customer,
                                 startAt: appointment.startAt,
-                                offsetMinutes: offset
+                                offsetMinutes: offset,
+                                manageUrl: reminderManageUrl
                             })
 
                             if (whatsappResult.success) {

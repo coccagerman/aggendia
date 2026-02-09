@@ -111,7 +111,7 @@ export async function sendConfirmationEmail(
     prisma: PrismaClient,
     input: SendConfirmationEmailInput
 ): Promise<SendNotificationResult> {
-    const { appointmentId, business, service, resource, customer, startAt } = input
+    const { appointmentId, business, service, resource, customer, startAt, manageUrl } = input
 
     // 1. Skip if customer has no email
     if (!customer.email) {
@@ -176,7 +176,8 @@ export async function sendConfirmationEmail(
             resourceLabel: business.resourceLabel,
             formattedDateTime: formatDateTimeForNotification(startAt, business.timezone),
             timezone: getTimezoneDisplayName(business.timezone),
-            address: business.address
+            address: business.address,
+            manageUrl
         }
 
         // 5. Send email via Resend
@@ -267,6 +268,7 @@ interface ConfirmationMessageData {
     resourceName: string
     formattedDateTime: string
     timezone: string
+    manageUrl?: string | null
 }
 
 /**
@@ -280,14 +282,18 @@ interface ConfirmationMessageData {
  * @returns Formatted text message
  */
 function composeConfirmationMessage(data: ConfirmationMessageData): string {
-    return [
+    const lines = [
         `📍 ${data.businessName}`,
         `📋 Servicio: ${data.serviceName}`,
         `👤 ${data.resourceLabel}: ${data.resourceName}`,
         `📅 ${data.formattedDateTime}`,
         `🕐 Zona horaria: ${data.timezone}`,
         `¡Te esperamos!`
-    ].join(' | ')
+    ]
+    if (data.manageUrl) {
+        lines.push(`🔗 Cancelar o reprogramar: ${data.manageUrl}`)
+    }
+    return lines.join(' | ')
 }
 
 /**
@@ -311,7 +317,7 @@ export async function sendConfirmationWhatsApp(
     prisma: PrismaClient,
     input: SendConfirmationWhatsAppInput
 ): Promise<SendNotificationResult> {
-    const { appointmentId, business, service, resource, customer, startAt } = input
+    const { appointmentId, business, service, resource, customer, startAt, manageUrl } = input
 
     // 1. Skip if customer has no phoneE164
     if (!customer.phoneE164) {
@@ -374,7 +380,8 @@ export async function sendConfirmationWhatsApp(
             resourceLabel: business.resourceLabel,
             resourceName: resource.name,
             formattedDateTime: formatDateTimeForNotification(startAt, business.timezone),
-            timezone: getTimezoneDisplayName(business.timezone)
+            timezone: getTimezoneDisplayName(business.timezone),
+            manageUrl
         }
 
         const messageText = composeConfirmationMessage(messageData)

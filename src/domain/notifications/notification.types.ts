@@ -73,6 +73,8 @@ export interface SendConfirmationEmailInput {
     }
     /** Appointment start time (UTC) */
     startAt: Date
+    /** Self-service manage URL for cancel/reschedule (optional) */
+    manageUrl?: string | null
 }
 
 /**
@@ -117,6 +119,8 @@ export interface SendConfirmationWhatsAppInput {
     }
     /** Appointment start time (UTC) */
     startAt: Date
+    /** Self-service manage URL for cancel/reschedule (optional) */
+    manageUrl?: string | null
 }
 
 /**
@@ -310,4 +314,6 @@ export interface SendReminderWhatsAppInput {
     startAt: Date
     /** Offset in minutes (1440 = 24h, 120 = 2h) */
     offsetMinutes: number
+    /** Self-service manage URL for cancel/reschedule (optional) */
+    manageUrl?: string | null
 }

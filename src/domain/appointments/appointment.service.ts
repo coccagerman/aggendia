@@ -186,6 +186,7 @@ interface RescheduleResult {
     originalAppointmentId: string
     newStartAt: Date
     newEndAt: Date
+    newSecretToken: string
 }
 
 /**
@@ -341,7 +342,8 @@ export async function rescheduleAppointment(
         newAppointmentId: result.newAppointmentId,
         originalAppointmentId: result.originalAppointmentId,
         newStartAt: result.newStartAt.toISOString(),
-        newEndAt: result.newEndAt.toISOString()
+        newEndAt: result.newEndAt.toISOString(),
+        newSecretToken: result.newSecretToken
     }
 }
 

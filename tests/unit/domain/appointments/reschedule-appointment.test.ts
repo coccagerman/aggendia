@@ -63,7 +63,8 @@ describe('rescheduleAppointment', () => {
         newAppointmentId: 'new-appointment-123',
         originalAppointmentId: appointmentId,
         newStartAt: tomorrow,
-        newEndAt: new Date(tomorrow.getTime() + 30 * 60 * 1000)
+        newEndAt: new Date(tomorrow.getTime() + 30 * 60 * 1000),
+        newSecretToken: 'new-secret-token-uuid'
     }
 
     // Mock dependencies

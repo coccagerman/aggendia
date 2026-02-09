@@ -28,6 +28,7 @@ export interface AppointmentOutput {
     status: AppointmentStatus
     startAt: string // ISO 8601 UTC
     endAt: string // ISO 8601 UTC
+    secretToken: string
     service: {
         id: string
         name: string
@@ -38,6 +39,7 @@ export interface AppointmentOutput {
     }
     business: {
         name: string
+        slug: string
         timezone: string
     }
     customer: {
@@ -88,6 +90,8 @@ export interface RescheduleAppointmentOutput {
     newStartAt: string
     /** New end time in ISO 8601 UTC */
     newEndAt: string
+    /** Secret token for the new appointment (for customer self-service) */
+    newSecretToken: string
 }
 
 /**

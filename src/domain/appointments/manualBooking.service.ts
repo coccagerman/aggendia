@@ -28,6 +28,7 @@ import { createAppointment, isSlotAvailable } from '@/data/repositories/appointm
 import { getAvailabilityByResourceId } from '@/data/repositories/availability.repo'
 import { isWithinAvailability } from '@/domain/availability/availability.service'
 import { sendConfirmationEmail, sendConfirmationWhatsApp } from '@/domain/notifications/notification.service'
+import { buildAppointmentManageUrl } from '@/lib/notifications/manage-url'
 import { addMinutes } from 'date-fns'
 
 /**
@@ -157,6 +158,8 @@ export async function createManualAppointment(
 
     // 11. Send confirmation email (non-blocking, errors are logged not thrown)
     // US-8.1: Email is sent after appointment is successfully created
+    const manageUrl = buildAppointmentManageUrl(appointment.business.slug, appointment.id, appointment.secretToken)
+
     sendConfirmationEmail(prisma, {
         appointmentId: appointment.id,
         business: {
@@ -180,7 +183,8 @@ export async function createManualAppointment(
             email: appointment.customer.email,
             phone: appointment.customer.phone
         },
-        startAt: appointment.startAt
+        startAt: appointment.startAt,
+        manageUrl
     }).catch(err => {
         // Extra safety: ensure any unexpected error doesn't bubble up
         console.error('[ManualBooking] Unexpected error in sendConfirmationEmail:', err)
@@ -209,7 +213,8 @@ export async function createManualAppointment(
             fullName: appointment.customer.fullName,
             phoneE164: appointment.customer.phoneE164
         },
-        startAt: appointment.startAt
+        startAt: appointment.startAt,
+        manageUrl
     }).catch(err => {
         // Extra safety: ensure any unexpected error doesn't bubble up
         console.error('[ManualBooking] Unexpected error in sendConfirmationWhatsApp:', err)
@@ -218,6 +223,7 @@ export async function createManualAppointment(
     // 13. Return formatted output
     return {
         appointmentId: appointment.id,
+        secretToken: appointment.secretToken,
         status: appointment.status as 'SCHEDULED',
         startAt: appointment.startAt.toISOString(),
         endAt: appointment.endAt.toISOString(),
@@ -231,6 +237,7 @@ export async function createManualAppointment(
         },
         business: {
             name: appointment.business.name,
+            slug: appointment.business.slug,
             timezone: appointment.business.timezone
         },
         customer: {

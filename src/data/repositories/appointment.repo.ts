@@ -47,6 +47,7 @@ export interface AppointmentWithRelations extends Appointment {
     business: {
         id: string
         name: string
+        slug: string
         timezone: string
     }
 }
@@ -136,7 +137,7 @@ export async function createAppointment(
                     select: { id: true, fullName: true, email: true, phone: true, phoneE164: true }
                 },
                 business: {
-                    select: { id: true, name: true, timezone: true }
+                    select: { id: true, name: true, slug: true, timezone: true }
                 }
             }
         })
@@ -191,7 +192,83 @@ export async function getAppointmentById(
                 select: { id: true, fullName: true, email: true, phone: true, phoneE164: true }
             },
             business: {
-                select: { id: true, name: true, timezone: true }
+                select: { id: true, name: true, slug: true, timezone: true }
+            }
+        }
+    })
+}
+
+/**
+ * Public appointment data with business settings for notification management URL
+ */
+export interface PublicAppointmentWithRelations extends Appointment {
+    service: {
+        id: string
+        name: string
+        durationMinutes: number
+        slotIntervalMinutes: number
+        status: string
+    }
+    resource: {
+        id: string
+        name: string
+        status: string
+    }
+    customer: {
+        id: string
+        fullName: string
+        email: string | null
+        phone: string | null
+        phoneE164: string | null
+    }
+    business: {
+        id: string
+        name: string
+        slug: string
+        timezone: string
+        resourceLabel: string
+        address: string | null
+        emailNotificationsEnabled: boolean
+        whatsappNotificationsEnabled: boolean
+    }
+}
+
+/**
+ * Get appointment by ID and secretToken (public access — no auth required)
+ * Used for customer self-service (cancel/reschedule via capability URL)
+ * Returns null if appointment not found or token doesn't match (prevents enumeration)
+ */
+export async function getAppointmentByIdAndToken(
+    prisma: PrismaClient,
+    appointmentId: string,
+    secretToken: string
+): Promise<PublicAppointmentWithRelations | null> {
+    return prisma.appointment.findFirst({
+        where: {
+            id: appointmentId,
+            secretToken
+        },
+        include: {
+            service: {
+                select: { id: true, name: true, durationMinutes: true, slotIntervalMinutes: true, status: true }
+            },
+            resource: {
+                select: { id: true, name: true, status: true }
+            },
+            customer: {
+                select: { id: true, fullName: true, email: true, phone: true, phoneE164: true }
+            },
+            business: {
+                select: {
+                    id: true,
+                    name: true,
+                    slug: true,
+                    timezone: true,
+                    resourceLabel: true,
+                    address: true,
+                    emailNotificationsEnabled: true,
+                    whatsappNotificationsEnabled: true
+                }
             }
         }
     })
@@ -284,7 +361,7 @@ export async function getAppointmentsByBusinessAndDay(
                 select: { id: true, fullName: true, email: true, phone: true, phoneE164: true }
             },
             business: {
-                select: { id: true, name: true, timezone: true }
+                select: { id: true, name: true, slug: true, timezone: true }
             }
         },
         orderBy: { startAt: 'asc' }
@@ -449,6 +526,7 @@ export interface RescheduleAppointmentResult {
     originalAppointmentId: string
     newStartAt: Date
     newEndAt: Date
+    newSecretToken: string
 }
 
 /**
@@ -511,7 +589,8 @@ export async function createRescheduledAppointment(
                 newAppointmentId: newAppointment.id,
                 originalAppointmentId: input.originalAppointmentId,
                 newStartAt: newAppointment.startAt,
-                newEndAt: newAppointment.endAt
+                newEndAt: newAppointment.endAt,
+                newSecretToken: newAppointment.secretToken
             }
         })
     } catch (error) {
@@ -586,11 +665,13 @@ export async function countFutureAppointmentsByResourceId(prisma: PrismaClient, 
  */
 export interface EligibleAppointment {
     id: string
+    secretToken: string
     status: AppointmentStatus
     startAt: Date
     business: {
         id: string
         name: string
+        slug: string
         timezone: string
         resourceLabel: string
         address: string | null
@@ -674,6 +755,7 @@ export async function findEligibleAppointmentsForReminders(
                 select: {
                     id: true,
                     name: true,
+                    slug: true,
                     timezone: true,
                     resourceLabel: true,
                     address: true,
@@ -708,6 +790,7 @@ export async function findEligibleAppointmentsForReminders(
 
     return appointments.map(apt => ({
         id: apt.id,
+        secretToken: apt.secretToken,
         status: apt.status,
         startAt: apt.startAt,
         business: apt.business,
