@@ -6,6 +6,7 @@
 import { describe, it, expect } from 'vitest'
 import {
     APPOINTMENT_STATUSES,
+    DEFAULT_STATUSES,
     isValidStatus,
     parseStatusFilter,
     serializeStatusFilter,
@@ -38,12 +39,12 @@ describe('appointments utilities', () => {
     })
 
     describe('parseStatusFilter', () => {
-        it('should return all statuses when param is undefined', () => {
-            expect(parseStatusFilter(undefined)).toEqual(APPOINTMENT_STATUSES)
+        it('should return default statuses (SCHEDULED) when param is undefined', () => {
+            expect(parseStatusFilter(undefined)).toEqual(DEFAULT_STATUSES)
         })
 
-        it('should return all statuses when param is empty', () => {
-            expect(parseStatusFilter('')).toEqual(APPOINTMENT_STATUSES)
+        it('should return default statuses (SCHEDULED) when param is empty', () => {
+            expect(parseStatusFilter('')).toEqual(DEFAULT_STATUSES)
         })
 
         it('should parse single status', () => {
@@ -66,8 +67,8 @@ describe('appointments utilities', () => {
             expect(parseStatusFilter('SCHEDULED,INVALID,CANCELLED')).toEqual(['SCHEDULED', 'CANCELLED'])
         })
 
-        it('should return all statuses when all provided statuses are invalid', () => {
-            expect(parseStatusFilter('INVALID,WRONG')).toEqual(APPOINTMENT_STATUSES)
+        it('should return default statuses when all provided statuses are invalid', () => {
+            expect(parseStatusFilter('INVALID,WRONG')).toEqual(DEFAULT_STATUSES)
         })
 
         it('should handle all four statuses', () => {
@@ -81,12 +82,16 @@ describe('appointments utilities', () => {
     })
 
     describe('serializeStatusFilter', () => {
-        it('should return undefined when all statuses are selected', () => {
-            expect(serializeStatusFilter([...APPOINTMENT_STATUSES])).toBeUndefined()
+        it('should return undefined when selection matches default (SCHEDULED only)', () => {
+            expect(serializeStatusFilter([...DEFAULT_STATUSES])).toBeUndefined()
         })
 
-        it('should serialize single status', () => {
-            expect(serializeStatusFilter(['SCHEDULED'])).toBe('SCHEDULED')
+        it('should serialize all statuses when all are selected', () => {
+            expect(serializeStatusFilter([...APPOINTMENT_STATUSES])).toBe('SCHEDULED,CANCELLED,RESCHEDULED,COMPLETED')
+        })
+
+        it('should serialize single non-default status', () => {
+            expect(serializeStatusFilter(['CANCELLED'])).toBe('CANCELLED')
         })
 
         it('should serialize multiple statuses (comma-separated)', () => {

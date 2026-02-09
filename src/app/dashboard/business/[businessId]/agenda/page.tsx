@@ -44,7 +44,7 @@ export default async function AgendaPage({ params, searchParams }: PageProps) {
     const { businessId } = await params
     const { date: dateParam, resourceId: resourceIdParam, view: viewParam, status: statusParam } = await searchParams
 
-    // Parse status filter (default: all statuses)
+    // Parse status filter (default: only SCHEDULED)
     const activeStatuses = parseStatusFilter(statusParam)
 
     // Validar sesión
