@@ -11,8 +11,14 @@ import { SendConfirmationWhatsAppInput } from '@/domain/notifications/notificati
 
 // Mock the whatsapp client module
 vi.mock('@/lib/whatsapp/client', () => ({
-    sendTextMessage: vi.fn(),
-    isWhatsAppEnabled: vi.fn()
+    sendTemplateMessage: vi.fn(),
+    isWhatsAppEnabled: vi.fn(),
+    WHATSAPP_TEMPLATES: {
+        CONFIRMATION: 'turnosapp_confirmation',
+        CANCELLATION: 'turnosapp_cancellation',
+        RESCHEDULED: 'turnosapp_rescheduled',
+        REMINDER: 'turnosapp_reminder'
+    }
 }))
 
 // Mock the notification repository
@@ -21,7 +27,7 @@ vi.mock('@/data/repositories/notification.repo', () => ({
     updateNotificationStatus: vi.fn()
 }))
 
-import { sendTextMessage, isWhatsAppEnabled } from '@/lib/whatsapp/client'
+import { sendTemplateMessage, isWhatsAppEnabled } from '@/lib/whatsapp/client'
 import { createNotification, updateNotificationStatus } from '@/data/repositories/notification.repo'
 import { PrismaClient, Prisma } from '@prisma/client'
 
@@ -77,7 +83,7 @@ describe('sendConfirmationWhatsApp', () => {
             expect(result.success).toBe(false)
             expect(result.error).toBe('Customer has no valid phone number')
             expect(createNotification).not.toHaveBeenCalled()
-            expect(sendTextMessage).not.toHaveBeenCalled()
+            expect(sendTemplateMessage).not.toHaveBeenCalled()
         })
     })
 
@@ -108,7 +114,7 @@ describe('sendConfirmationWhatsApp', () => {
             expect(result.success).toBe(false)
             expect(result.error).toBe('WhatsApp notifications are disabled')
             expect(createNotification).not.toHaveBeenCalled()
-            expect(sendTextMessage).not.toHaveBeenCalled()
+            expect(sendTemplateMessage).not.toHaveBeenCalled()
         })
     })
 
@@ -132,7 +138,7 @@ describe('sendConfirmationWhatsApp', () => {
         })
 
         it('should send WhatsApp message successfully and update notification to SENT', async () => {
-            vi.mocked(sendTextMessage).mockResolvedValue({
+            vi.mocked(sendTemplateMessage).mockResolvedValue({
                 success: true,
                 messageId: 'wamid.123'
             })
@@ -166,10 +172,11 @@ describe('sendConfirmationWhatsApp', () => {
                 scheduledFor: expect.any(Date)
             })
 
-            // Verify WhatsApp message was sent
-            expect(sendTextMessage).toHaveBeenCalledWith(
+            // Verify WhatsApp template message was sent
+            expect(sendTemplateMessage).toHaveBeenCalledWith(
                 validInput.customer.phoneE164,
-                expect.stringContaining('✅ Turno confirmado')
+                'turnosapp_confirmation',
+                expect.stringContaining(validInput.business.name)
             )
 
             // Verify notification was updated to SENT
@@ -182,49 +189,51 @@ describe('sendConfirmationWhatsApp', () => {
         })
 
         it('should include business info in the message', async () => {
-            vi.mocked(sendTextMessage).mockResolvedValue({
+            vi.mocked(sendTemplateMessage).mockResolvedValue({
                 success: true,
                 messageId: 'wamid.123'
             })
 
             await sendConfirmationWhatsApp(mockPrisma, validInput)
 
-            expect(sendTextMessage).toHaveBeenCalledWith(
+            expect(sendTemplateMessage).toHaveBeenCalledWith(
                 validInput.customer.phoneE164,
+                'turnosapp_confirmation',
                 expect.stringContaining(validInput.business.name)
             )
         })
 
         it('should include service name in the message', async () => {
-            vi.mocked(sendTextMessage).mockResolvedValue({
+            vi.mocked(sendTemplateMessage).mockResolvedValue({
                 success: true,
                 messageId: 'wamid.123'
             })
 
             await sendConfirmationWhatsApp(mockPrisma, validInput)
 
-            expect(sendTextMessage).toHaveBeenCalledWith(
+            expect(sendTemplateMessage).toHaveBeenCalledWith(
                 validInput.customer.phoneE164,
+                'turnosapp_confirmation',
                 expect.stringContaining(validInput.service.name)
             )
         })
 
         it('should include resource info in the message', async () => {
-            vi.mocked(sendTextMessage).mockResolvedValue({
+            vi.mocked(sendTemplateMessage).mockResolvedValue({
                 success: true,
                 messageId: 'wamid.123'
             })
 
             await sendConfirmationWhatsApp(mockPrisma, validInput)
 
-            const call = vi.mocked(sendTextMessage).mock.calls[0]
-            const message = call[1]
+            const call = vi.mocked(sendTemplateMessage).mock.calls[0]
+            const message = call[2]
             expect(message).toContain(validInput.resource.name)
             expect(message).toContain(validInput.business.resourceLabel)
         })
 
         it('should handle WhatsApp API error and update notification to FAILED', async () => {
-            vi.mocked(sendTextMessage).mockResolvedValue({
+            vi.mocked(sendTemplateMessage).mockResolvedValue({
                 success: false,
                 error: 'Invalid phone number'
             })
@@ -257,11 +266,11 @@ describe('sendConfirmationWhatsApp', () => {
 
             expect(result.success).toBe(false)
             expect(result.error).toBe('Notification already exists')
-            expect(sendTextMessage).not.toHaveBeenCalled()
+            expect(sendTemplateMessage).not.toHaveBeenCalled()
         })
 
         it('should handle unexpected errors and update notification to FAILED', async () => {
-            vi.mocked(sendTextMessage).mockRejectedValue(new Error('Network error'))
+            vi.mocked(sendTemplateMessage).mockRejectedValue(new Error('Network error'))
 
             const result = await sendConfirmationWhatsApp(mockPrisma, validInput)
 

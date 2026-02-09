@@ -23,7 +23,7 @@ import {
 } from './notification.types'
 import { createNotification, updateNotificationStatus } from '@/data/repositories/notification.repo'
 import { resend, defaultFromEmail, isEmailEnabled } from '@/lib/resend/client'
-import { sendTextMessage, isWhatsAppEnabled } from '@/lib/whatsapp/client'
+import { sendTemplateMessage, isWhatsAppEnabled, WHATSAPP_TEMPLATES } from '@/lib/whatsapp/client'
 import {
     renderConfirmationEmail,
     renderConfirmationEmailText,
@@ -280,15 +280,14 @@ interface ConfirmationMessageData {
  * @returns Formatted text message
  */
 function composeConfirmationMessage(data: ConfirmationMessageData): string {
-    return `✅ Turno confirmado
-
-📍 ${data.businessName}
-📋 Servicio: ${data.serviceName}
-👤 ${data.resourceLabel}: ${data.resourceName}
-📅 ${data.formattedDateTime}
-🕐 Zona horaria: ${data.timezone}
-
-¡Te esperamos!`
+    return [
+        `📍 ${data.businessName}`,
+        `📋 Servicio: ${data.serviceName}`,
+        `👤 ${data.resourceLabel}: ${data.resourceName}`,
+        `📅 ${data.formattedDateTime}`,
+        `🕐 Zona horaria: ${data.timezone}`,
+        `¡Te esperamos!`
+    ].join(' | ')
 }
 
 /**
@@ -379,7 +378,7 @@ export async function sendConfirmationWhatsApp(
         }
 
         const messageText = composeConfirmationMessage(messageData)
-        const result = await sendTextMessage(customer.phoneE164, messageText)
+        const result = await sendTemplateMessage(customer.phoneE164, WHATSAPP_TEMPLATES.CONFIRMATION, messageText)
 
         if (!result.success) {
             // 6a. Update notification status to FAILED
@@ -653,15 +652,14 @@ interface CancellationMessageData {
  * Compose cancellation message text for WhatsApp
  */
 function composeCancellationMessage(data: CancellationMessageData): string {
-    return `❌ Turno cancelado
-
-📍 ${data.businessName}
-📋 Servicio: ${data.serviceName}
-👤 ${data.resourceLabel}: ${data.resourceName}
-📅 ${data.formattedDateTime} (cancelado)
-🕐 Zona horaria: ${data.timezone}
-
-Si deseas reservar un nuevo turno, visitá la página del negocio.`
+    return [
+        `📍 ${data.businessName}`,
+        `📋 Servicio: ${data.serviceName}`,
+        `👤 ${data.resourceLabel}: ${data.resourceName}`,
+        `📅 ${data.formattedDateTime} (cancelado)`,
+        `🕐 Zona horaria: ${data.timezone}`,
+        `Si deseas reservar un nuevo turno, visitá la página del negocio.`
+    ].join(' | ')
 }
 
 /**
@@ -744,7 +742,7 @@ export async function sendCancellationWhatsApp(
         }
 
         const messageText = composeCancellationMessage(messageData)
-        const result = await sendTextMessage(customer.phoneE164, messageText)
+        const result = await sendTemplateMessage(customer.phoneE164, WHATSAPP_TEMPLATES.CANCELLATION, messageText)
 
         if (!result.success) {
             // 6a. Update notification status to FAILED
@@ -1010,17 +1008,15 @@ interface RescheduledMessageData {
  * Compose rescheduled message text for WhatsApp
  */
 function composeRescheduledMessage(data: RescheduledMessageData): string {
-    return `🔄 Turno reprogramado
-
-📍 ${data.businessName}
-📋 Servicio: ${data.serviceName}
-👤 ${data.resourceLabel}: ${data.resourceName}
-
-📅 Fecha anterior: ${data.originalFormattedDateTime}
-✅ Nueva fecha: ${data.newFormattedDateTime}
-🕐 Zona horaria: ${data.timezone}
-
-¡Te esperamos!`
+    return [
+        `📍 ${data.businessName}`,
+        `📋 Servicio: ${data.serviceName}`,
+        `👤 ${data.resourceLabel}: ${data.resourceName}`,
+        `📅 Fecha anterior: ${data.originalFormattedDateTime}`,
+        `✅ Nueva fecha: ${data.newFormattedDateTime}`,
+        `🕐 Zona horaria: ${data.timezone}`,
+        `¡Te esperamos!`
+    ].join(' | ')
 }
 
 /**
@@ -1104,7 +1100,7 @@ export async function sendRescheduledWhatsApp(
         }
 
         const messageText = composeRescheduledMessage(messageData)
-        const result = await sendTextMessage(customer.phoneE164, messageText)
+        const result = await sendTemplateMessage(customer.phoneE164, WHATSAPP_TEMPLATES.RESCHEDULED, messageText)
 
         if (!result.success) {
             // 6a. Update notification status to FAILED

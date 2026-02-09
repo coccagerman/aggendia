@@ -19,7 +19,7 @@ import { createNotification, updateNotificationStatus, notificationExists } from
 import { findEligibleAppointmentsForReminders } from '@/data/repositories/appointment.repo'
 import { getBusinessesForReminderOffset } from '@/data/repositories/business.repo'
 import { resend, defaultFromEmail, isEmailEnabled } from '@/lib/resend/client'
-import { sendTextMessage, isWhatsAppEnabled } from '@/lib/whatsapp/client'
+import { sendTemplateMessage, isWhatsAppEnabled, WHATSAPP_TEMPLATES } from '@/lib/whatsapp/client'
 import { formatDateTimeForNotification, getTimezoneDisplayName } from '@/lib/notifications/notification-time'
 import {
     renderReminderEmail,
@@ -129,18 +129,17 @@ interface ReminderMessageData {
  * @returns Formatted text message
  */
 function composeReminderMessage(data: ReminderMessageData): string {
-    const header =
-        data.reminderType === '24h' ? '📅 Recordatorio: tu turno es mañana' : '⏰ Recordatorio: tu turno es en 2 horas'
+    const header = data.reminderType === '24h' ? 'Tu turno es mañana' : 'Tu turno es en 2 horas'
 
-    return `${header}
-
-📍 ${data.businessName}
-📋 Servicio: ${data.serviceName}
-👤 ${data.resourceLabel}: ${data.resourceName}
-📅 ${data.formattedDateTime}
-🕐 Zona horaria: ${data.timezone}
-
-¡Te esperamos!`
+    return [
+        header,
+        `📍 ${data.businessName}`,
+        `📋 Servicio: ${data.serviceName}`,
+        `👤 ${data.resourceLabel}: ${data.resourceName}`,
+        `📅 ${data.formattedDateTime}`,
+        `🕐 Zona horaria: ${data.timezone}`,
+        `¡Te esperamos!`
+    ].join(' | ')
 }
 
 /**
@@ -473,7 +472,7 @@ export async function sendReminderWhatsApp(
         }
 
         const messageText = composeReminderMessage(messageData)
-        const result = await sendTextMessage(customer.phoneE164, messageText)
+        const result = await sendTemplateMessage(customer.phoneE164, WHATSAPP_TEMPLATES.REMINDER, messageText)
 
         if (!result.success) {
             // 8a. Update notification status to FAILED

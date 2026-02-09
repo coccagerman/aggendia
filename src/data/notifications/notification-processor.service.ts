@@ -16,7 +16,7 @@ import {
     PendingNotificationWithAppointment
 } from '@/data/repositories/notification.repo'
 import { resend, defaultFromEmail, isEmailEnabled } from '@/lib/resend/client'
-import { sendTextMessage, isWhatsAppEnabled } from '@/lib/whatsapp/client'
+import { sendTemplateMessage, isWhatsAppEnabled, WHATSAPP_TEMPLATES } from '@/lib/whatsapp/client'
 import {
     renderConfirmationEmail,
     renderConfirmationEmailText,
@@ -153,7 +153,11 @@ async function processConfirmationWhatsApp(
 
 ¡Te esperamos!`
 
-        const result = await sendTextMessage(appointment.customer.phoneE164, messageText)
+        const result = await sendTemplateMessage(
+            appointment.customer.phoneE164,
+            WHATSAPP_TEMPLATES.CONFIRMATION,
+            messageText
+        )
 
         if (!result.success) {
             return { success: false, error: result.error }
@@ -252,7 +256,11 @@ async function processCancellationWhatsApp(
 
 Si deseas reservar un nuevo turno, visitá la página del negocio.`
 
-        const result = await sendTextMessage(appointment.customer.phoneE164, messageText)
+        const result = await sendTemplateMessage(
+            appointment.customer.phoneE164,
+            WHATSAPP_TEMPLATES.CANCELLATION,
+            messageText
+        )
 
         if (!result.success) {
             return { success: false, error: result.error }
@@ -366,7 +374,11 @@ async function processRescheduledWhatsApp(
 
 ¡Te esperamos!`
 
-        const result = await sendTextMessage(appointment.customer.phoneE164, messageText)
+        const result = await sendTemplateMessage(
+            appointment.customer.phoneE164,
+            WHATSAPP_TEMPLATES.RESCHEDULED,
+            messageText
+        )
 
         if (!result.success) {
             return { success: false, error: result.error }

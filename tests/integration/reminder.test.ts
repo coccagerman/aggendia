@@ -33,8 +33,14 @@ vi.mock('@/lib/resend/client', () => ({
 
 // Mock WhatsApp sending to avoid actual messages in tests
 vi.mock('@/lib/whatsapp/client', () => ({
-    sendTextMessage: vi.fn().mockResolvedValue({ success: true, messageId: 'mock-wa-id' }),
-    isWhatsAppEnabled: vi.fn().mockReturnValue(true)
+    sendTemplateMessage: vi.fn().mockResolvedValue({ success: true, messageId: 'mock-wa-id' }),
+    isWhatsAppEnabled: vi.fn().mockReturnValue(true),
+    WHATSAPP_TEMPLATES: {
+        CONFIRMATION: 'turnosapp_confirmation',
+        CANCELLATION: 'turnosapp_cancellation',
+        RESCHEDULED: 'turnosapp_rescheduled',
+        REMINDER: 'turnosapp_reminder'
+    }
 }))
 
 describe('Reminder Integration Tests', () => {

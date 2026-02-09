@@ -29,8 +29,14 @@ vi.mock('@/lib/resend/client', () => ({
 
 // Mock the WhatsApp client module
 vi.mock('@/lib/whatsapp/client', () => ({
-    sendTextMessage: vi.fn(),
-    isWhatsAppEnabled: vi.fn()
+    sendTemplateMessage: vi.fn(),
+    isWhatsAppEnabled: vi.fn(),
+    WHATSAPP_TEMPLATES: {
+        CONFIRMATION: 'turnosapp_confirmation',
+        CANCELLATION: 'turnosapp_cancellation',
+        RESCHEDULED: 'turnosapp_rescheduled',
+        REMINDER: 'turnosapp_reminder'
+    }
 }))
 
 // Mock the notification repository
@@ -46,7 +52,7 @@ vi.mock('@/data/repositories/appointment.repo', () => ({
 }))
 
 import { resend, isEmailEnabled } from '@/lib/resend/client'
-import { sendTextMessage, isWhatsAppEnabled } from '@/lib/whatsapp/client'
+import { sendTemplateMessage, isWhatsAppEnabled } from '@/lib/whatsapp/client'
 import { createNotification, updateNotificationStatus } from '@/data/repositories/notification.repo'
 import { PrismaClient } from '@prisma/client'
 
@@ -388,7 +394,7 @@ describe('reminder.service', () => {
                 expect(result.success).toBe(false)
                 expect(result.error).toBe('Customer has no valid phone number')
                 expect(createNotification).not.toHaveBeenCalled()
-                expect(sendTextMessage).not.toHaveBeenCalled()
+                expect(sendTemplateMessage).not.toHaveBeenCalled()
             })
         })
 
@@ -407,7 +413,7 @@ describe('reminder.service', () => {
                 expect(result.success).toBe(false)
                 expect(result.error).toBe('WhatsApp notifications are disabled')
                 expect(createNotification).not.toHaveBeenCalled()
-                expect(sendTextMessage).not.toHaveBeenCalled()
+                expect(sendTemplateMessage).not.toHaveBeenCalled()
             })
         })
 
@@ -486,7 +492,7 @@ describe('reminder.service', () => {
                 }
 
                 vi.mocked(createNotification).mockResolvedValue(mockNotification)
-                vi.mocked(sendTextMessage).mockResolvedValue({
+                vi.mocked(sendTemplateMessage).mockResolvedValue({
                     success: true,
                     messageId: 'wamid.123'
                 })
@@ -512,8 +518,9 @@ describe('reminder.service', () => {
                 })
 
                 // Check WhatsApp message was sent with 24h reminder content
-                expect(sendTextMessage).toHaveBeenCalledWith(
+                expect(sendTemplateMessage).toHaveBeenCalledWith(
                     validWhatsAppInput.customer.phoneE164,
+                    'turnosapp_reminder',
                     expect.stringContaining('mañana')
                 )
 
@@ -548,7 +555,7 @@ describe('reminder.service', () => {
                 }
 
                 vi.mocked(createNotification).mockResolvedValue(mockNotification)
-                vi.mocked(sendTextMessage).mockResolvedValue({
+                vi.mocked(sendTemplateMessage).mockResolvedValue({
                     success: true,
                     messageId: 'wamid.123'
                 })
@@ -561,8 +568,9 @@ describe('reminder.service', () => {
                 await sendReminderWhatsApp(mockPrisma, input2h)
 
                 // Check WhatsApp message was sent with 2h reminder content
-                expect(sendTextMessage).toHaveBeenCalledWith(
+                expect(sendTemplateMessage).toHaveBeenCalledWith(
                     input2h.customer.phoneE164,
+                    'turnosapp_reminder',
                     expect.stringContaining('2 horas')
                 )
             })
@@ -584,7 +592,7 @@ describe('reminder.service', () => {
                 }
 
                 vi.mocked(createNotification).mockResolvedValue(mockNotification)
-                vi.mocked(sendTextMessage).mockResolvedValue({
+                vi.mocked(sendTemplateMessage).mockResolvedValue({
                     success: false,
                     error: 'Invalid phone number'
                 })
@@ -627,7 +635,7 @@ describe('reminder.service', () => {
                 }
 
                 vi.mocked(createNotification).mockResolvedValue(mockNotification)
-                vi.mocked(sendTextMessage).mockRejectedValue(new Error('Network error'))
+                vi.mocked(sendTemplateMessage).mockRejectedValue(new Error('Network error'))
                 vi.mocked(updateNotificationStatus).mockResolvedValue({
                     ...mockNotification,
                     status: 'FAILED',

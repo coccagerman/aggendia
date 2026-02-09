@@ -7,13 +7,31 @@
  * - WHATSAPP_ACCESS_TOKEN: Meta access token
  * - WHATSAPP_PHONE_NUMBER_ID: WhatsApp Business phone number ID
  *
- * DEV/Sandbox: Uses text messages (allowed without approved templates)
- * PROD: Will use approved templates (not implemented in this US)
+ * All outbound messages use template messages (required by WhatsApp Business API
+ * to initiate conversations). Each notification type maps to a template with a
+ * single {{1}} body parameter that receives the full composed message text.
  */
 
 // Environment configuration
 const WHATSAPP_ACCESS_TOKEN = process.env.WHATSAPP_ACCESS_TOKEN
 const WHATSAPP_PHONE_NUMBER_ID = process.env.WHATSAPP_PHONE_NUMBER_ID
+
+/**
+ * Template names for each notification type.
+ * These must match the templates created in Meta Business Manager.
+ * Each template has a single body parameter {{1}} that receives the full message.
+ */
+export const WHATSAPP_TEMPLATES = {
+    CONFIRMATION: 'turnosapp_confirmation',
+    CANCELLATION: 'turnosapp_cancellation',
+    RESCHEDULED: 'turnosapp_rescheduled',
+    REMINDER: 'turnosapp_reminder'
+} as const
+
+export type WhatsAppTemplateName = (typeof WHATSAPP_TEMPLATES)[keyof typeof WHATSAPP_TEMPLATES]
+
+/** Language code for templates — es_AR for Argentine Spanish */
+const WHATSAPP_TEMPLATE_LANG = process.env.WHATSAPP_TEMPLATE_LANG ?? 'es_AR'
 
 if (!WHATSAPP_ACCESS_TOKEN) {
     console.warn('[WhatsApp] WHATSAPP_ACCESS_TOKEN not configured - WhatsApp sending will be disabled')
@@ -63,10 +81,107 @@ interface WhatsAppApiSuccess {
 }
 
 /**
+ * Send a template message via WhatsApp Cloud API
+ *
+ * WhatsApp Business API requires template messages to initiate conversations.
+ * Each template uses a single {{1}} body parameter with the full message text.
+ *
+ * @param to - Recipient phone in E.164 format (e.g., +5491155667788)
+ * @param templateName - Name of the approved template in Meta Business Manager
+ * @param bodyText - Full message text to send as the {{1}} parameter
+ * @returns Result with success status and message ID or error
+ */
+export async function sendTemplateMessage(
+    to: string,
+    templateName: WhatsAppTemplateName,
+    bodyText: string
+): Promise<WhatsAppResult> {
+    if (!isWhatsAppEnabled()) {
+        return {
+            success: false,
+            error: 'WhatsApp sending is disabled (missing configuration)'
+        }
+    }
+
+    const url = `https://graph.facebook.com/v22.0/${WHATSAPP_PHONE_NUMBER_ID}/messages`
+
+    // WhatsApp template parameters cannot contain newlines, tabs, or 4+ consecutive spaces
+    const sanitizedText = bodyText
+        .replace(/[\n\r\t]/g, ' ')
+        .replace(/ {4,}/g, '   ')
+        .trim()
+
+    const payload = {
+        messaging_product: 'whatsapp',
+        to: to.replace('+', ''), // WhatsApp API expects number without +
+        type: 'template',
+        template: {
+            name: templateName,
+            language: { code: WHATSAPP_TEMPLATE_LANG },
+            components: [
+                {
+                    type: 'body',
+                    parameters: [{ type: 'text', text: sanitizedText }]
+                }
+            ]
+        }
+    }
+
+    try {
+        const response = await fetch(url, {
+            method: 'POST',
+            headers: {
+                Authorization: `Bearer ${WHATSAPP_ACCESS_TOKEN}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(payload)
+        })
+
+        const data = (await response.json()) as WhatsAppApiSuccess | WhatsAppApiError
+
+        // TODO: REMOVE — temporary debug log
+        console.debug('[WhatsApp DEBUG]', {
+            to: payload.to,
+            template: templateName,
+            status: response.status,
+            data: JSON.stringify(data)
+        })
+
+        if (!response.ok) {
+            const errorData = data as WhatsAppApiError
+            const errorMessage = errorData.error?.message || `HTTP ${response.status}`
+            return {
+                success: false,
+                error: errorMessage
+            }
+        }
+
+        const successData = data as WhatsAppApiSuccess
+        const messageId = successData.messages?.[0]?.id
+
+        return {
+            success: true,
+            messageId
+        }
+    } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+        return {
+            success: false,
+            error: errorMessage
+        }
+    }
+}
+
+// ============================================================================
+// Legacy: Text message (kept for potential future use within 24h windows)
+// ============================================================================
+
+/**
  * Send a text message via WhatsApp Cloud API
  *
- * Use for DEV/sandbox environment where templates are not required.
- * In production, use sendTemplateMessage instead (not yet implemented).
+ * NOTE: Text messages can only be sent within a 24h conversation window
+ * (i.e., after the user messages first or after a template message is delivered).
+ * For initiating conversations, use sendTemplateMessage instead.
  *
  * @param to - Recipient phone in E.164 format (e.g., +5491155667788)
  * @param text - Message text content
@@ -80,7 +195,7 @@ export async function sendTextMessage(to: string, text: string): Promise<WhatsAp
         }
     }
 
-    const url = `https://graph.facebook.com/v21.0/${WHATSAPP_PHONE_NUMBER_ID}/messages`
+    const url = `https://graph.facebook.com/v22.0/${WHATSAPP_PHONE_NUMBER_ID}/messages`
 
     const payload = {
         messaging_product: 'whatsapp',
@@ -127,48 +242,5 @@ export async function sendTextMessage(to: string, text: string): Promise<WhatsAp
             success: false,
             error: errorMessage
         }
-    }
-}
-
-// ============================================================================
-// Future: Template-based messages for production (US-10.2 scope excludes this)
-// ============================================================================
-
-/**
- * Template parameters for confirmation message
- * Prepared for future template implementation
- */
-export interface ConfirmationTemplateParams {
-    businessName: string
-    serviceName: string
-    resourceLabel: string
-    resourceName: string
-    dateTime: string
-    timezone: string
-}
-
-/**
- * Send a template message via WhatsApp Cloud API
- *
- * NOT IMPLEMENTED - Placeholder for production use with approved templates.
- * Templates must be approved by Meta before use in production.
- *
- * @param to - Recipient phone in E.164 format
- * @param templateName - Name of the approved template
- * @param params - Template parameters
- * @returns Result with success status and message ID or error
- */
-export async function sendTemplateMessage(
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    to: string,
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    templateName: string,
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    params: ConfirmationTemplateParams
-): Promise<WhatsAppResult> {
-    // Not implemented - will be done when templates are approved
-    return {
-        success: false,
-        error: 'Template messages not yet implemented'
     }
 }
