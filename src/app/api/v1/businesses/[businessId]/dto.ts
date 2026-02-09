@@ -54,3 +54,28 @@ export const updateBusinessSettingsSchema = z
     })
 
 export type UpdateBusinessSettingsRequest = z.infer<typeof updateBusinessSettingsSchema>
+
+/**
+ * Schema para actualizar datos core del negocio (PATCH)
+ *
+ * Campos soportados:
+ * - name: nombre del negocio
+ * - timezone: zona horaria
+ * - address: dirección
+ * - area: ciudad/zona
+ * - status: ACTIVE | INACTIVE (DELETED no se permite vía PATCH)
+ */
+export const updateBusinessSchema = z.object({
+    name: z
+        .string()
+        .trim()
+        .min(1, 'El nombre del negocio es requerido')
+        .max(100, 'El nombre del negocio no puede exceder 100 caracteres')
+        .optional(),
+    timezone: z.string().trim().min(1, 'El timezone es requerido').optional(),
+    address: z.string().trim().max(200, 'La dirección no puede exceder 200 caracteres').nullable().optional(),
+    area: z.string().trim().max(100, 'La ciudad/zona no puede exceder 100 caracteres').nullable().optional(),
+    status: z.enum(['ACTIVE', 'INACTIVE']).optional()
+})
+
+export type UpdateBusinessRequest = z.infer<typeof updateBusinessSchema>

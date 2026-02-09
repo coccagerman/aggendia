@@ -7,6 +7,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { LogoutButton } from './logout-button'
 import { CopyLinkButton } from './copy-link-button'
 import { ResourceActions } from '@/components/dashboard/resource-actions'
+import { BusinessActions } from '@/components/dashboard/business-actions'
 import { getBusinessesByUserId } from '@/data/repositories/business.repo'
 import { getResourcesByBusinessIdsMap } from '@/data/repositories/resource.repo'
 import { getServicesByBusinessIdsMap } from '@/data/repositories/service.repo'
@@ -20,6 +21,7 @@ interface Business {
     resourceLabel: string
     address: string | null
     area: string | null
+    status: string
     role: 'OWNER' | 'ADMIN' | 'STAFF'
 }
 
@@ -209,9 +211,32 @@ export default async function DashboardPage() {
                                                 >
                                                     <div className='flex items-start justify-between'>
                                                         <div className='flex-1'>
-                                                            <h3 className='font-semibold text-zinc-900 dark:text-zinc-50'>
-                                                                {business.name}
-                                                            </h3>
+                                                            <div className='flex items-center gap-2'>
+                                                                <h3 className='font-semibold text-zinc-900 dark:text-zinc-50'>
+                                                                    {business.name}
+                                                                </h3>
+                                                                <BusinessActions
+                                                                    business={{
+                                                                        id: business.id,
+                                                                        name: business.name,
+                                                                        timezone: business.timezone,
+                                                                        address: business.address,
+                                                                        area: business.area,
+                                                                        status: business.status
+                                                                    }}
+                                                                />
+                                                                <span
+                                                                    className={`rounded px-1.5 py-0.5 text-xs font-medium ${
+                                                                        business.status === 'ACTIVE'
+                                                                            ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300'
+                                                                            : 'bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400'
+                                                                    }`}
+                                                                >
+                                                                    {business.status === 'ACTIVE'
+                                                                        ? 'Activo'
+                                                                        : 'Inactivo'}
+                                                                </span>
+                                                            </div>
                                                             <div className='mt-2 space-y-1 text-sm text-zinc-600 dark:text-zinc-400'>
                                                                 <p>
                                                                     <span className='font-medium'>Slug:</span>{' '}

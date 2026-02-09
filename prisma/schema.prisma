@@ -19,6 +19,12 @@ enum BusinessRole {
   STAFF
 }
 
+enum BusinessStatus {
+  ACTIVE
+  INACTIVE
+  DELETED
+}
+
 enum ResourceType {
   PERSON
   ASSET
@@ -37,19 +43,20 @@ enum ServiceStatus {
 }
 
 model Business {
-  id                            String   @id @default(uuid())
+  id                            String         @id @default(uuid())
   name                          String
-  slug                          String   @unique
+  slug                          String         @unique
   timezone                      String
-  resourceLabel                 String   @default("Recurso")
+  resourceLabel                 String         @default("Recurso")
   address                       String?
   area                          String?
-  remindersEnabled              Boolean  @default(true)
-  reminderOffsetsMinutes        Int[]    @default([1440, 120]) // 24h y 2h antes
-  emailNotificationsEnabled     Boolean  @default(true)
-  whatsappNotificationsEnabled  Boolean  @default(false)
-  createdAt                     DateTime @default(now())
-  updatedAt                     DateTime @updatedAt
+  status                        BusinessStatus @default(ACTIVE)
+  remindersEnabled              Boolean        @default(true)
+  reminderOffsetsMinutes        Int[]          @default([1440, 120]) // 24h y 2h antes
+  emailNotificationsEnabled     Boolean        @default(true)
+  whatsappNotificationsEnabled  Boolean        @default(false)
+  createdAt                     DateTime       @default(now())
+  updatedAt                     DateTime       @updatedAt
 
   members           BusinessMember[]
   resources         Resource[]
@@ -58,6 +65,8 @@ model Business {
   customers         Customer[]
   appointments      Appointment[]
   notifications     Notification[]
+
+  @@index([status])
 }
 
 model BusinessMember {

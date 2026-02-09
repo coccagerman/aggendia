@@ -3,7 +3,7 @@
  */
 
 import { PrismaClient } from '@prisma/client'
-import { findBusinessBySlug } from '@/data/repositories/business.repo'
+import { findActiveBusinessBySlug } from '@/data/repositories/business.repo'
 import { getActiveResourcesByServiceId } from '@/data/repositories/serviceResource.repo'
 import { AppError, ServiceErrorCodes, BusinessErrorCodes } from '@/domain/common/errors'
 import type { PublicResourceSummary } from './serviceResource.types'
@@ -42,7 +42,7 @@ export async function getPublicServiceResources(
     }
 
     // Find business by slug
-    const business = await findBusinessBySlug(prisma, slug)
+    const business = await findActiveBusinessBySlug(prisma, slug)
     if (!business) {
         throw new AppError(BusinessErrorCodes.BUSINESS_NOT_FOUND, 'Negocio no encontrado', 404)
     }

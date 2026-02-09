@@ -13,7 +13,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button'
 import Link from 'next/link'
 import { prisma } from '@/data/prisma/prisma'
-import { findBusinessBySlug } from '@/data/repositories/business.repo'
+import { findActiveBusinessBySlug } from '@/data/repositories/business.repo'
 import { getActiveResourcesByServiceId } from '@/data/repositories/serviceResource.repo'
 import { ResourceSelector } from './resource-selector'
 
@@ -34,7 +34,7 @@ export default async function SelectResourcePage({ params }: PageProps) {
     }
 
     // Find business by slug
-    const business = await findBusinessBySlug(prisma, slug)
+    const business = await findActiveBusinessBySlug(prisma, slug)
     if (!business) {
         notFound()
     }

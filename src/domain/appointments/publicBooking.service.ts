@@ -13,7 +13,7 @@ import {
     AppointmentErrorCodes,
     ValidationErrorCodes
 } from '@/domain/common/errors'
-import { findBusinessBySlug } from '@/data/repositories/business.repo'
+import { findActiveBusinessBySlug } from '@/data/repositories/business.repo'
 import { getServiceById } from '@/data/repositories/service.repo'
 import { getResourceById } from '@/data/repositories/resource.repo'
 import { upsertCustomer } from '@/data/repositories/customer.repo'
@@ -37,7 +37,7 @@ export async function createPublicAppointment(
     input: CreatePublicAppointmentInput
 ): Promise<AppointmentOutput> {
     // 1. Resolve business by slug
-    const business = await findBusinessBySlug(prisma, input.slug)
+    const business = await findActiveBusinessBySlug(prisma, input.slug)
     if (!business) {
         throw new AppError(BusinessErrorCodes.BUSINESS_NOT_FOUND, 'Negocio no encontrado', 404)
     }

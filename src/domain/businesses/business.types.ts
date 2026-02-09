@@ -1,10 +1,10 @@
-import { BusinessRole } from '@prisma/client'
+import { BusinessRole, BusinessStatus } from '@prisma/client'
 
 /**
  * Domain types for Business entity
  */
 
-export { BusinessRole }
+export { BusinessRole, BusinessStatus }
 
 export interface Business {
     id: string
@@ -14,6 +14,7 @@ export interface Business {
     resourceLabel: string
     address: string | null
     area: string | null
+    status: BusinessStatus
     remindersEnabled: boolean
     reminderOffsetsMinutes: number[]
     emailNotificationsEnabled: boolean
@@ -41,6 +42,14 @@ export interface CreateBusinessInput {
 export interface CreateBusinessResult {
     business: Business
     member: BusinessMember
+}
+
+export interface UpdateBusinessInput {
+    name?: string
+    timezone?: string
+    address?: string | null
+    area?: string | null
+    status?: BusinessStatus
 }
 
 export interface BusinessWithRole extends Business {

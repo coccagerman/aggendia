@@ -7,7 +7,7 @@ import { notFound } from 'next/navigation'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import Link from 'next/link'
 import { prisma } from '@/data/prisma/prisma'
-import { findBusinessBySlug } from '@/data/repositories/business.repo'
+import { findActiveBusinessBySlug } from '@/data/repositories/business.repo'
 import { addDays, startOfDay } from 'date-fns'
 import { SlotGrid } from './slot-grid'
 
@@ -28,7 +28,7 @@ export default async function SlotsPage({ params }: PageProps) {
     }
 
     // Find business by slug
-    const business = await findBusinessBySlug(prisma, slug)
+    const business = await findActiveBusinessBySlug(prisma, slug)
     if (!business) {
         notFound()
     }

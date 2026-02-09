@@ -9,7 +9,7 @@ import { notFound, redirect } from 'next/navigation'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import Link from 'next/link'
 import { prisma } from '@/data/prisma/prisma'
-import { findBusinessBySlug } from '@/data/repositories/business.repo'
+import { findActiveBusinessBySlug } from '@/data/repositories/business.repo'
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
 import { toZonedTime } from 'date-fns-tz'
@@ -45,7 +45,7 @@ export default async function BookPage({ params, searchParams }: PageProps) {
     }
 
     // Find business by slug
-    const business = await findBusinessBySlug(prisma, slug)
+    const business = await findActiveBusinessBySlug(prisma, slug)
     if (!business) {
         notFound()
     }

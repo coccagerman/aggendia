@@ -1,5 +1,12 @@
 import { PrismaClient } from '@prisma/client'
-import { Business, BusinessMember, BusinessWithRole, CreateBusinessInput } from '@/domain/businesses/business.types'
+import {
+    Business,
+    BusinessMember,
+    BusinessWithRole,
+    CreateBusinessInput,
+    UpdateBusinessInput
+} from '@/domain/businesses/business.types'
+import { AppError, BusinessErrorCodes, ValidationErrorCodes } from '@/domain/common/errors'
 
 /**
  * Input para actualizar configuración del negocio
@@ -61,7 +68,12 @@ export async function createBusinessWithOwner(
  */
 export async function getBusinessesByUserId(prisma: PrismaClient, userId: string): Promise<BusinessWithRole[]> {
     const members = await prisma.businessMember.findMany({
-        where: { userId },
+        where: {
+            userId,
+            business: {
+                status: { not: 'DELETED' }
+            }
+        },
         include: {
             business: true
         }
@@ -79,6 +91,19 @@ export async function getBusinessesByUserId(prisma: PrismaClient, userId: string
 export async function findBusinessBySlug(prisma: PrismaClient, slug: string): Promise<Business | null> {
     return prisma.business.findUnique({
         where: { slug }
+    })
+}
+
+/**
+ * Busca un negocio ACTIVO por slug (para páginas públicas).
+ * Retorna null si el negocio no existe, está INACTIVE o DELETED.
+ */
+export async function findActiveBusinessBySlug(prisma: PrismaClient, slug: string): Promise<Business | null> {
+    return prisma.business.findFirst({
+        where: {
+            slug,
+            status: 'ACTIVE'
+        }
     })
 }
 
@@ -129,6 +154,77 @@ export async function updateBusinessSettings(
                 whatsappNotificationsEnabled: input.whatsappNotificationsEnabled
             })
         }
+    })
+}
+
+/**
+ * Actualiza los campos core de un negocio (name, timezone, address, area, status).
+ */
+export async function updateBusiness(
+    prisma: PrismaClient,
+    businessId: string,
+    input: UpdateBusinessInput
+): Promise<Business> {
+    const existing = await prisma.business.findFirst({
+        where: {
+            id: businessId,
+            status: { not: 'DELETED' }
+        }
+    })
+
+    if (!existing) {
+        throw new AppError(BusinessErrorCodes.BUSINESS_NOT_FOUND, 'Negocio no encontrado.', 404)
+    }
+
+    const data: Record<string, unknown> = {}
+    if (input.name !== undefined) data.name = input.name.trim()
+    if (input.timezone !== undefined) data.timezone = input.timezone.trim()
+    if (input.address !== undefined) data.address = input.address
+    if (input.area !== undefined) data.area = input.area
+    if (input.status !== undefined) data.status = input.status
+
+    if (Object.keys(data).length === 0) {
+        throw new AppError(ValidationErrorCodes.VALIDATION_ERROR, 'No hay cambios para aplicar.', 400)
+    }
+
+    return prisma.business.update({
+        where: { id: businessId },
+        data
+    })
+}
+
+/**
+ * Cuenta turnos futuros activos (SCHEDULED o RESCHEDULED) de un negocio.
+ */
+export async function countFutureAppointments(prisma: PrismaClient, businessId: string): Promise<number> {
+    return prisma.appointment.count({
+        where: {
+            businessId,
+            status: { in: ['SCHEDULED', 'RESCHEDULED'] },
+            startAt: { gt: new Date() }
+        }
+    })
+}
+
+/**
+ * Elimina un negocio (soft delete: cambia status a DELETED).
+ * Verifica que no tenga turnos futuros activos antes de eliminar.
+ */
+export async function deleteBusiness(prisma: PrismaClient, businessId: string): Promise<void> {
+    const existing = await prisma.business.findFirst({
+        where: {
+            id: businessId,
+            status: { not: 'DELETED' }
+        }
+    })
+
+    if (!existing) {
+        throw new AppError(BusinessErrorCodes.BUSINESS_NOT_FOUND, 'Negocio no encontrado.', 404)
+    }
+
+    await prisma.business.update({
+        where: { id: businessId },
+        data: { status: 'DELETED' }
     })
 }
 

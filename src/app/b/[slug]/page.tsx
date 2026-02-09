@@ -1,6 +1,6 @@
 import { notFound } from 'next/navigation'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { findBusinessBySlug } from '@/data/repositories/business.repo'
+import { findActiveBusinessBySlug } from '@/data/repositories/business.repo'
 import { getActiveServicesByBusinessId } from '@/data/repositories/service.repo'
 import { getServiceIdsWithActiveResources } from '@/data/repositories/serviceResource.repo'
 import { prisma } from '@/data/prisma/prisma'
@@ -21,7 +21,7 @@ export default async function PublicBusinessPage({ params }: PageProps) {
     // Buscar negocio por slug
     let business
     try {
-        business = await findBusinessBySlug(prisma, slug)
+        business = await findActiveBusinessBySlug(prisma, slug)
     } catch (error) {
         console.error('Error al buscar negocio:', error instanceof Error ? error.message : 'UNKNOWN')
         notFound()

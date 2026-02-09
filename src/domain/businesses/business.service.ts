@@ -1,4 +1,5 @@
 import { AppError, ValidationErrorCodes } from '@/domain/common/errors'
+import { UpdateBusinessInput } from './business.types'
 
 /**
  * Genera un slug a partir de un nombre:
@@ -86,4 +87,35 @@ export function validateCreateBusinessInput(input: { name?: string; timezone?: s
     }
 
     validateTimezone(input.timezone)
+}
+
+/**
+ * Valida los datos de entrada para actualizar un negocio.
+ */
+export function validateUpdateBusinessInput(input: UpdateBusinessInput): void {
+    if (input.name !== undefined) {
+        if (input.name.trim().length === 0) {
+            throw new AppError(ValidationErrorCodes.VALIDATION_ERROR, 'El nombre del negocio es requerido.', 400)
+        }
+
+        if (input.name.trim().length > 100) {
+            throw new AppError(
+                ValidationErrorCodes.VALIDATION_ERROR,
+                'El nombre del negocio no puede exceder 100 caracteres.',
+                400
+            )
+        }
+    }
+
+    if (input.timezone !== undefined) {
+        validateTimezone(input.timezone)
+    }
+
+    if (input.status === 'DELETED') {
+        throw new AppError(
+            ValidationErrorCodes.VALIDATION_ERROR,
+            'No se puede establecer el estado DELETED directamente.',
+            400
+        )
+    }
 }

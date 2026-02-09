@@ -14,7 +14,7 @@ import {
     ServiceErrorCodes,
     ServiceResourceErrorCodes
 } from '@/domain/common/errors'
-import { findBusinessBySlug } from '@/data/repositories/business.repo'
+import { findActiveBusinessBySlug } from '@/data/repositories/business.repo'
 import { getResourceById } from '@/data/repositories/resource.repo'
 import { getServiceById } from '@/data/repositories/service.repo'
 import { getAvailabilityByResourceId } from '@/data/repositories/availability.repo'
@@ -83,7 +83,7 @@ export async function GET(request: NextRequest) {
         }
 
         // 1. Get business by slug
-        const business = await findBusinessBySlug(prisma, validatedQuery.slug)
+        const business = await findActiveBusinessBySlug(prisma, validatedQuery.slug)
         if (!business) {
             throw new AppError(BusinessErrorCodes.BUSINESS_NOT_FOUND, 'Negocio no encontrado', 404)
         }
