@@ -56,7 +56,7 @@ export function WhatsAppSettings({ businessId, initialEnabled }: WhatsAppSetting
                     )}
                     <CardTitle>Notificaciones por WhatsApp</CardTitle>
                 </div>
-                <CardDescription>Enviá confirmaciones y recordatorios a tus clientes por WhatsApp.</CardDescription>
+                <CardDescription>Enviá notificaciones y recordatorios a tus clientes por WhatsApp.</CardDescription>
             </CardHeader>
             <CardContent className='space-y-6'>
                 {/* Message feedback */}
@@ -82,7 +82,7 @@ export function WhatsAppSettings({ businessId, initialEnabled }: WhatsAppSetting
                             Activar notificaciones por WhatsApp
                         </Label>
                         <p className='text-sm text-muted-foreground'>
-                            Los clientes recibirán confirmaciones y recordatorios por WhatsApp.
+                            Los clientes recibirán notificaciones y recordatorios por WhatsApp automáticamente.
                         </p>
                     </div>
                 </div>

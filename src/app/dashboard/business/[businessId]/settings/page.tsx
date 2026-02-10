@@ -65,15 +65,17 @@ export default async function SettingsPage({ params }: SettingsPageProps) {
             {/* Content */}
             <main className='max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8'>
                 <div className='space-y-8'>
-                    {/* Reminder Settings */}
                     <ReminderSettings
                         businessId={businessId}
                         initialEnabled={business.remindersEnabled}
                         initialOffsets={business.reminderOffsetsMinutes}
-                    />
-
-                    {/* WhatsApp Settings - US-10.1 */}
-                    <WhatsAppSettings businessId={businessId} initialEnabled={business.whatsappNotificationsEnabled} />
+                    >
+                        {/* WhatsApp Settings - US-10.1 */}
+                        <WhatsAppSettings
+                            businessId={businessId}
+                            initialEnabled={business.whatsappNotificationsEnabled}
+                        />
+                    </ReminderSettings>
                 </div>
             </main>
         </div>

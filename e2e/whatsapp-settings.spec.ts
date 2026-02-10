@@ -18,7 +18,7 @@ test.describe('WhatsApp Settings E2E (US-10.1)', () => {
         // Should see WhatsApp settings card
         await expect(page.getByTestId('whatsapp-settings')).toBeVisible()
         await expect(page.getByText('Notificaciones por WhatsApp', { exact: true })).toBeVisible()
-        await expect(page.getByText('Enviá confirmaciones y recordatorios a tus clientes por WhatsApp.')).toBeVisible()
+        await expect(page.getByText('Enviá notificaciones y recordatorios a tus clientes por WhatsApp.')).toBeVisible()
         await expect(page.getByLabel(/activar notificaciones por whatsapp/i)).toBeVisible()
     })
 
@@ -121,7 +121,7 @@ test.describe('WhatsApp Settings E2E (US-10.1)', () => {
 
         // Check that reminder settings exist and are enabled by default
         const reminderCheckbox = page.getByRole('checkbox', {
-            name: /activar recordatorios/i
+            name: /activar notificaciones por mail/i
         })
         await expect(reminderCheckbox).toBeChecked()
 
@@ -144,7 +144,7 @@ test.describe('WhatsApp Settings E2E (US-10.1)', () => {
         // Reload and verify reminder settings unchanged
         await page.reload()
         const reloadedReminderCheckbox = page.getByRole('checkbox', {
-            name: /activar recordatorios/i
+            name: /activar notificaciones por mail/i
         })
         await expect(reloadedReminderCheckbox).toBeChecked()
 
