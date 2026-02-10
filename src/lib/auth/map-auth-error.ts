@@ -54,6 +54,20 @@ export function mapAuthError(error: unknown): AppError {
             )
         }
 
+        if (
+            message.includes('oauth') ||
+            message.includes('provider') ||
+            message.includes('pkce') ||
+            message.includes('code verifier') ||
+            message.includes('both auth code and code verifier')
+        ) {
+            return new AppError(
+                AuthErrorCodes.FORBIDDEN,
+                'Error al completar la autenticación con el proveedor externo. Intentá nuevamente.',
+                400
+            )
+        }
+
         // Error genérico de auth
         return new AppError(
             SystemErrorCodes.INTERNAL_ERROR,

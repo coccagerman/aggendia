@@ -1,21 +1,23 @@
 'use client'
 
 import { useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { Eye, EyeOff } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { GoogleSignInButton } from '@/components/auth/google-sign-in-button'
 
 export default function LoginPage() {
     const router = useRouter()
+    const searchParams = useSearchParams()
     const [email, setEmail] = useState('')
     const [password, setPassword] = useState('')
     const [showPassword, setShowPassword] = useState(false)
     const [loading, setLoading] = useState(false)
-    const [error, setError] = useState<string | null>(null)
+    const [error, setError] = useState<string | null>(searchParams.get('error'))
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault()
@@ -60,6 +62,17 @@ export default function LoginPage() {
                     <CardTitle className='text-2xl'>Iniciar sesión</CardTitle>
                     <CardDescription>Ingresá tu email y contraseña para acceder a tu cuenta</CardDescription>
                 </CardHeader>
+                <CardContent className='space-y-4'>
+                    <GoogleSignInButton />
+                    <div className='relative'>
+                        <div className='absolute inset-0 flex items-center'>
+                            <span className='w-full border-t' />
+                        </div>
+                        <div className='relative flex justify-center text-xs uppercase'>
+                            <span className='bg-card px-2 text-muted-foreground'>o</span>
+                        </div>
+                    </div>
+                </CardContent>
                 <form onSubmit={handleSubmit}>
                     <CardContent className='space-y-4'>
                         <div className='space-y-2'>
