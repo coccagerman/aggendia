@@ -20,6 +20,8 @@ import { DURATION_STEP, DURATION_OPTIONS, MAX_BOOKING_NOTICE_MINUTES } from '@/d
 
 interface CreateServiceDialogProps {
     businessId: string
+    triggerVariant?: 'default' | 'outline'
+    triggerSize?: 'default' | 'sm'
 }
 
 interface FormErrors {
@@ -31,7 +33,11 @@ interface FormErrors {
     general?: string
 }
 
-export function CreateServiceDialog({ businessId }: CreateServiceDialogProps) {
+export function CreateServiceDialog({
+    businessId,
+    triggerVariant = 'default',
+    triggerSize = 'default'
+}: CreateServiceDialogProps) {
     const router = useRouter()
     const [open, setOpen] = useState(false)
     const [isSubmitting, setIsSubmitting] = useState(false)
@@ -161,8 +167,8 @@ export function CreateServiceDialog({ businessId }: CreateServiceDialogProps) {
     return (
         <Dialog open={open} onOpenChange={setOpen}>
             <DialogTrigger asChild>
-                <Button className='cursor-pointer'>
-                    <Plus className='mr-2 h-4 w-4' />
+                <Button variant={triggerVariant} size={triggerSize} className='cursor-pointer'>
+                    {triggerVariant !== 'outline' && <Plus className='mr-2 h-4 w-4' />}
                     Crear servicio
                 </Button>
             </DialogTrigger>

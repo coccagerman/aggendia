@@ -8,10 +8,13 @@ import { LogoutButton } from './logout-button'
 import { CopyLinkButton } from './copy-link-button'
 import { ResourceActions } from '@/components/dashboard/resource-actions'
 import { BusinessActions } from '@/components/dashboard/business-actions'
+import { ServiceActions } from '@/components/dashboard/service-actions'
+import { CreateServiceDialog } from '@/components/dashboard/create-service-dialog'
 import { getBusinessesByUserId } from '@/data/repositories/business.repo'
 import { getResourcesByBusinessIdsMap } from '@/data/repositories/resource.repo'
 import { getServicesByBusinessIdsMap } from '@/data/repositories/service.repo'
 import { prisma } from '@/data/prisma/prisma'
+import { type Service } from '@/domain/services/service.types'
 
 interface Business {
     id: string
@@ -29,16 +32,6 @@ interface Resource {
     id: string
     name: string
     type: string | null
-    status: string
-    businessId: string
-}
-
-interface Service {
-    id: string
-    name: string
-    durationMinutes: number
-    priceCents: number | null
-    currency: string | null
     status: string
     businessId: string
 }
@@ -209,22 +202,12 @@ export default async function DashboardPage() {
                                                     key={business.id}
                                                     className='rounded-lg border border-zinc-200 p-4 dark:border-zinc-800'
                                                 >
-                                                    <div className='flex items-start justify-between'>
-                                                        <div className='flex-1'>
+                                                    <div>
+                                                        <div>
                                                             <div className='flex items-center gap-2'>
-                                                                <h3 className='font-semibold text-zinc-900 dark:text-zinc-50'>
+                                                                <h3 className='flex-1 font-semibold text-zinc-900 dark:text-zinc-50'>
                                                                     {business.name}
                                                                 </h3>
-                                                                <BusinessActions
-                                                                    business={{
-                                                                        id: business.id,
-                                                                        name: business.name,
-                                                                        timezone: business.timezone,
-                                                                        address: business.address,
-                                                                        area: business.area,
-                                                                        status: business.status
-                                                                    }}
-                                                                />
                                                                 <span
                                                                     className={`rounded px-1.5 py-0.5 text-xs font-medium ${
                                                                         business.status === 'ACTIVE'
@@ -236,6 +219,16 @@ export default async function DashboardPage() {
                                                                         ? 'Activo'
                                                                         : 'Inactivo'}
                                                                 </span>
+                                                                <BusinessActions
+                                                                    business={{
+                                                                        id: business.id,
+                                                                        name: business.name,
+                                                                        timezone: business.timezone,
+                                                                        address: business.address,
+                                                                        area: business.area,
+                                                                        status: business.status
+                                                                    }}
+                                                                />
                                                             </div>
                                                             <div className='mt-2 space-y-1 text-sm text-zinc-600 dark:text-zinc-400'>
                                                                 <p>
@@ -276,8 +269,66 @@ export default async function DashboardPage() {
                                                                 <CopyLinkButton slug={business.slug} />
                                                             </div>
 
-                                                            {/* Sección de recursos */}
+                                                            {/* Sección de agenda */}
                                                             <div className='mt-4'>
+                                                                <div className='flex items-center justify-between'>
+                                                                    <div>
+                                                                        <h4 className='text-sm font-medium text-zinc-700 dark:text-zinc-300'>
+                                                                            Agenda
+                                                                        </h4>
+                                                                        <p className='mt-1 text-sm text-zinc-500 dark:text-zinc-400'>
+                                                                            Visualizá y organizá los turnos por día y{' '}
+                                                                            {business.resourceLabel.toLowerCase()}.
+                                                                        </p>
+                                                                    </div>
+                                                                    <Tooltip>
+                                                                        <TooltipTrigger asChild>
+                                                                            <Button asChild size='sm' variant='outline'>
+                                                                                <Link
+                                                                                    href={`/dashboard/business/${business.id}/agenda`}
+                                                                                >
+                                                                                    Ver Agenda
+                                                                                </Link>
+                                                                            </Button>
+                                                                        </TooltipTrigger>
+                                                                        <TooltipContent>
+                                                                            <p>Mirá los turnos del día</p>
+                                                                        </TooltipContent>
+                                                                    </Tooltip>
+                                                                </div>
+                                                            </div>
+
+                                                            {/* Sección de notificaciones */}
+                                                            <div className='mt-4 border-t border-zinc-200 pt-4 dark:border-zinc-700'>
+                                                                <div className='flex items-center justify-between'>
+                                                                    <div>
+                                                                        <h4 className='text-sm font-medium text-zinc-700 dark:text-zinc-300'>
+                                                                            Notificaciones
+                                                                        </h4>
+                                                                        <p className='mt-1 text-sm text-zinc-500 dark:text-zinc-400'>
+                                                                            Configurá recordatorios y notificaciones por
+                                                                            mail y WhatsApp.
+                                                                        </p>
+                                                                    </div>
+                                                                    <Tooltip>
+                                                                        <TooltipTrigger asChild>
+                                                                            <Button asChild size='sm' variant='outline'>
+                                                                                <Link
+                                                                                    href={`/dashboard/business/${business.id}/settings`}
+                                                                                >
+                                                                                    Configurar notificaciones
+                                                                                </Link>
+                                                                            </Button>
+                                                                        </TooltipTrigger>
+                                                                        <TooltipContent>
+                                                                            <p>Notificaciones y recordatorios</p>
+                                                                        </TooltipContent>
+                                                                    </Tooltip>
+                                                                </div>
+                                                            </div>
+
+                                                            {/* Sección de recursos */}
+                                                            <div className='mt-4 border-t border-zinc-200 pt-4 dark:border-zinc-700'>
                                                                 <div className='flex items-center justify-between'>
                                                                     <h4 className='text-sm font-medium text-zinc-700 dark:text-zinc-300'>
                                                                         {business.resourceLabel}s
@@ -328,7 +379,11 @@ export default async function DashboardPage() {
                                                                                     {resource.name}
                                                                                     {resource.type && (
                                                                                         <span className='ml-2 text-xs text-zinc-500 dark:text-zinc-500'>
-                                                                                            ({resource.type})
+                                                                                            (
+                                                                                            {resource.type === 'PERSON'
+                                                                                                ? 'Persona'
+                                                                                                : 'Recurso'}
+                                                                                            )
                                                                                         </span>
                                                                                     )}
                                                                                 </Link>
@@ -361,20 +416,11 @@ export default async function DashboardPage() {
                                                                     <h4 className='text-sm font-medium text-zinc-700 dark:text-zinc-300'>
                                                                         Servicios
                                                                     </h4>
-                                                                    <Tooltip>
-                                                                        <TooltipTrigger asChild>
-                                                                            <Button asChild size='sm' variant='outline'>
-                                                                                <Link
-                                                                                    href={`/dashboard/business/${business.id}/services`}
-                                                                                >
-                                                                                    Gestionar
-                                                                                </Link>
-                                                                            </Button>
-                                                                        </TooltipTrigger>
-                                                                        <TooltipContent>
-                                                                            <p>Administrá los servicios que ofrecés</p>
-                                                                        </TooltipContent>
-                                                                    </Tooltip>
+                                                                    <CreateServiceDialog
+                                                                        businessId={business.id}
+                                                                        triggerVariant='outline'
+                                                                        triggerSize='sm'
+                                                                    />
                                                                 </div>
 
                                                                 {business.services.length === 0 ? (
@@ -383,7 +429,7 @@ export default async function DashboardPage() {
                                                                     </p>
                                                                 ) : (
                                                                     <ul className='mt-2 space-y-1'>
-                                                                        {business.services.slice(0, 3).map(service => (
+                                                                        {business.services.map(service => (
                                                                             <li
                                                                                 key={service.id}
                                                                                 className='flex items-center gap-2 text-sm text-zinc-600 dark:text-zinc-400'
@@ -395,77 +441,33 @@ export default async function DashboardPage() {
                                                                                             : 'bg-zinc-400'
                                                                                     }`}
                                                                                 />
-                                                                                <span className='flex-1'>
+                                                                                <Link
+                                                                                    href={`/dashboard/business/${business.id}/services`}
+                                                                                    className='flex-1 hover:text-zinc-900 hover:underline dark:hover:text-zinc-200'
+                                                                                >
                                                                                     {service.name}
+                                                                                    <span className='ml-2 text-xs text-zinc-500 dark:text-zinc-500'>
+                                                                                        {service.durationMinutes} min
+                                                                                    </span>
+                                                                                </Link>
+                                                                                <span
+                                                                                    className={`rounded px-1.5 py-0.5 text-xs font-medium ${
+                                                                                        service.status === 'ACTIVE'
+                                                                                            ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300'
+                                                                                            : 'bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400'
+                                                                                    }`}
+                                                                                >
+                                                                                    {service.status === 'ACTIVE'
+                                                                                        ? 'Activo'
+                                                                                        : 'Inactivo'}
                                                                                 </span>
-                                                                                <span className='text-xs text-zinc-500'>
-                                                                                    {service.durationMinutes} min
-                                                                                </span>
+                                                                                <ServiceActions service={service} />
                                                                             </li>
                                                                         ))}
-                                                                        {business.services.length > 3 && (
-                                                                            <li className='text-sm text-zinc-500 dark:text-zinc-400'>
-                                                                                +{business.services.length - 3} más...
-                                                                            </li>
-                                                                        )}
                                                                     </ul>
                                                                 )}
                                                             </div>
-
-                                                            {/* Acceso rápido a Agenda y Configuración */}
-                                                            <div className='mt-4 border-t border-zinc-200 pt-4 dark:border-zinc-700'>
-                                                                <div className='flex items-center justify-between'>
-                                                                    <h4 className='text-sm font-medium text-zinc-700 dark:text-zinc-300'>
-                                                                        Accesos rápidos
-                                                                    </h4>
-                                                                    <div className='flex gap-2'>
-                                                                        <Tooltip>
-                                                                            <TooltipTrigger asChild>
-                                                                                <Button
-                                                                                    asChild
-                                                                                    size='sm'
-                                                                                    variant='outline'
-                                                                                >
-                                                                                    <Link
-                                                                                        href={`/dashboard/business/${business.id}/agenda`}
-                                                                                    >
-                                                                                        Ver Agenda
-                                                                                    </Link>
-                                                                                </Button>
-                                                                            </TooltipTrigger>
-                                                                            <TooltipContent>
-                                                                                <p>Mirá los turnos del día</p>
-                                                                            </TooltipContent>
-                                                                        </Tooltip>
-                                                                        <Tooltip>
-                                                                            <TooltipTrigger asChild>
-                                                                                <Button
-                                                                                    asChild
-                                                                                    size='sm'
-                                                                                    variant='outline'
-                                                                                >
-                                                                                    <Link
-                                                                                        href={`/dashboard/business/${business.id}/settings`}
-                                                                                    >
-                                                                                        Configuración
-                                                                                    </Link>
-                                                                                </Button>
-                                                                            </TooltipTrigger>
-                                                                            <TooltipContent>
-                                                                                <p>Notificaciones y recordatorios</p>
-                                                                            </TooltipContent>
-                                                                        </Tooltip>
-                                                                    </div>
-                                                                </div>
-                                                                <p className='mt-2 text-sm text-zinc-500 dark:text-zinc-400'>
-                                                                    Visualizá y organizá los turnos por día y{' '}
-                                                                    {business.resourceLabel.toLowerCase()}.
-                                                                </p>
-                                                            </div>
                                                         </div>
-                                                        <span className='rounded-full bg-blue-100 px-2 py-1 text-xs font-medium text-blue-800 dark:bg-blue-900/30 dark:text-blue-300'>
-                                                            {business.role}
-                                                        </span>
                                                     </div>
                                                 </div>
                                             ))}
