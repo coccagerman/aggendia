@@ -13,7 +13,12 @@ import { prisma } from '@/data/prisma/prisma'
 import { cancelAppointment, CancelAppointmentDeps } from '@/domain/appointments/appointment.service'
 import { getAppointmentById, updateAppointmentStatus } from '@/data/repositories/appointment.repo'
 import { getBusinessById } from '@/data/repositories/business.repo'
-import { sendCancellationEmail, sendCancellationWhatsApp } from '@/domain/notifications/notification.service'
+import {
+    sendCancellationEmail,
+    sendCancellationWhatsApp,
+    sendBusinessCancellationEmail,
+    sendBusinessCancellationWhatsApp
+} from '@/domain/notifications/notification.service'
 import { AppError, ValidationErrorCodes } from '@/domain/common/errors'
 import { cancelAppointmentSchema } from './dto'
 import { AppointmentStatus } from '@/domain/appointments/appointment.types'
@@ -172,6 +177,48 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
                         startAt: appointment.startAt
                     }).catch(err => {
                         console.error('[Cancel] Unexpected error in sendCancellationWhatsApp:', {
+                            appointmentId: appointment.id,
+                            error: err instanceof Error ? err.message : 'Unknown error'
+                        })
+                    })
+
+                    // Send business owner cancellation notifications
+                    const businessOwnerConfig = {
+                        id: business.id,
+                        name: business.name,
+                        timezone: business.timezone,
+                        resourceLabel: business.resourceLabel,
+                        ownerEmail: business.ownerEmail,
+                        ownerPhoneE164: business.ownerPhoneE164,
+                        ownerEmailNotificationsEnabled: business.ownerEmailNotificationsEnabled,
+                        ownerWhatsappNotificationsEnabled: business.ownerWhatsappNotificationsEnabled
+                    }
+
+                    sendBusinessCancellationEmail(prisma, {
+                        appointmentId: appointment.id,
+                        cancelledAt,
+                        business: businessOwnerConfig,
+                        service: { id: appointment.service.id, name: appointment.service.name },
+                        resource: { id: appointment.resource.id, name: appointment.resource.name },
+                        customer: { fullName: appointment.customer.fullName },
+                        startAt: appointment.startAt
+                    }).catch(err => {
+                        console.error('[Cancel] Unexpected error in sendBusinessCancellationEmail:', {
+                            appointmentId: appointment.id,
+                            error: err instanceof Error ? err.message : 'Unknown error'
+                        })
+                    })
+
+                    sendBusinessCancellationWhatsApp(prisma, {
+                        appointmentId: appointment.id,
+                        cancelledAt,
+                        business: businessOwnerConfig,
+                        service: { id: appointment.service.id, name: appointment.service.name },
+                        resource: { id: appointment.resource.id, name: appointment.resource.name },
+                        customer: { fullName: appointment.customer.fullName },
+                        startAt: appointment.startAt
+                    }).catch(err => {
+                        console.error('[Cancel] Unexpected error in sendBusinessCancellationWhatsApp:', {
                             appointmentId: appointment.id,
                             error: err instanceof Error ? err.message : 'Unknown error'
                         })

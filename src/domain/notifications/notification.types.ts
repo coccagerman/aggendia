@@ -8,6 +8,7 @@
 export type NotificationChannel = 'EMAIL' | 'WHATSAPP'
 export type NotificationType = 'CONFIRMATION' | 'REMINDER' | 'CANCELLATION' | 'RESCHEDULED'
 export type NotificationStatus = 'PENDING' | 'SENT' | 'FAILED'
+export type NotificationRecipient = 'CUSTOMER' | 'BUSINESS'
 
 /**
  * Notification entity (domain representation)
@@ -18,6 +19,7 @@ export interface Notification {
     appointmentId: string
     channel: NotificationChannel
     type: NotificationType
+    recipient: NotificationRecipient
     to: string
     status: NotificationStatus
     scheduledFor: Date
@@ -35,6 +37,7 @@ export interface CreateNotificationInput {
     appointmentId: string
     channel: NotificationChannel
     type: NotificationType
+    recipient: NotificationRecipient
     to: string
     scheduledFor: Date
 }
@@ -316,4 +319,100 @@ export interface SendReminderWhatsAppInput {
     offsetMinutes: number
     /** Self-service manage URL for cancel/reschedule (optional) */
     manageUrl?: string | null
+}
+
+// ============================================================================
+// Business (owner) notification inputs
+// ============================================================================
+
+/**
+ * Common business owner info needed for sending notifications to the business
+ */
+export interface BusinessOwnerNotificationConfig {
+    id: string
+    name: string
+    timezone: string
+    resourceLabel: string
+    ownerEmail: string | null
+    ownerPhoneE164: string | null
+    ownerEmailNotificationsEnabled: boolean
+    ownerWhatsappNotificationsEnabled: boolean
+}
+
+/**
+ * Input for sending confirmation email to the business owner
+ */
+export interface SendBusinessConfirmationEmailInput {
+    appointmentId: string
+    business: BusinessOwnerNotificationConfig
+    service: { id: string; name: string }
+    resource: { id: string; name: string }
+    customer: { fullName: string; email: string | null; phone: string | null }
+    startAt: Date
+}
+
+/**
+ * Input for sending confirmation WhatsApp to the business owner
+ */
+export interface SendBusinessConfirmationWhatsAppInput {
+    appointmentId: string
+    business: BusinessOwnerNotificationConfig
+    service: { id: string; name: string }
+    resource: { id: string; name: string }
+    customer: { fullName: string }
+    startAt: Date
+}
+
+/**
+ * Input for sending cancellation email to the business owner
+ */
+export interface SendBusinessCancellationEmailInput {
+    appointmentId: string
+    cancelledAt: Date
+    business: BusinessOwnerNotificationConfig
+    service: { id: string; name: string }
+    resource: { id: string; name: string }
+    customer: { fullName: string }
+    startAt: Date
+}
+
+/**
+ * Input for sending cancellation WhatsApp to the business owner
+ */
+export interface SendBusinessCancellationWhatsAppInput {
+    appointmentId: string
+    cancelledAt: Date
+    business: BusinessOwnerNotificationConfig
+    service: { id: string; name: string }
+    resource: { id: string; name: string }
+    customer: { fullName: string }
+    startAt: Date
+}
+
+/**
+ * Input for sending rescheduled email to the business owner
+ */
+export interface SendBusinessRescheduledEmailInput {
+    appointmentId: string
+    createdAt: Date
+    business: BusinessOwnerNotificationConfig
+    service: { id: string; name: string }
+    resource: { id: string; name: string }
+    customer: { fullName: string }
+    originalStartAt: Date
+    newStartAt: Date
+}
+
+/**
+ * Input for sending rescheduled WhatsApp to the business owner
+ */
+export interface SendBusinessRescheduledWhatsAppInput {
+    appointmentId: string
+    createdAt: Date
+    business: BusinessOwnerNotificationConfig
+    service: { id: string; name: string }
+    resource: { id: string; name: string }
+    customer: { fullName: string }
+    originalStartAt: Date
+    newStartAt: Date
 }

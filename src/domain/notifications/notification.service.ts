@@ -19,7 +19,13 @@ import {
     SendCancellationEmailInput,
     SendCancellationWhatsAppInput,
     SendRescheduledEmailInput,
-    SendRescheduledWhatsAppInput
+    SendRescheduledWhatsAppInput,
+    SendBusinessConfirmationEmailInput,
+    SendBusinessConfirmationWhatsAppInput,
+    SendBusinessCancellationEmailInput,
+    SendBusinessCancellationWhatsAppInput,
+    SendBusinessRescheduledEmailInput,
+    SendBusinessRescheduledWhatsAppInput
 } from './notification.types'
 import { createNotification, updateNotificationStatus } from '@/data/repositories/notification.repo'
 import { resend, defaultFromEmail, isEmailEnabled } from '@/lib/resend/client'
@@ -39,6 +45,21 @@ import {
     renderRescheduledEmailText,
     RescheduledEmailData
 } from '@/lib/resend/templates/rescheduled.template'
+import {
+    renderBusinessConfirmationEmail,
+    renderBusinessConfirmationEmailText,
+    BusinessConfirmationEmailData
+} from '@/lib/resend/templates/business-confirmation.template'
+import {
+    renderBusinessCancellationEmail,
+    renderBusinessCancellationEmailText,
+    BusinessCancellationEmailData
+} from '@/lib/resend/templates/business-cancellation.template'
+import {
+    renderBusinessRescheduledEmail,
+    renderBusinessRescheduledEmailText,
+    BusinessRescheduledEmailData
+} from '@/lib/resend/templates/business-rescheduled.template'
 
 /**
  * Format date for notification display (email and WhatsApp)
@@ -162,6 +183,7 @@ export async function sendConfirmationEmail(
             appointmentId,
             channel: 'EMAIL',
             type: 'CONFIRMATION',
+            recipient: 'CUSTOMER',
             to: customer.email,
             scheduledFor: startAt // Deterministic for idempotency
         })
@@ -368,6 +390,7 @@ export async function sendConfirmationWhatsApp(
             appointmentId,
             channel: 'WHATSAPP',
             type: 'CONFIRMATION',
+            recipient: 'CUSTOMER',
             to: customer.phoneE164,
             scheduledFor: startAt
         })
@@ -540,6 +563,7 @@ export async function sendCancellationEmail(
             appointmentId,
             channel: 'EMAIL',
             type: 'CANCELLATION',
+            recipient: 'CUSTOMER',
             to: customer.email,
             scheduledFor: cancelledAt
         })
@@ -733,6 +757,7 @@ export async function sendCancellationWhatsApp(
             appointmentId,
             channel: 'WHATSAPP',
             type: 'CANCELLATION',
+            recipient: 'CUSTOMER',
             to: customer.phoneE164,
             scheduledFor: cancelledAt
         })
@@ -893,6 +918,7 @@ export async function sendRescheduledEmail(
             appointmentId,
             channel: 'EMAIL',
             type: 'RESCHEDULED',
+            recipient: 'CUSTOMER',
             to: customer.email,
             scheduledFor: createdAt
         })
@@ -1090,6 +1116,7 @@ export async function sendRescheduledWhatsApp(
             appointmentId,
             channel: 'WHATSAPP',
             type: 'RESCHEDULED',
+            recipient: 'CUSTOMER',
             to: customer.phoneE164,
             scheduledFor: createdAt
         })
@@ -1181,4 +1208,420 @@ export async function sendRescheduledWhatsApp(
             error: errorMessage
         }
     }
+}
+
+// ============================================================================
+// Business Owner Notifications
+// ============================================================================
+
+/**
+ * Helper to handle the common try/catch + status update pattern for business notifications.
+ * Reduces boilerplate across the 6 sendBusiness* functions.
+ */
+async function withBusinessNotification(
+    prisma: PrismaClient,
+    context: {
+        appointmentId: string
+        businessId: string
+        channel: 'EMAIL' | 'WHATSAPP'
+        type: 'CONFIRMATION' | 'CANCELLATION' | 'RESCHEDULED'
+        to: string
+        scheduledFor: Date
+    },
+    sendFn: (notificationId: string) => Promise<{ success: boolean; error?: string }>
+): Promise<SendNotificationResult> {
+    let notificationId = ''
+    try {
+        const notification = await createNotification(prisma, {
+            businessId: context.businessId,
+            appointmentId: context.appointmentId,
+            channel: context.channel,
+            type: context.type,
+            recipient: 'BUSINESS',
+            to: context.to,
+            scheduledFor: context.scheduledFor
+        })
+        notificationId = notification.id
+
+        const result = await sendFn(notificationId)
+
+        if (!result.success) {
+            await updateNotificationStatus(prisma, notificationId, 'FAILED', undefined, result.error)
+            console.error(`[Notification] Failed to send business ${context.type} ${context.channel}`, {
+                appointmentId: context.appointmentId,
+                businessId: context.businessId,
+                notificationId
+            })
+            return { success: false, notificationId, error: result.error }
+        }
+
+        await updateNotificationStatus(prisma, notificationId, 'SENT', new Date())
+        console.info(`[Notification] Business ${context.type} ${context.channel} sent`, {
+            appointmentId: context.appointmentId,
+            businessId: context.businessId,
+            notificationId
+        })
+        return { success: true, notificationId }
+    } catch (error) {
+        if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
+            console.info(`[Notification] Business ${context.type} ${context.channel} already exists (idempotent)`, {
+                appointmentId: context.appointmentId,
+                businessId: context.businessId
+            })
+            return { success: false, notificationId: '', error: 'Notification already exists' }
+        }
+
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+        console.error(`[Notification] Unexpected error sending business ${context.type} ${context.channel}`, {
+            appointmentId: context.appointmentId,
+            businessId: context.businessId,
+            notificationId: notificationId || 'not-created',
+            errorType: error instanceof Error ? error.name : 'Unknown'
+        })
+
+        if (notificationId) {
+            try {
+                await updateNotificationStatus(prisma, notificationId, 'FAILED', undefined, errorMessage)
+            } catch {
+                // ignore update error
+            }
+        }
+        return { success: false, notificationId, error: errorMessage }
+    }
+}
+
+// ---- Business Confirmation Email ----
+
+export async function sendBusinessConfirmationEmail(
+    prisma: PrismaClient,
+    input: SendBusinessConfirmationEmailInput
+): Promise<SendNotificationResult> {
+    const { appointmentId, business, service, resource, customer, startAt } = input
+
+    if (!business.ownerEmail) {
+        return { success: false, notificationId: '', error: 'Business has no owner email' }
+    }
+    if (!business.ownerEmailNotificationsEnabled) {
+        return { success: false, notificationId: '', error: 'Owner email notifications are disabled' }
+    }
+    if (!isEmailEnabled()) {
+        return { success: false, notificationId: '', error: 'Email sending is disabled' }
+    }
+
+    return withBusinessNotification(
+        prisma,
+        {
+            appointmentId,
+            businessId: business.id,
+            channel: 'EMAIL',
+            type: 'CONFIRMATION',
+            to: business.ownerEmail,
+            scheduledFor: startAt
+        },
+        async () => {
+            const emailData: BusinessConfirmationEmailData = {
+                businessName: business.name,
+                customerName: customer.fullName,
+                customerEmail: customer.email ?? null,
+                customerPhone: customer.phone ?? null,
+                serviceName: service.name,
+                resourceName: resource.name,
+                resourceLabel: business.resourceLabel,
+                formattedDateTime: formatDateTimeForNotification(startAt, business.timezone),
+                timezone: getTimezoneDisplayName(business.timezone)
+            }
+
+            const { error: sendError } = await resend!.emails.send({
+                from: defaultFromEmail,
+                to: business.ownerEmail!,
+                subject: `Nuevo turno reservado - ${business.name}`,
+                html: renderBusinessConfirmationEmail(emailData),
+                text: renderBusinessConfirmationEmailText(emailData)
+            })
+
+            if (sendError) {
+                return { success: false, error: sendError.message }
+            }
+            return { success: true }
+        }
+    )
+}
+
+// ---- Business Confirmation WhatsApp ----
+
+export async function sendBusinessConfirmationWhatsApp(
+    prisma: PrismaClient,
+    input: SendBusinessConfirmationWhatsAppInput
+): Promise<SendNotificationResult> {
+    const { appointmentId, business, service, resource, customer, startAt } = input
+
+    if (!business.ownerPhoneE164) {
+        return { success: false, notificationId: '', error: 'Business has no owner phone' }
+    }
+    if (!business.ownerWhatsappNotificationsEnabled) {
+        return { success: false, notificationId: '', error: 'Owner WhatsApp notifications are disabled' }
+    }
+    if (!isWhatsAppEnabled()) {
+        return { success: false, notificationId: '', error: 'WhatsApp sending is disabled' }
+    }
+
+    return withBusinessNotification(
+        prisma,
+        {
+            appointmentId,
+            businessId: business.id,
+            channel: 'WHATSAPP',
+            type: 'CONFIRMATION',
+            to: business.ownerPhoneE164,
+            scheduledFor: startAt
+        },
+        async () => {
+            const formattedDateTime = formatDateTimeForNotification(startAt, business.timezone)
+            const timezone = getTimezoneDisplayName(business.timezone)
+
+            const messageText = [
+                `📅 Nuevo turno`,
+                `👤 Cliente: ${customer.fullName}`,
+                `📋 Servicio: ${service.name}`,
+                `${business.resourceLabel}: ${resource.name}`,
+                `📅 ${formattedDateTime}`,
+                `🕐 ${timezone}`
+            ].join(' | ')
+
+            const result = await sendTemplateMessage(
+                business.ownerPhoneE164!,
+                WHATSAPP_TEMPLATES.BUSINESS_CONFIRMATION,
+                messageText
+            )
+            if (!result.success) {
+                return { success: false, error: result.error }
+            }
+            return { success: true }
+        }
+    )
+}
+
+// ---- Business Cancellation Email ----
+
+export async function sendBusinessCancellationEmail(
+    prisma: PrismaClient,
+    input: SendBusinessCancellationEmailInput
+): Promise<SendNotificationResult> {
+    const { appointmentId, cancelledAt, business, service, resource, customer, startAt } = input
+
+    if (!business.ownerEmail) {
+        return { success: false, notificationId: '', error: 'Business has no owner email' }
+    }
+    if (!business.ownerEmailNotificationsEnabled) {
+        return { success: false, notificationId: '', error: 'Owner email notifications are disabled' }
+    }
+    if (!isEmailEnabled()) {
+        return { success: false, notificationId: '', error: 'Email sending is disabled' }
+    }
+
+    return withBusinessNotification(
+        prisma,
+        {
+            appointmentId,
+            businessId: business.id,
+            channel: 'EMAIL',
+            type: 'CANCELLATION',
+            to: business.ownerEmail,
+            scheduledFor: cancelledAt
+        },
+        async () => {
+            const emailData: BusinessCancellationEmailData = {
+                businessName: business.name,
+                customerName: customer.fullName,
+                customerEmail: null,
+                customerPhone: null,
+                serviceName: service.name,
+                resourceName: resource.name,
+                resourceLabel: business.resourceLabel,
+                formattedDateTime: formatDateTimeForNotification(startAt, business.timezone),
+                timezone: getTimezoneDisplayName(business.timezone)
+            }
+
+            const { error: sendError } = await resend!.emails.send({
+                from: defaultFromEmail,
+                to: business.ownerEmail!,
+                subject: `Turno cancelado - ${business.name}`,
+                html: renderBusinessCancellationEmail(emailData),
+                text: renderBusinessCancellationEmailText(emailData)
+            })
+
+            if (sendError) {
+                return { success: false, error: sendError.message }
+            }
+            return { success: true }
+        }
+    )
+}
+
+// ---- Business Cancellation WhatsApp ----
+
+export async function sendBusinessCancellationWhatsApp(
+    prisma: PrismaClient,
+    input: SendBusinessCancellationWhatsAppInput
+): Promise<SendNotificationResult> {
+    const { appointmentId, cancelledAt, business, service, resource, customer, startAt } = input
+
+    if (!business.ownerPhoneE164) {
+        return { success: false, notificationId: '', error: 'Business has no owner phone' }
+    }
+    if (!business.ownerWhatsappNotificationsEnabled) {
+        return { success: false, notificationId: '', error: 'Owner WhatsApp notifications are disabled' }
+    }
+    if (!isWhatsAppEnabled()) {
+        return { success: false, notificationId: '', error: 'WhatsApp sending is disabled' }
+    }
+
+    return withBusinessNotification(
+        prisma,
+        {
+            appointmentId,
+            businessId: business.id,
+            channel: 'WHATSAPP',
+            type: 'CANCELLATION',
+            to: business.ownerPhoneE164,
+            scheduledFor: cancelledAt
+        },
+        async () => {
+            const formattedDateTime = formatDateTimeForNotification(startAt, business.timezone)
+            const timezone = getTimezoneDisplayName(business.timezone)
+
+            const messageText = [
+                `❌ Turno cancelado`,
+                `👤 Cliente: ${customer.fullName}`,
+                `📋 Servicio: ${service.name}`,
+                `${business.resourceLabel}: ${resource.name}`,
+                `📅 ${formattedDateTime}`,
+                `🕐 ${timezone}`
+            ].join(' | ')
+
+            const result = await sendTemplateMessage(
+                business.ownerPhoneE164!,
+                WHATSAPP_TEMPLATES.BUSINESS_CANCELLATION,
+                messageText
+            )
+            if (!result.success) {
+                return { success: false, error: result.error }
+            }
+            return { success: true }
+        }
+    )
+}
+
+// ---- Business Rescheduled Email ----
+
+export async function sendBusinessRescheduledEmail(
+    prisma: PrismaClient,
+    input: SendBusinessRescheduledEmailInput
+): Promise<SendNotificationResult> {
+    const { appointmentId, createdAt, business, service, resource, customer, originalStartAt, newStartAt } = input
+
+    if (!business.ownerEmail) {
+        return { success: false, notificationId: '', error: 'Business has no owner email' }
+    }
+    if (!business.ownerEmailNotificationsEnabled) {
+        return { success: false, notificationId: '', error: 'Owner email notifications are disabled' }
+    }
+    if (!isEmailEnabled()) {
+        return { success: false, notificationId: '', error: 'Email sending is disabled' }
+    }
+
+    return withBusinessNotification(
+        prisma,
+        {
+            appointmentId,
+            businessId: business.id,
+            channel: 'EMAIL',
+            type: 'RESCHEDULED',
+            to: business.ownerEmail,
+            scheduledFor: createdAt
+        },
+        async () => {
+            const emailData: BusinessRescheduledEmailData = {
+                businessName: business.name,
+                customerName: customer.fullName,
+                customerEmail: null,
+                customerPhone: null,
+                serviceName: service.name,
+                resourceName: resource.name,
+                resourceLabel: business.resourceLabel,
+                previousFormattedDateTime: formatDateTimeForNotification(originalStartAt, business.timezone),
+                newFormattedDateTime: formatDateTimeForNotification(newStartAt, business.timezone),
+                timezone: getTimezoneDisplayName(business.timezone)
+            }
+
+            const { error: sendError } = await resend!.emails.send({
+                from: defaultFromEmail,
+                to: business.ownerEmail!,
+                subject: `Turno reprogramado - ${business.name}`,
+                html: renderBusinessRescheduledEmail(emailData),
+                text: renderBusinessRescheduledEmailText(emailData)
+            })
+
+            if (sendError) {
+                return { success: false, error: sendError.message }
+            }
+            return { success: true }
+        }
+    )
+}
+
+// ---- Business Rescheduled WhatsApp ----
+
+export async function sendBusinessRescheduledWhatsApp(
+    prisma: PrismaClient,
+    input: SendBusinessRescheduledWhatsAppInput
+): Promise<SendNotificationResult> {
+    const { appointmentId, createdAt, business, service, resource, customer, originalStartAt, newStartAt } = input
+
+    if (!business.ownerPhoneE164) {
+        return { success: false, notificationId: '', error: 'Business has no owner phone' }
+    }
+    if (!business.ownerWhatsappNotificationsEnabled) {
+        return { success: false, notificationId: '', error: 'Owner WhatsApp notifications are disabled' }
+    }
+    if (!isWhatsAppEnabled()) {
+        return { success: false, notificationId: '', error: 'WhatsApp sending is disabled' }
+    }
+
+    return withBusinessNotification(
+        prisma,
+        {
+            appointmentId,
+            businessId: business.id,
+            channel: 'WHATSAPP',
+            type: 'RESCHEDULED',
+            to: business.ownerPhoneE164,
+            scheduledFor: createdAt
+        },
+        async () => {
+            const originalFmt = formatDateTimeForNotification(originalStartAt, business.timezone)
+            const newFmt = formatDateTimeForNotification(newStartAt, business.timezone)
+            const timezone = getTimezoneDisplayName(business.timezone)
+
+            const messageText = [
+                `🔄 Turno reprogramado`,
+                `👤 Cliente: ${customer.fullName}`,
+                `📋 Servicio: ${service.name}`,
+                `${business.resourceLabel}: ${resource.name}`,
+                `📅 Antes: ${originalFmt}`,
+                `✅ Ahora: ${newFmt}`,
+                `🕐 ${timezone}`
+            ].join(' | ')
+
+            const result = await sendTemplateMessage(
+                business.ownerPhoneE164!,
+                WHATSAPP_TEMPLATES.BUSINESS_RESCHEDULED,
+                messageText
+            )
+            if (!result.success) {
+                return { success: false, error: result.error }
+            }
+            return { success: true }
+        }
+    )
 }

@@ -17,7 +17,11 @@ vi.mock('@/lib/whatsapp/client', () => ({
         CONFIRMATION: 'turnosapp_confirmation',
         CANCELLATION: 'turnosapp_cancellation',
         RESCHEDULED: 'turnosapp_rescheduled',
-        REMINDER: 'turnosapp_reminder'
+        REMINDER: 'turnosapp_reminder',
+        BUSINESS_CONFIRMATION: 'turnosapp_business_confirmation',
+        BUSINESS_CANCELLATION: 'turnosapp_business_cancellation',
+        BUSINESS_RESCHEDULED: 'turnosapp_business_rescheduled',
+        BUSINESS_REMINDER: 'turnosapp_business_reminder'
     }
 }))
 
@@ -127,6 +131,7 @@ describe('sendConfirmationWhatsApp', () => {
                 appointmentId: validInput.appointmentId,
                 channel: 'WHATSAPP',
                 type: 'CONFIRMATION',
+                recipient: 'CUSTOMER',
                 to: validInput.customer.phoneE164!,
                 status: 'PENDING',
                 scheduledFor: new Date(),
@@ -148,6 +153,7 @@ describe('sendConfirmationWhatsApp', () => {
                 appointmentId: validInput.appointmentId,
                 channel: 'WHATSAPP',
                 type: 'CONFIRMATION',
+                recipient: 'CUSTOMER',
                 to: validInput.customer.phoneE164!,
                 status: 'SENT',
                 scheduledFor: new Date(),
@@ -168,6 +174,7 @@ describe('sendConfirmationWhatsApp', () => {
                 appointmentId: validInput.appointmentId,
                 channel: 'WHATSAPP',
                 type: 'CONFIRMATION',
+                recipient: 'CUSTOMER',
                 to: validInput.customer.phoneE164,
                 scheduledFor: expect.any(Date)
             })

@@ -35,7 +35,11 @@ vi.mock('@/lib/whatsapp/client', () => ({
         CONFIRMATION: 'turnosapp_confirmation',
         CANCELLATION: 'turnosapp_cancellation',
         RESCHEDULED: 'turnosapp_rescheduled',
-        REMINDER: 'turnosapp_reminder'
+        REMINDER: 'turnosapp_reminder',
+        BUSINESS_CONFIRMATION: 'turnosapp_business_confirmation',
+        BUSINESS_CANCELLATION: 'turnosapp_business_cancellation',
+        BUSINESS_RESCHEDULED: 'turnosapp_business_rescheduled',
+        BUSINESS_REMINDER: 'turnosapp_business_reminder'
     }
 }))
 
@@ -164,7 +168,8 @@ describe('reminder.service', () => {
                     sentAt: null,
                     error: null,
                     createdAt: new Date(),
-                    updatedAt: new Date()
+                    updatedAt: new Date(),
+                    recipient: 'CUSTOMER' as const
                 }
 
                 vi.mocked(createNotification).mockResolvedValue(mockNotification)
@@ -191,7 +196,8 @@ describe('reminder.service', () => {
                     channel: 'EMAIL',
                     type: 'REMINDER',
                     to: validInput.customer.email,
-                    scheduledFor: expect.any(Date)
+                    scheduledFor: expect.any(Date),
+                    recipient: 'CUSTOMER'
                 })
 
                 // Check email was sent with correct subject for 24h reminder
@@ -228,7 +234,8 @@ describe('reminder.service', () => {
                     sentAt: null,
                     error: null,
                     createdAt: new Date(),
-                    updatedAt: new Date()
+                    updatedAt: new Date(),
+                    recipient: 'CUSTOMER' as const
                 }
 
                 vi.mocked(createNotification).mockResolvedValue(mockNotification)
@@ -266,7 +273,8 @@ describe('reminder.service', () => {
                     sentAt: null,
                     error: null,
                     createdAt: new Date(),
-                    updatedAt: new Date()
+                    updatedAt: new Date(),
+                    recipient: 'CUSTOMER' as const
                 }
 
                 vi.mocked(createNotification).mockResolvedValue(mockNotification)
@@ -488,7 +496,8 @@ describe('reminder.service', () => {
                     sentAt: null,
                     error: null,
                     createdAt: new Date(),
-                    updatedAt: new Date()
+                    updatedAt: new Date(),
+                    recipient: 'CUSTOMER' as const
                 }
 
                 vi.mocked(createNotification).mockResolvedValue(mockNotification)
@@ -514,7 +523,8 @@ describe('reminder.service', () => {
                     channel: 'WHATSAPP',
                     type: 'REMINDER',
                     to: validWhatsAppInput.customer.phoneE164,
-                    scheduledFor: expect.any(Date)
+                    scheduledFor: expect.any(Date),
+                    recipient: 'CUSTOMER'
                 })
 
                 // Check WhatsApp message was sent with 24h reminder content
@@ -551,7 +561,8 @@ describe('reminder.service', () => {
                     sentAt: null,
                     error: null,
                     createdAt: new Date(),
-                    updatedAt: new Date()
+                    updatedAt: new Date(),
+                    recipient: 'CUSTOMER' as const
                 }
 
                 vi.mocked(createNotification).mockResolvedValue(mockNotification)
@@ -588,7 +599,8 @@ describe('reminder.service', () => {
                     sentAt: null,
                     error: null,
                     createdAt: new Date(),
-                    updatedAt: new Date()
+                    updatedAt: new Date(),
+                    recipient: 'CUSTOMER' as const
                 }
 
                 vi.mocked(createNotification).mockResolvedValue(mockNotification)
@@ -631,7 +643,8 @@ describe('reminder.service', () => {
                     sentAt: null,
                     error: null,
                     createdAt: new Date(),
-                    updatedAt: new Date()
+                    updatedAt: new Date(),
+                    recipient: 'CUSTOMER' as const
                 }
 
                 vi.mocked(createNotification).mockResolvedValue(mockNotification)

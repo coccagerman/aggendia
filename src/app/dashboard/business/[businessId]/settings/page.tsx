@@ -5,8 +5,7 @@ import { ArrowLeft, Settings } from 'lucide-react'
 import { prisma } from '@/data/prisma/prisma'
 import { getBusinessById } from '@/data/repositories/business.repo'
 import { checkBusinessAccess } from '@/lib/auth/require-business-access'
-import { ReminderSettings } from '@/components/dashboard/reminder-settings'
-import { WhatsAppSettings } from '@/components/dashboard/whatsapp-settings'
+import { NotificationSettings } from '@/components/dashboard/notification-settings'
 import { Button } from '@/components/ui/button'
 
 interface SettingsPageProps {
@@ -42,7 +41,7 @@ export default async function SettingsPage({ params }: SettingsPageProps) {
         <div className='min-h-screen bg-gray-50'>
             {/* Header */}
             <header className='bg-white border-b'>
-                <div className='max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-4'>
+                <div className='max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4'>
                     <div className='flex items-center justify-between'>
                         <div className='flex items-center gap-4'>
                             <Link href='/dashboard'>
@@ -62,21 +61,21 @@ export default async function SettingsPage({ params }: SettingsPageProps) {
                 </div>
             </header>
 
-            {/* Content */}
-            <main className='max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8'>
-                <div className='space-y-8'>
-                    <ReminderSettings
-                        businessId={businessId}
-                        initialEnabled={business.remindersEnabled}
-                        initialOffsets={business.reminderOffsetsMinutes}
-                    >
-                        {/* WhatsApp Settings - US-10.1 */}
-                        <WhatsAppSettings
-                            businessId={businessId}
-                            initialEnabled={business.whatsappNotificationsEnabled}
-                        />
-                    </ReminderSettings>
-                </div>
+            {/* Content — two-column layout handled by NotificationSettings */}
+            <main className='max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8'>
+                <NotificationSettings
+                    businessId={businessId}
+                    customerEmailEnabled={business.emailNotificationsEnabled}
+                    customerWhatsappEnabled={business.whatsappNotificationsEnabled}
+                    customerRemindersEnabled={business.remindersEnabled}
+                    customerReminderOffsets={business.reminderOffsetsMinutes}
+                    ownerEmail={business.ownerEmail}
+                    ownerEmailEnabled={business.ownerEmailNotificationsEnabled}
+                    ownerWhatsappEnabled={business.ownerWhatsappNotificationsEnabled}
+                    ownerPhoneE164={business.ownerPhoneE164}
+                    ownerRemindersEnabled={business.ownerRemindersEnabled}
+                    ownerReminderOffsets={business.ownerReminderOffsetsMinutes}
+                />
             </main>
         </div>
     )

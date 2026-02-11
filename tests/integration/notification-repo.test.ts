@@ -120,7 +120,8 @@ describe('Notification Repository - Integration Tests', () => {
                 channel: 'EMAIL',
                 type: 'CONFIRMATION',
                 to: 'test@example.com',
-                scheduledFor
+                scheduledFor,
+                recipient: 'CUSTOMER'
             })
 
             expect(notification.id).toBeDefined()
@@ -144,7 +145,8 @@ describe('Notification Repository - Integration Tests', () => {
                 channel: 'EMAIL',
                 type: 'REMINDER',
                 to: 'test@example.com',
-                scheduledFor
+                scheduledFor,
+                recipient: 'CUSTOMER'
             })
 
             // Attempt to create duplicate
@@ -155,7 +157,8 @@ describe('Notification Repository - Integration Tests', () => {
                     channel: 'EMAIL',
                     type: 'REMINDER',
                     to: 'test@example.com',
-                    scheduledFor
+                    scheduledFor,
+                    recipient: 'CUSTOMER'
                 })
             ).rejects.toThrow()
         })
@@ -169,7 +172,8 @@ describe('Notification Repository - Integration Tests', () => {
                 channel: 'EMAIL',
                 type: 'CONFIRMATION',
                 to: 'update-test@example.com',
-                scheduledFor: new Date('2026-07-01T10:00:00.000Z')
+                scheduledFor: new Date('2026-07-01T10:00:00.000Z'),
+                recipient: 'CUSTOMER'
             })
 
             const sentAt = new Date()
@@ -187,7 +191,8 @@ describe('Notification Repository - Integration Tests', () => {
                 channel: 'EMAIL',
                 type: 'CONFIRMATION',
                 to: 'failed-test@example.com',
-                scheduledFor: new Date('2026-07-02T10:00:00.000Z')
+                scheduledFor: new Date('2026-07-02T10:00:00.000Z'),
+                recipient: 'CUSTOMER'
             })
 
             const errorMessage = 'Invalid API key'
@@ -207,7 +212,8 @@ describe('Notification Repository - Integration Tests', () => {
                 channel: 'EMAIL',
                 type: 'CONFIRMATION',
                 to: 'get-by-id@example.com',
-                scheduledFor: new Date('2026-07-03T10:00:00.000Z')
+                scheduledFor: new Date('2026-07-03T10:00:00.000Z'),
+                recipient: 'CUSTOMER'
             })
 
             const found = await getNotificationById(prisma, notification.id)
@@ -244,7 +250,8 @@ describe('Notification Repository - Integration Tests', () => {
                 channel: 'EMAIL',
                 type: 'CONFIRMATION',
                 to: 'multi-test@example.com',
-                scheduledFor: new Date('2026-07-04T10:00:00.000Z')
+                scheduledFor: new Date('2026-07-04T10:00:00.000Z'),
+                recipient: 'CUSTOMER'
             })
 
             await createNotification(prisma, {
@@ -253,7 +260,8 @@ describe('Notification Repository - Integration Tests', () => {
                 channel: 'EMAIL',
                 type: 'REMINDER',
                 to: 'multi-test@example.com',
-                scheduledFor: new Date('2026-07-04T08:00:00.000Z')
+                scheduledFor: new Date('2026-07-04T08:00:00.000Z'),
+                recipient: 'CUSTOMER'
             })
 
             const notifications = await getNotificationsByAppointmentId(prisma, businessId, newAppointment.id)
@@ -274,10 +282,18 @@ describe('Notification Repository - Integration Tests', () => {
                 channel: 'EMAIL',
                 type: 'CANCELLATION',
                 to: 'exists-test@example.com',
-                scheduledFor
+                scheduledFor,
+                recipient: 'CUSTOMER'
             })
 
-            const exists = await notificationExists(prisma, appointmentId, 'EMAIL', 'CANCELLATION', scheduledFor)
+            const exists = await notificationExists(
+                prisma,
+                appointmentId,
+                'EMAIL',
+                'CANCELLATION',
+                scheduledFor,
+                'CUSTOMER'
+            )
             expect(exists).toBe(true)
         })
 
@@ -287,7 +303,8 @@ describe('Notification Repository - Integration Tests', () => {
                 appointmentId,
                 'EMAIL',
                 'RESCHEDULED',
-                new Date('2026-12-31T23:59:59.000Z')
+                new Date('2026-12-31T23:59:59.000Z'),
+                'CUSTOMER'
             )
             expect(exists).toBe(false)
         })
@@ -302,11 +319,19 @@ describe('Notification Repository - Integration Tests', () => {
                 channel: 'EMAIL',
                 type: 'CONFIRMATION',
                 to: 'channel-test@example.com',
-                scheduledFor
+                scheduledFor,
+                recipient: 'CUSTOMER'
             })
 
             // EMAIL should exist
-            const emailExists = await notificationExists(prisma, appointmentId, 'EMAIL', 'CONFIRMATION', scheduledFor)
+            const emailExists = await notificationExists(
+                prisma,
+                appointmentId,
+                'EMAIL',
+                'CONFIRMATION',
+                scheduledFor,
+                'CUSTOMER'
+            )
             expect(emailExists).toBe(true)
 
             // WHATSAPP should not exist (not created yet)
@@ -315,7 +340,8 @@ describe('Notification Repository - Integration Tests', () => {
                 appointmentId,
                 'WHATSAPP',
                 'CONFIRMATION',
-                scheduledFor
+                scheduledFor,
+                'CUSTOMER'
             )
             expect(whatsappExists).toBe(false)
         })

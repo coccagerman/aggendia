@@ -15,6 +15,9 @@ const ALLOWED_REMINDER_OFFSETS = [1440, 120] as const
  * - reminderOffsetsMinutes: cuándo enviar recordatorios (24h y/o 2h antes)
  * - emailNotificationsEnabled: habilita/deshabilita canal de email (US-10.1)
  * - whatsappNotificationsEnabled: habilita/deshabilita canal de WhatsApp (US-10.1)
+ * - ownerEmailNotificationsEnabled: habilita/deshabilita email al negocio
+ * - ownerWhatsappNotificationsEnabled: habilita/deshabilita WhatsApp al negocio
+ * - ownerPhoneE164: teléfono del owner en formato E.164 para WhatsApp
  */
 export const updateBusinessSettingsSchema = z
     .object({
@@ -41,7 +44,31 @@ export const updateBusinessSettingsSchema = z
             })
             .optional(),
         emailNotificationsEnabled: z.boolean().optional(),
-        whatsappNotificationsEnabled: z.boolean().optional()
+        whatsappNotificationsEnabled: z.boolean().optional(),
+        ownerEmailNotificationsEnabled: z.boolean().optional(),
+        ownerWhatsappNotificationsEnabled: z.boolean().optional(),
+        ownerRemindersEnabled: z.boolean().optional(),
+        ownerReminderOffsetsMinutes: z
+            .array(
+                z
+                    .number()
+                    .int()
+                    .refine(val => ALLOWED_REMINDER_OFFSETS.includes(val as 1440 | 120), {
+                        message: 'Los offsets permitidos son 1440 (24h) o 120 (2h)'
+                    })
+            )
+            .min(0)
+            .max(2)
+            .refine(arr => new Set(arr).size === arr.length, {
+                message: 'Los offsets no pueden repetirse'
+            })
+            .optional(),
+        ownerPhoneE164: z
+            .string()
+            .trim()
+            .regex(/^\+[1-9]\d{6,14}$/, 'El teléfono debe estar en formato E.164 (ej: +5491155667788)')
+            .nullable()
+            .optional()
     })
     .superRefine((data, ctx) => {
         if (data.remindersEnabled === true && data.reminderOffsetsMinutes?.length === 0) {
@@ -49,6 +76,20 @@ export const updateBusinessSettingsSchema = z
                 code: z.ZodIssueCode.custom,
                 path: ['reminderOffsetsMinutes'],
                 message: 'Seleccioná al menos un offset cuando los recordatorios están activos'
+            })
+        }
+        if (data.ownerRemindersEnabled === true && data.ownerReminderOffsetsMinutes?.length === 0) {
+            ctx.addIssue({
+                code: z.ZodIssueCode.custom,
+                path: ['ownerReminderOffsetsMinutes'],
+                message: 'Seleccioná al menos un offset cuando los recordatorios al negocio están activos'
+            })
+        }
+        if (data.ownerWhatsappNotificationsEnabled === true && !data.ownerPhoneE164) {
+            ctx.addIssue({
+                code: z.ZodIssueCode.custom,
+                path: ['ownerPhoneE164'],
+                message: 'Ingresá un número de teléfono para recibir notificaciones por WhatsApp'
             })
         }
     })

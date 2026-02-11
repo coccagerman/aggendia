@@ -32,6 +32,21 @@ import {
     renderRescheduledEmailText,
     RescheduledEmailData
 } from '@/lib/resend/templates/rescheduled.template'
+import {
+    renderBusinessConfirmationEmail,
+    renderBusinessConfirmationEmailText,
+    BusinessConfirmationEmailData
+} from '@/lib/resend/templates/business-confirmation.template'
+import {
+    renderBusinessCancellationEmail,
+    renderBusinessCancellationEmailText,
+    BusinessCancellationEmailData
+} from '@/lib/resend/templates/business-cancellation.template'
+import {
+    renderBusinessRescheduledEmail,
+    renderBusinessRescheduledEmailText,
+    BusinessRescheduledEmailData
+} from '@/lib/resend/templates/business-rescheduled.template'
 import { formatDateTimeForNotification, getTimezoneDisplayName } from '@/lib/notifications/notification-time'
 
 /**
@@ -55,7 +70,11 @@ const SKIPPABLE_ERROR_PATTERNS = [
     'WhatsApp notifications are disabled',
     'Email sending is disabled',
     'WhatsApp sending is disabled',
-    'Cannot find original appointment startAt'
+    'Cannot find original appointment startAt',
+    'Business has no owner email',
+    'Business has no owner phone',
+    'Owner email notifications are disabled',
+    'Owner WhatsApp notifications are disabled'
 ]
 
 /**
@@ -392,6 +411,165 @@ async function processRescheduledWhatsApp(
 }
 
 /**
+ * Process a BUSINESS recipient notification (owner notifications)
+ * Dispatches to the correct handler based on type + channel
+ */
+async function processBusinessNotification(
+    prisma: PrismaClient,
+    notification: PendingNotificationWithAppointment
+): Promise<{ success: boolean; error?: string }> {
+    const { appointment } = notification
+    const biz = appointment.business
+
+    // ── EMAIL ──
+    if (notification.channel === 'EMAIL') {
+        if (!biz.ownerEmail) return { success: false, error: 'Business has no owner email' }
+        if (!biz.ownerEmailNotificationsEnabled)
+            return { success: false, error: 'Owner email notifications are disabled' }
+        if (!isEmailEnabled()) return { success: false, error: 'Email sending is disabled' }
+
+        try {
+            if (notification.type === 'CONFIRMATION') {
+                const data: BusinessConfirmationEmailData = {
+                    businessName: biz.name,
+                    customerName: appointment.customer.fullName,
+                    customerEmail: appointment.customer.email,
+                    customerPhone: appointment.customer.phoneE164,
+                    serviceName: appointment.service.name,
+                    resourceName: appointment.resource.name,
+                    resourceLabel: biz.resourceLabel,
+                    formattedDateTime: formatDateTimeForNotification(appointment.startAt, biz.timezone),
+                    timezone: getTimezoneDisplayName(biz.timezone)
+                }
+                const { error } = await resend!.emails.send({
+                    from: defaultFromEmail,
+                    to: biz.ownerEmail,
+                    subject: `Nuevo turno reservado - ${biz.name}`,
+                    html: renderBusinessConfirmationEmail(data),
+                    text: renderBusinessConfirmationEmailText(data)
+                })
+                return error ? { success: false, error: error.message } : { success: true }
+            }
+
+            if (notification.type === 'CANCELLATION') {
+                const data: BusinessCancellationEmailData = {
+                    businessName: biz.name,
+                    customerName: appointment.customer.fullName,
+                    customerEmail: appointment.customer.email,
+                    customerPhone: appointment.customer.phoneE164,
+                    serviceName: appointment.service.name,
+                    resourceName: appointment.resource.name,
+                    resourceLabel: biz.resourceLabel,
+                    formattedDateTime: formatDateTimeForNotification(appointment.startAt, biz.timezone),
+                    timezone: getTimezoneDisplayName(biz.timezone)
+                }
+                const { error } = await resend!.emails.send({
+                    from: defaultFromEmail,
+                    to: biz.ownerEmail,
+                    subject: `Turno cancelado - ${biz.name}`,
+                    html: renderBusinessCancellationEmail(data),
+                    text: renderBusinessCancellationEmailText(data)
+                })
+                return error ? { success: false, error: error.message } : { success: true }
+            }
+
+            if (notification.type === 'RESCHEDULED') {
+                const originalStartAt = appointment.rescheduledFrom?.startAt
+                if (!originalStartAt) return { success: false, error: 'Cannot find original appointment startAt' }
+                const data: BusinessRescheduledEmailData = {
+                    businessName: biz.name,
+                    customerName: appointment.customer.fullName,
+                    customerEmail: appointment.customer.email,
+                    customerPhone: appointment.customer.phoneE164,
+                    serviceName: appointment.service.name,
+                    resourceName: appointment.resource.name,
+                    resourceLabel: biz.resourceLabel,
+                    previousFormattedDateTime: formatDateTimeForNotification(originalStartAt, biz.timezone),
+                    newFormattedDateTime: formatDateTimeForNotification(appointment.startAt, biz.timezone),
+                    timezone: getTimezoneDisplayName(biz.timezone)
+                }
+                const { error } = await resend!.emails.send({
+                    from: defaultFromEmail,
+                    to: biz.ownerEmail,
+                    subject: `Turno reprogramado - ${biz.name}`,
+                    html: renderBusinessRescheduledEmail(data),
+                    text: renderBusinessRescheduledEmailText(data)
+                })
+                return error ? { success: false, error: error.message } : { success: true }
+            }
+
+            return { success: false, error: `Unsupported business notification type: ${notification.type}` }
+        } catch (error) {
+            return { success: false, error: error instanceof Error ? error.message : 'Unknown error' }
+        }
+    }
+
+    // ── WHATSAPP ──
+    if (notification.channel === 'WHATSAPP') {
+        if (!biz.ownerPhoneE164) return { success: false, error: 'Business has no owner phone' }
+        if (!biz.ownerWhatsappNotificationsEnabled)
+            return { success: false, error: 'Owner WhatsApp notifications are disabled' }
+        if (!isWhatsAppEnabled()) return { success: false, error: 'WhatsApp sending is disabled' }
+
+        try {
+            const timezone = getTimezoneDisplayName(biz.timezone)
+
+            if (notification.type === 'CONFIRMATION') {
+                const fdt = formatDateTimeForNotification(appointment.startAt, biz.timezone)
+                const msg = [
+                    `📅 Nuevo turno`,
+                    `👤 ${appointment.customer.fullName}`,
+                    `📋 ${appointment.service.name}`,
+                    `${biz.resourceLabel}: ${appointment.resource.name}`,
+                    `📅 ${fdt}`,
+                    `🕐 ${timezone}`
+                ].join(' | ')
+                const r = await sendTemplateMessage(biz.ownerPhoneE164, WHATSAPP_TEMPLATES.BUSINESS_CONFIRMATION, msg)
+                return r.success ? { success: true } : { success: false, error: r.error }
+            }
+
+            if (notification.type === 'CANCELLATION') {
+                const fdt = formatDateTimeForNotification(appointment.startAt, biz.timezone)
+                const msg = [
+                    `❌ Turno cancelado`,
+                    `👤 ${appointment.customer.fullName}`,
+                    `📋 ${appointment.service.name}`,
+                    `${biz.resourceLabel}: ${appointment.resource.name}`,
+                    `📅 ${fdt}`,
+                    `🕐 ${timezone}`
+                ].join(' | ')
+                const r = await sendTemplateMessage(biz.ownerPhoneE164, WHATSAPP_TEMPLATES.BUSINESS_CANCELLATION, msg)
+                return r.success ? { success: true } : { success: false, error: r.error }
+            }
+
+            if (notification.type === 'RESCHEDULED') {
+                const originalStartAt = appointment.rescheduledFrom?.startAt
+                if (!originalStartAt) return { success: false, error: 'Cannot find original appointment startAt' }
+                const origFdt = formatDateTimeForNotification(originalStartAt, biz.timezone)
+                const newFdt = formatDateTimeForNotification(appointment.startAt, biz.timezone)
+                const msg = [
+                    `🔄 Turno reprogramado`,
+                    `👤 ${appointment.customer.fullName}`,
+                    `📋 ${appointment.service.name}`,
+                    `${biz.resourceLabel}: ${appointment.resource.name}`,
+                    `📅 Antes: ${origFdt}`,
+                    `✅ Ahora: ${newFdt}`,
+                    `🕐 ${timezone}`
+                ].join(' | ')
+                const r = await sendTemplateMessage(biz.ownerPhoneE164, WHATSAPP_TEMPLATES.BUSINESS_RESCHEDULED, msg)
+                return r.success ? { success: true } : { success: false, error: r.error }
+            }
+
+            return { success: false, error: `Unsupported business notification type: ${notification.type}` }
+        } catch (error) {
+            return { success: false, error: error instanceof Error ? error.message : 'Unknown error' }
+        }
+    }
+
+    return { success: false, error: `Unknown channel: ${notification.channel}` }
+}
+
+/**
  * Process pending notifications
  * Called by cron job to send queued notifications
  */
@@ -418,7 +596,10 @@ export async function processNotifications(
         let sendResult: { success: boolean; error?: string }
 
         try {
-            if (notification.type === 'CONFIRMATION') {
+            // Route to the correct processor based on recipient + type + channel
+            if (notification.recipient === 'BUSINESS') {
+                sendResult = await processBusinessNotification(prisma, notification)
+            } else if (notification.type === 'CONFIRMATION') {
                 if (notification.channel === 'EMAIL') {
                     sendResult = await processConfirmationEmail(prisma, notification)
                 } else if (notification.channel === 'WHATSAPP') {

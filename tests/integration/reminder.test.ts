@@ -39,7 +39,11 @@ vi.mock('@/lib/whatsapp/client', () => ({
         CONFIRMATION: 'turnosapp_confirmation',
         CANCELLATION: 'turnosapp_cancellation',
         RESCHEDULED: 'turnosapp_rescheduled',
-        REMINDER: 'turnosapp_reminder'
+        REMINDER: 'turnosapp_reminder',
+        BUSINESS_CONFIRMATION: 'turnosapp_business_confirmation',
+        BUSINESS_CANCELLATION: 'turnosapp_business_cancellation',
+        BUSINESS_RESCHEDULED: 'turnosapp_business_rescheduled',
+        BUSINESS_REMINDER: 'turnosapp_business_reminder'
     }
 }))
 
@@ -347,7 +351,14 @@ describe('Reminder Integration Tests', () => {
             const scheduledFor = addMinutes(appointmentStart, -1440)
 
             // First check - should not exist
-            const existsBefore = await notificationExists(prisma, appointment.id, 'EMAIL', 'REMINDER', scheduledFor)
+            const existsBefore = await notificationExists(
+                prisma,
+                appointment.id,
+                'EMAIL',
+                'REMINDER',
+                scheduledFor,
+                'CUSTOMER'
+            )
             expect(existsBefore).toBe(false)
 
             // Create notification
@@ -357,6 +368,7 @@ describe('Reminder Integration Tests', () => {
                     appointmentId: appointment.id,
                     channel: 'EMAIL',
                     type: 'REMINDER',
+                    recipient: 'CUSTOMER',
                     to: 'test@example.com',
                     status: 'SENT',
                     scheduledFor
@@ -364,7 +376,14 @@ describe('Reminder Integration Tests', () => {
             })
 
             // Second check - should exist
-            const existsAfter = await notificationExists(prisma, appointment.id, 'EMAIL', 'REMINDER', scheduledFor)
+            const existsAfter = await notificationExists(
+                prisma,
+                appointment.id,
+                'EMAIL',
+                'REMINDER',
+                scheduledFor,
+                'CUSTOMER'
+            )
             expect(existsAfter).toBe(true)
 
             // Cleanup
@@ -458,6 +477,7 @@ describe('Reminder Integration Tests', () => {
                     appointmentId: appointment.id,
                     channel: 'EMAIL',
                     type: 'REMINDER',
+                    recipient: 'CUSTOMER',
                     to: 'test@example.com',
                     status: 'SENT',
                     scheduledFor
@@ -465,13 +485,21 @@ describe('Reminder Integration Tests', () => {
             })
 
             // EMAIL should exist, WHATSAPP should not
-            const emailExists = await notificationExists(prisma, appointment.id, 'EMAIL', 'REMINDER', scheduledFor)
+            const emailExists = await notificationExists(
+                prisma,
+                appointment.id,
+                'EMAIL',
+                'REMINDER',
+                scheduledFor,
+                'CUSTOMER'
+            )
             const whatsappExists = await notificationExists(
                 prisma,
                 appointment.id,
                 'WHATSAPP',
                 'REMINDER',
-                scheduledFor
+                scheduledFor,
+                'CUSTOMER'
             )
 
             expect(emailExists).toBe(true)
@@ -484,6 +512,7 @@ describe('Reminder Integration Tests', () => {
                     appointmentId: appointment.id,
                     channel: 'WHATSAPP',
                     type: 'REMINDER',
+                    recipient: 'CUSTOMER',
                     to: '+5491155667788',
                     status: 'SENT',
                     scheduledFor
@@ -491,13 +520,21 @@ describe('Reminder Integration Tests', () => {
             })
 
             // Now both should exist
-            const emailExistsAfter = await notificationExists(prisma, appointment.id, 'EMAIL', 'REMINDER', scheduledFor)
+            const emailExistsAfter = await notificationExists(
+                prisma,
+                appointment.id,
+                'EMAIL',
+                'REMINDER',
+                scheduledFor,
+                'CUSTOMER'
+            )
             const whatsappExistsAfter = await notificationExists(
                 prisma,
                 appointment.id,
                 'WHATSAPP',
                 'REMINDER',
-                scheduledFor
+                scheduledFor,
+                'CUSTOMER'
             )
 
             expect(emailExistsAfter).toBe(true)

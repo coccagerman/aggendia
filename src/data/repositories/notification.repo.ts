@@ -12,6 +12,7 @@ import {
     NotificationStatus,
     NotificationType,
     NotificationChannel,
+    NotificationRecipient,
     CreateNotificationInput
 } from '@/domain/notifications/notification.types'
 
@@ -29,6 +30,7 @@ export async function createNotification(prisma: PrismaClient, input: CreateNoti
             appointmentId: input.appointmentId,
             channel: input.channel,
             type: input.type,
+            recipient: input.recipient,
             to: input.to,
             status: 'PENDING',
             scheduledFor: input.scheduledFor
@@ -123,15 +125,17 @@ export async function notificationExists(
     appointmentId: string,
     channel: NotificationChannel,
     type: NotificationType,
-    scheduledFor: Date
+    scheduledFor: Date,
+    recipient: NotificationRecipient
 ): Promise<boolean> {
     const existing = await prisma.notification.findUnique({
         where: {
-            appointmentId_channel_type_scheduledFor: {
+            appointmentId_channel_type_scheduledFor_recipient: {
                 appointmentId,
                 channel,
                 type,
-                scheduledFor
+                scheduledFor,
+                recipient
             }
         },
         select: { id: true }
@@ -158,6 +162,10 @@ export type PendingNotificationWithAppointment = Notification & {
             address: string | null
             emailNotificationsEnabled: boolean
             whatsappNotificationsEnabled: boolean
+            ownerEmail: string | null
+            ownerPhoneE164: string | null
+            ownerEmailNotificationsEnabled: boolean
+            ownerWhatsappNotificationsEnabled: boolean
         }
         startAt: Date
         rescheduledFrom: { startAt: Date } | null
@@ -204,7 +212,11 @@ export async function getPendingNotifications(
                             resourceLabel: true,
                             address: true,
                             emailNotificationsEnabled: true,
-                            whatsappNotificationsEnabled: true
+                            whatsappNotificationsEnabled: true,
+                            ownerEmail: true,
+                            ownerPhoneE164: true,
+                            ownerEmailNotificationsEnabled: true,
+                            ownerWhatsappNotificationsEnabled: true
                         }
                     },
                     rescheduledFrom: {
@@ -242,6 +254,7 @@ function mapToNotification(prismaNotification: Prisma.NotificationGetPayload<obj
         appointmentId: prismaNotification.appointmentId,
         channel: prismaNotification.channel as NotificationChannel,
         type: prismaNotification.type as NotificationType,
+        recipient: prismaNotification.recipient as NotificationRecipient,
         to: prismaNotification.to,
         status: prismaNotification.status as NotificationStatus,
         scheduledFor: prismaNotification.scheduledFor,

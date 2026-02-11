@@ -19,6 +19,12 @@ export interface Business {
     reminderOffsetsMinutes: number[]
     emailNotificationsEnabled: boolean
     whatsappNotificationsEnabled: boolean
+    ownerEmail: string | null
+    ownerPhoneE164: string | null
+    ownerEmailNotificationsEnabled: boolean
+    ownerWhatsappNotificationsEnabled: boolean
+    ownerRemindersEnabled: boolean
+    ownerReminderOffsetsMinutes: number[]
     createdAt: Date
     updatedAt: Date
 }

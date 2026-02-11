@@ -21,7 +21,11 @@ vi.mock('@/lib/auth/require-business-access', () => ({
 // Mock notification service to verify calls without sending real emails
 vi.mock('@/domain/notifications/notification.service', () => ({
     sendCancellationEmail: vi.fn().mockResolvedValue({ success: true, notificationId: 'mock-email-id' }),
-    sendCancellationWhatsApp: vi.fn().mockResolvedValue({ success: true, notificationId: 'mock-whatsapp-id' })
+    sendCancellationWhatsApp: vi.fn().mockResolvedValue({ success: true, notificationId: 'mock-whatsapp-id' }),
+    sendBusinessCancellationEmail: vi.fn().mockResolvedValue({ success: true, notificationId: 'mock-biz-email-id' }),
+    sendBusinessCancellationWhatsApp: vi
+        .fn()
+        .mockResolvedValue({ success: true, notificationId: 'mock-biz-whatsapp-id' })
 }))
 
 // Import route handler AFTER mocks are set up

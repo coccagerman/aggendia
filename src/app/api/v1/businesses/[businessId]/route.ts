@@ -59,7 +59,13 @@ export async function GET(request: NextRequest, context: RouteContext) {
                 remindersEnabled: business.remindersEnabled,
                 reminderOffsetsMinutes: business.reminderOffsetsMinutes,
                 emailNotificationsEnabled: business.emailNotificationsEnabled,
-                whatsappNotificationsEnabled: business.whatsappNotificationsEnabled
+                whatsappNotificationsEnabled: business.whatsappNotificationsEnabled,
+                ownerEmail: business.ownerEmail,
+                ownerPhoneE164: business.ownerPhoneE164,
+                ownerEmailNotificationsEnabled: business.ownerEmailNotificationsEnabled,
+                ownerWhatsappNotificationsEnabled: business.ownerWhatsappNotificationsEnabled,
+                ownerRemindersEnabled: business.ownerRemindersEnabled,
+                ownerReminderOffsetsMinutes: business.ownerReminderOffsetsMinutes
             }
         })
     } catch (error) {
@@ -140,7 +146,12 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
             remindersEnabled,
             reminderOffsetsMinutes,
             emailNotificationsEnabled,
-            whatsappNotificationsEnabled
+            whatsappNotificationsEnabled,
+            ownerEmailNotificationsEnabled,
+            ownerWhatsappNotificationsEnabled,
+            ownerRemindersEnabled,
+            ownerReminderOffsetsMinutes,
+            ownerPhoneE164
         } = validationResult.data
 
         if (
@@ -148,7 +159,12 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
             remindersEnabled === undefined &&
             reminderOffsetsMinutes === undefined &&
             emailNotificationsEnabled === undefined &&
-            whatsappNotificationsEnabled === undefined
+            whatsappNotificationsEnabled === undefined &&
+            ownerEmailNotificationsEnabled === undefined &&
+            ownerWhatsappNotificationsEnabled === undefined &&
+            ownerRemindersEnabled === undefined &&
+            ownerReminderOffsetsMinutes === undefined &&
+            ownerPhoneE164 === undefined
         ) {
             return NextResponse.json(
                 {
@@ -166,7 +182,12 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
             remindersEnabled,
             reminderOffsetsMinutes,
             emailNotificationsEnabled,
-            whatsappNotificationsEnabled
+            whatsappNotificationsEnabled,
+            ownerEmailNotificationsEnabled,
+            ownerWhatsappNotificationsEnabled,
+            ownerRemindersEnabled,
+            ownerReminderOffsetsMinutes,
+            ownerPhoneE164
         })
 
         return NextResponse.json({ data: updatedBusiness })

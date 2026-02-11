@@ -14,7 +14,7 @@ import { AppError, ValidationErrorCodes, BusinessErrorCodes } from '@/domain/com
 export async function POST(request: NextRequest) {
     try {
         // Auth: obtener usuario autenticado
-        const { userId } = await requireAuth()
+        const { userId, email } = await requireAuth()
 
         // Parse y validación del body
         const body = await request.json()
@@ -44,8 +44,8 @@ export async function POST(request: NextRequest) {
             return existing !== null
         })
 
-        // Crear business + member en transacción
-        const result = await createBusinessWithOwner(prisma, input, slug, userId)
+        // Crear business + member en transacción (con ownerEmail del usuario autenticado)
+        const result = await createBusinessWithOwner(prisma, input, slug, userId, email)
 
         return NextResponse.json(
             {

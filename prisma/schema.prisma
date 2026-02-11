@@ -55,6 +55,12 @@ model Business {
   reminderOffsetsMinutes        Int[]          @default([1440, 120]) // 24h y 2h antes
   emailNotificationsEnabled     Boolean        @default(true)
   whatsappNotificationsEnabled  Boolean        @default(false)
+  ownerEmail                    String?        // email del owner para notificaciones al negocio
+  ownerPhoneE164                String?        // teléfono del owner en E.164 para WhatsApp
+  ownerEmailNotificationsEnabled    Boolean    @default(true)
+  ownerWhatsappNotificationsEnabled Boolean    @default(false)
+  ownerRemindersEnabled             Boolean    @default(false)
+  ownerReminderOffsetsMinutes       Int[]      @default([])
   createdAt                     DateTime       @default(now())
   updatedAt                     DateTime       @updatedAt
 
@@ -244,6 +250,11 @@ model Appointment {
 // US-8.1: Notifications
 // ============================================================================
 
+enum NotificationRecipient {
+  CUSTOMER
+  BUSINESS
+}
+
 enum NotificationChannel {
   EMAIL
   WHATSAPP
@@ -263,27 +274,29 @@ enum NotificationStatus {
 }
 
 model Notification {
-  id            String             @id @default(uuid())
+  id            String                @id @default(uuid())
   businessId    String
   appointmentId String
   channel       NotificationChannel
   type          NotificationType
-  to            String             // email address
-  status        NotificationStatus @default(PENDING)
-  scheduledFor  DateTime           // When the notification should be sent
-  sentAt        DateTime?          // When it was actually sent
-  error         String?            // Error message if failed
-  createdAt     DateTime           @default(now())
-  updatedAt     DateTime           @updatedAt
+  recipient     NotificationRecipient @default(CUSTOMER)
+  to            String                // email address or phone_e164
+  status        NotificationStatus    @default(PENDING)
+  scheduledFor  DateTime              // When the notification should be sent
+  sentAt        DateTime?             // When it was actually sent
+  error         String?               // Error message if failed
+  createdAt     DateTime              @default(now())
+  updatedAt     DateTime              @updatedAt
 
   business    Business    @relation(fields: [businessId], references: [id], onDelete: Cascade)
   appointment Appointment @relation(fields: [appointmentId], references: [id], onDelete: Cascade)
 
-  // Idempotency: prevent duplicate notifications per channel
-  // Allows same appointment to have EMAIL and WHATSAPP notifications independently
-  @@unique([appointmentId, channel, type, scheduledFor])
+  // Idempotency: prevent duplicate notifications per channel and recipient
+  // Allows same appointment to have independent notifications for CUSTOMER and BUSINESS
+  @@unique([appointmentId, channel, type, scheduledFor, recipient])
   @@index([businessId])
   @@index([appointmentId])
   @@index([status])
   @@index([channel])
+  @@index([recipient])
 }

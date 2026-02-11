@@ -20,7 +20,12 @@ import { upsertCustomer } from '@/data/repositories/customer.repo'
 import { createAppointment, isSlotAvailable } from '@/data/repositories/appointment.repo'
 import { getAvailabilityByResourceId } from '@/data/repositories/availability.repo'
 import { isWithinAvailability } from '@/domain/availability/availability.service'
-import { sendConfirmationEmail, sendConfirmationWhatsApp } from '@/domain/notifications/notification.service'
+import {
+    sendConfirmationEmail,
+    sendConfirmationWhatsApp,
+    sendBusinessConfirmationEmail,
+    sendBusinessConfirmationWhatsApp
+} from '@/domain/notifications/notification.service'
 import { buildAppointmentManageUrl } from '@/lib/notifications/manage-url'
 import { addMinutes } from 'date-fns'
 
@@ -217,7 +222,45 @@ export async function createPublicAppointment(
         console.error('[PublicBooking] Unexpected error in sendConfirmationWhatsApp:', err)
     })
 
-    // 13. Return formatted output
+    // 13. Send business owner notifications (non-blocking, fire-and-forget)
+    const businessOwnerConfig = {
+        id: business.id,
+        name: business.name,
+        timezone: business.timezone,
+        resourceLabel: business.resourceLabel,
+        ownerEmail: business.ownerEmail,
+        ownerPhoneE164: business.ownerPhoneE164,
+        ownerEmailNotificationsEnabled: business.ownerEmailNotificationsEnabled,
+        ownerWhatsappNotificationsEnabled: business.ownerWhatsappNotificationsEnabled
+    }
+
+    sendBusinessConfirmationEmail(prisma, {
+        appointmentId: appointment.id,
+        business: businessOwnerConfig,
+        service: { id: appointment.service.id, name: appointment.service.name },
+        resource: { id: appointment.resource.id, name: appointment.resource.name },
+        customer: {
+            fullName: appointment.customer.fullName,
+            email: appointment.customer.email,
+            phone: appointment.customer.phone
+        },
+        startAt: appointment.startAt
+    }).catch(err => {
+        console.error('[PublicBooking] Unexpected error in sendBusinessConfirmationEmail:', err)
+    })
+
+    sendBusinessConfirmationWhatsApp(prisma, {
+        appointmentId: appointment.id,
+        business: businessOwnerConfig,
+        service: { id: appointment.service.id, name: appointment.service.name },
+        resource: { id: appointment.resource.id, name: appointment.resource.name },
+        customer: { fullName: appointment.customer.fullName },
+        startAt: appointment.startAt
+    }).catch(err => {
+        console.error('[PublicBooking] Unexpected error in sendBusinessConfirmationWhatsApp:', err)
+    })
+
+    // 14. Return formatted output
     return {
         appointmentId: appointment.id,
         status: appointment.status as 'SCHEDULED',

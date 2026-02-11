@@ -27,6 +27,11 @@ import {
     renderReminderEmailText,
     ReminderEmailData
 } from '@/lib/resend/templates/reminder.template'
+import {
+    renderBusinessReminderEmail,
+    renderBusinessReminderEmailText,
+    BusinessReminderEmailData
+} from '@/lib/resend/templates/business-reminder.template'
 
 /**
  * Input for sending a reminder email
@@ -269,6 +274,7 @@ export async function sendReminderEmail(
             appointmentId,
             channel: 'EMAIL',
             type: 'REMINDER',
+            recipient: 'CUSTOMER',
             to: customer.email,
             scheduledFor
         })
@@ -464,6 +470,7 @@ export async function sendReminderWhatsApp(
             appointmentId,
             channel: 'WHATSAPP',
             type: 'REMINDER',
+            recipient: 'CUSTOMER',
             to: customer.phoneE164,
             scheduledFor
         })
@@ -655,166 +662,355 @@ export async function processReminders(
                         continue
                     }
 
-                    // Check if business still has reminders enabled
-                    if (!appointment.business.remindersEnabled) {
-                        console.info(`[Reminder] Skipping: business reminders disabled`, {
-                            appointmentId: appointment.id,
-                            businessId: appointment.business.id
-                        })
-                        result.skipped++
-                        continue
-                    }
+                    // Determine eligibility for customer and owner reminders
+                    const customerEligible =
+                        appointment.business.remindersEnabled &&
+                        appointment.business.reminderOffsetsMinutes.includes(offset)
+                    const ownerEligible =
+                        appointment.business.ownerRemindersEnabled &&
+                        appointment.business.ownerReminderOffsetsMinutes.includes(offset)
 
-                    // Check if this offset is in the business configuration
-                    if (!appointment.business.reminderOffsetsMinutes.includes(offset)) {
-                        console.info(`[Reminder] Skipping: offset not configured for business`, {
-                            appointmentId: appointment.id,
-                            businessId: appointment.business.id,
-                            offsetMinutes: offset,
-                            configuredOffsets: appointment.business.reminderOffsetsMinutes
-                        })
+                    if (!customerEligible && !ownerEligible) {
                         result.skipped++
                         continue
                     }
 
                     // =========================================================
-                    // CHANNEL: EMAIL (isolated block)
+                    // CUSTOMER CHANNEL: EMAIL (isolated block)
                     // =========================================================
-                    try {
-                        // Check if email reminder already exists (idempotency)
-                        const emailExists = await notificationExists(
-                            prisma,
-                            appointment.id,
-                            'EMAIL',
-                            'REMINDER',
-                            scheduledFor
-                        )
-
-                        if (emailExists) {
-                            console.info(`[Reminder] Skipping EMAIL: reminder already exists`, {
-                                appointmentId: appointment.id,
-                                offsetMinutes: offset
-                            })
-                            result.skipped++
-                        } else if (!appointment.customer.email) {
-                            console.info(`[Reminder] Skipping EMAIL: no customer email`, {
-                                appointmentId: appointment.id
-                            })
-                            result.skipped++
-                        } else if (dryRun) {
-                            console.info(`[Reminder] DRY RUN: would send EMAIL reminder`, {
-                                appointmentId: appointment.id,
-                                businessId: appointment.business.id,
-                                offsetMinutes: offset
-                            })
-                            result.sent++
-                        } else {
-                            // Send the email reminder
-                            const manageUrl = buildAppointmentManageUrl(
-                                appointment.business.slug,
+                    if (customerEligible) {
+                        try {
+                            // Check if email reminder already exists (idempotency)
+                            const emailExists = await notificationExists(
+                                prisma,
                                 appointment.id,
-                                appointment.secretToken
+                                'EMAIL',
+                                'REMINDER',
+                                scheduledFor,
+                                'CUSTOMER'
                             )
-                            const emailResult = await sendReminderEmail(prisma, {
-                                appointmentId: appointment.id,
-                                business: appointment.business,
-                                service: appointment.service,
-                                resource: appointment.resource,
-                                customer: appointment.customer,
-                                startAt: appointment.startAt,
-                                offsetMinutes: offset,
-                                manageUrl
-                            })
 
-                            if (emailResult.success) {
+                            if (emailExists) {
+                                console.info(`[Reminder] Skipping EMAIL: reminder already exists`, {
+                                    appointmentId: appointment.id,
+                                    offsetMinutes: offset
+                                })
+                                result.skipped++
+                            } else if (!appointment.customer.email) {
+                                console.info(`[Reminder] Skipping EMAIL: no customer email`, {
+                                    appointmentId: appointment.id
+                                })
+                                result.skipped++
+                            } else if (dryRun) {
+                                console.info(`[Reminder] DRY RUN: would send EMAIL reminder`, {
+                                    appointmentId: appointment.id,
+                                    businessId: appointment.business.id,
+                                    offsetMinutes: offset
+                                })
                                 result.sent++
                             } else {
-                                result.failed++
-                                if (emailResult.error) {
-                                    result.errors.push(`${appointment.id} (EMAIL): send_failed`)
+                                // Send the email reminder
+                                const manageUrl = buildAppointmentManageUrl(
+                                    appointment.business.slug,
+                                    appointment.id,
+                                    appointment.secretToken
+                                )
+                                const emailResult = await sendReminderEmail(prisma, {
+                                    appointmentId: appointment.id,
+                                    business: appointment.business,
+                                    service: appointment.service,
+                                    resource: appointment.resource,
+                                    customer: appointment.customer,
+                                    startAt: appointment.startAt,
+                                    offsetMinutes: offset,
+                                    manageUrl
+                                })
+
+                                if (emailResult.success) {
+                                    result.sent++
+                                } else {
+                                    result.failed++
+                                    if (emailResult.error) {
+                                        result.errors.push(`${appointment.id} (EMAIL): send_failed`)
+                                    }
                                 }
                             }
+                        } catch (emailError) {
+                            // Log without PII, never re-throw - continue to WhatsApp
+                            console.error(`[Reminder] Unexpected error processing EMAIL`, {
+                                appointmentId: appointment.id,
+                                errorType: emailError instanceof Error ? emailError.name : 'Unknown'
+                            })
+                            result.failed++
                         }
-                    } catch (emailError) {
-                        // Log without PII, never re-throw - continue to WhatsApp
-                        console.error(`[Reminder] Unexpected error processing EMAIL`, {
-                            appointmentId: appointment.id,
-                            errorType: emailError instanceof Error ? emailError.name : 'Unknown'
-                        })
-                        result.failed++
                     }
 
                     // =========================================================
-                    // CHANNEL: WHATSAPP (isolated block)
+                    // CUSTOMER CHANNEL: WHATSAPP (isolated block)
                     // =========================================================
-                    try {
-                        // Check if WhatsApp reminder already exists (idempotency)
-                        const whatsappExists = await notificationExists(
-                            prisma,
-                            appointment.id,
-                            'WHATSAPP',
-                            'REMINDER',
-                            scheduledFor
-                        )
-
-                        if (whatsappExists) {
-                            console.info(`[Reminder] Skipping WHATSAPP: reminder already exists`, {
-                                appointmentId: appointment.id,
-                                offsetMinutes: offset
-                            })
-                            result.skipped++
-                        } else if (!appointment.customer.phoneE164) {
-                            console.info(`[Reminder] Skipping WHATSAPP: no customer phone`, {
-                                appointmentId: appointment.id
-                            })
-                            result.skipped++
-                        } else if (!appointment.business.whatsappNotificationsEnabled) {
-                            console.info(`[Reminder] Skipping WHATSAPP: channel disabled for business`, {
-                                appointmentId: appointment.id,
-                                businessId: appointment.business.id
-                            })
-                            result.skipped++
-                        } else if (dryRun) {
-                            console.info(`[Reminder] DRY RUN: would send WHATSAPP reminder`, {
-                                appointmentId: appointment.id,
-                                businessId: appointment.business.id,
-                                offsetMinutes: offset
-                            })
-                            result.sent++
-                        } else {
-                            // Send the WhatsApp reminder
-                            const reminderManageUrl = buildAppointmentManageUrl(
-                                appointment.business.slug,
+                    if (customerEligible) {
+                        try {
+                            // Check if WhatsApp reminder already exists (idempotency)
+                            const whatsappExists = await notificationExists(
+                                prisma,
                                 appointment.id,
-                                appointment.secretToken
+                                'WHATSAPP',
+                                'REMINDER',
+                                scheduledFor,
+                                'CUSTOMER'
                             )
-                            const whatsappResult = await sendReminderWhatsApp(prisma, {
-                                appointmentId: appointment.id,
-                                business: appointment.business,
-                                service: appointment.service,
-                                resource: appointment.resource,
-                                customer: appointment.customer,
-                                startAt: appointment.startAt,
-                                offsetMinutes: offset,
-                                manageUrl: reminderManageUrl
-                            })
 
-                            if (whatsappResult.success) {
+                            if (whatsappExists) {
+                                console.info(`[Reminder] Skipping WHATSAPP: reminder already exists`, {
+                                    appointmentId: appointment.id,
+                                    offsetMinutes: offset
+                                })
+                                result.skipped++
+                            } else if (!appointment.customer.phoneE164) {
+                                console.info(`[Reminder] Skipping WHATSAPP: no customer phone`, {
+                                    appointmentId: appointment.id
+                                })
+                                result.skipped++
+                            } else if (!appointment.business.whatsappNotificationsEnabled) {
+                                console.info(`[Reminder] Skipping WHATSAPP: channel disabled for business`, {
+                                    appointmentId: appointment.id,
+                                    businessId: appointment.business.id
+                                })
+                                result.skipped++
+                            } else if (dryRun) {
+                                console.info(`[Reminder] DRY RUN: would send WHATSAPP reminder`, {
+                                    appointmentId: appointment.id,
+                                    businessId: appointment.business.id,
+                                    offsetMinutes: offset
+                                })
                                 result.sent++
                             } else {
-                                result.failed++
-                                if (whatsappResult.error) {
-                                    result.errors.push(`${appointment.id} (WHATSAPP): send_failed`)
+                                // Send the WhatsApp reminder
+                                const reminderManageUrl = buildAppointmentManageUrl(
+                                    appointment.business.slug,
+                                    appointment.id,
+                                    appointment.secretToken
+                                )
+                                const whatsappResult = await sendReminderWhatsApp(prisma, {
+                                    appointmentId: appointment.id,
+                                    business: appointment.business,
+                                    service: appointment.service,
+                                    resource: appointment.resource,
+                                    customer: appointment.customer,
+                                    startAt: appointment.startAt,
+                                    offsetMinutes: offset,
+                                    manageUrl: reminderManageUrl
+                                })
+
+                                if (whatsappResult.success) {
+                                    result.sent++
+                                } else {
+                                    result.failed++
+                                    if (whatsappResult.error) {
+                                        result.errors.push(`${appointment.id} (WHATSAPP): send_failed`)
+                                    }
                                 }
                             }
+                        } catch (whatsappError) {
+                            // Log without PII, never re-throw - continue to next channel
+                            console.error(`[Reminder] Unexpected error processing WHATSAPP`, {
+                                appointmentId: appointment.id,
+                                errorType: whatsappError instanceof Error ? whatsappError.name : 'Unknown'
+                            })
+                            result.failed++
                         }
-                    } catch (whatsappError) {
-                        // Log without PII, never re-throw - continue to next appointment
-                        console.error(`[Reminder] Unexpected error processing WHATSAPP`, {
-                            appointmentId: appointment.id,
-                            errorType: whatsappError instanceof Error ? whatsappError.name : 'Unknown'
-                        })
-                        result.failed++
+                    }
+
+                    // =========================================================
+                    // BUSINESS CHANNEL: EMAIL (isolated block)
+                    // =========================================================
+                    if (
+                        ownerEligible &&
+                        appointment.business.ownerEmailNotificationsEnabled &&
+                        appointment.business.ownerEmail
+                    ) {
+                        try {
+                            const bizEmailExists = await notificationExists(
+                                prisma,
+                                appointment.id,
+                                'EMAIL',
+                                'REMINDER',
+                                scheduledFor,
+                                'BUSINESS'
+                            )
+
+                            if (bizEmailExists) {
+                                result.skipped++
+                            } else if (!isEmailEnabled()) {
+                                result.skipped++
+                            } else if (dryRun) {
+                                console.info(`[Reminder] DRY RUN: would send BUSINESS EMAIL reminder`, {
+                                    appointmentId: appointment.id,
+                                    businessId: appointment.business.id,
+                                    offsetMinutes: offset
+                                })
+                                result.sent++
+                            } else {
+                                const notification = await createNotification(prisma, {
+                                    businessId: appointment.business.id,
+                                    appointmentId: appointment.id,
+                                    channel: 'EMAIL',
+                                    type: 'REMINDER',
+                                    recipient: 'BUSINESS',
+                                    to: appointment.business.ownerEmail,
+                                    scheduledFor
+                                })
+
+                                const emailData: BusinessReminderEmailData = {
+                                    businessName: appointment.business.name,
+                                    customerName: appointment.customer.fullName,
+                                    customerEmail: appointment.customer.email,
+                                    customerPhone: appointment.customer.phoneE164,
+                                    serviceName: appointment.service.name,
+                                    resourceName: appointment.resource.name,
+                                    resourceLabel: appointment.business.resourceLabel,
+                                    formattedDateTime: formatDateTimeForNotification(
+                                        appointment.startAt,
+                                        appointment.business.timezone,
+                                        'reminder'
+                                    ),
+                                    timezone: getTimezoneDisplayName(appointment.business.timezone),
+                                    address: appointment.business.address,
+                                    reminderType: getReminderType(offset)
+                                }
+
+                                const subject =
+                                    offset === 1440
+                                        ? `Recordatorio: turno mañana - ${appointment.customer.fullName}`
+                                        : `Recordatorio: turno en 2 horas - ${appointment.customer.fullName}`
+
+                                const { error: sendError } = await resend!.emails.send({
+                                    from: defaultFromEmail,
+                                    to: appointment.business.ownerEmail,
+                                    subject,
+                                    html: renderBusinessReminderEmail(emailData),
+                                    text: renderBusinessReminderEmailText(emailData)
+                                })
+
+                                if (sendError) {
+                                    await updateNotificationStatus(
+                                        prisma,
+                                        notification.id,
+                                        'FAILED',
+                                        undefined,
+                                        sendError.message
+                                    )
+                                    result.failed++
+                                } else {
+                                    await updateNotificationStatus(prisma, notification.id, 'SENT', new Date())
+                                    result.sent++
+                                }
+                            }
+                        } catch (bizEmailError) {
+                            if (
+                                bizEmailError instanceof Prisma.PrismaClientKnownRequestError &&
+                                bizEmailError.code === 'P2002'
+                            ) {
+                                result.skipped++
+                            } else {
+                                console.error(`[Reminder] Unexpected error processing BUSINESS EMAIL`, {
+                                    appointmentId: appointment.id,
+                                    errorType: bizEmailError instanceof Error ? bizEmailError.name : 'Unknown'
+                                })
+                                result.failed++
+                            }
+                        }
+                    }
+
+                    // =========================================================
+                    // BUSINESS CHANNEL: WHATSAPP (isolated block)
+                    // =========================================================
+                    if (
+                        ownerEligible &&
+                        appointment.business.ownerWhatsappNotificationsEnabled &&
+                        appointment.business.ownerPhoneE164
+                    ) {
+                        try {
+                            const bizWhatsappExists = await notificationExists(
+                                prisma,
+                                appointment.id,
+                                'WHATSAPP',
+                                'REMINDER',
+                                scheduledFor,
+                                'BUSINESS'
+                            )
+
+                            if (bizWhatsappExists) {
+                                result.skipped++
+                            } else if (!isWhatsAppEnabled()) {
+                                result.skipped++
+                            } else if (dryRun) {
+                                console.info(`[Reminder] DRY RUN: would send BUSINESS WHATSAPP reminder`, {
+                                    appointmentId: appointment.id,
+                                    businessId: appointment.business.id,
+                                    offsetMinutes: offset
+                                })
+                                result.sent++
+                            } else {
+                                const notification = await createNotification(prisma, {
+                                    businessId: appointment.business.id,
+                                    appointmentId: appointment.id,
+                                    channel: 'WHATSAPP',
+                                    type: 'REMINDER',
+                                    recipient: 'BUSINESS',
+                                    to: appointment.business.ownerPhoneE164,
+                                    scheduledFor
+                                })
+
+                                const messageData: ReminderMessageData = {
+                                    businessName: appointment.business.name,
+                                    serviceName: appointment.service.name,
+                                    resourceLabel: appointment.business.resourceLabel,
+                                    resourceName: appointment.resource.name,
+                                    formattedDateTime: formatDateTimeForNotification(
+                                        appointment.startAt,
+                                        appointment.business.timezone,
+                                        'reminder'
+                                    ),
+                                    timezone: getTimezoneDisplayName(appointment.business.timezone),
+                                    reminderType: getReminderType(offset)
+                                }
+
+                                const messageText = composeReminderMessage(messageData)
+                                const waResult = await sendTemplateMessage(
+                                    appointment.business.ownerPhoneE164,
+                                    WHATSAPP_TEMPLATES.BUSINESS_REMINDER,
+                                    messageText
+                                )
+
+                                if (!waResult.success) {
+                                    await updateNotificationStatus(
+                                        prisma,
+                                        notification.id,
+                                        'FAILED',
+                                        undefined,
+                                        waResult.error
+                                    )
+                                    result.failed++
+                                } else {
+                                    await updateNotificationStatus(prisma, notification.id, 'SENT', new Date())
+                                    result.sent++
+                                }
+                            }
+                        } catch (bizWhatsappError) {
+                            if (
+                                bizWhatsappError instanceof Prisma.PrismaClientKnownRequestError &&
+                                bizWhatsappError.code === 'P2002'
+                            ) {
+                                result.skipped++
+                            } else {
+                                console.error(`[Reminder] Unexpected error processing BUSINESS WHATSAPP`, {
+                                    appointmentId: appointment.id,
+                                    errorType: bizWhatsappError instanceof Error ? bizWhatsappError.name : 'Unknown'
+                                })
+                                result.failed++
+                            }
+                        }
                     }
                 }
             }

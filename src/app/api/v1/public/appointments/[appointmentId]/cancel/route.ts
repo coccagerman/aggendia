@@ -11,7 +11,12 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/data/prisma/prisma'
 import { cancelAppointment, CancelAppointmentDeps } from '@/domain/appointments/appointment.service'
 import { getAppointmentByIdAndToken, updateAppointmentStatus } from '@/data/repositories/appointment.repo'
-import { sendCancellationEmail, sendCancellationWhatsApp } from '@/domain/notifications/notification.service'
+import {
+    sendCancellationEmail,
+    sendCancellationWhatsApp,
+    sendBusinessCancellationEmail,
+    sendBusinessCancellationWhatsApp
+} from '@/domain/notifications/notification.service'
 import { AppError, ValidationErrorCodes } from '@/domain/common/errors'
 import { publicCancelAppointmentSchema } from '../dto'
 import { AppointmentStatus } from '@/domain/appointments/appointment.types'
@@ -124,6 +129,48 @@ export async function POST(request: NextRequest, context: RouteContext) {
                 startAt: appointment.startAt
             }).catch(err => {
                 console.error('[PublicCancel] Error in sendCancellationWhatsApp:', {
+                    appointmentId,
+                    error: err instanceof Error ? err.message : 'Unknown'
+                })
+            })
+
+            // Send business owner cancellation notifications
+            const businessOwnerConfig = {
+                id: appointment.business.id,
+                name: appointment.business.name,
+                timezone: appointment.business.timezone,
+                resourceLabel: appointment.business.resourceLabel,
+                ownerEmail: appointment.business.ownerEmail,
+                ownerPhoneE164: appointment.business.ownerPhoneE164,
+                ownerEmailNotificationsEnabled: appointment.business.ownerEmailNotificationsEnabled,
+                ownerWhatsappNotificationsEnabled: appointment.business.ownerWhatsappNotificationsEnabled
+            }
+
+            sendBusinessCancellationEmail(prisma, {
+                appointmentId: appointment.id,
+                cancelledAt,
+                business: businessOwnerConfig,
+                service: { id: appointment.service.id, name: appointment.service.name },
+                resource: { id: appointment.resource.id, name: appointment.resource.name },
+                customer: { fullName: appointment.customer.fullName },
+                startAt: appointment.startAt
+            }).catch(err => {
+                console.error('[PublicCancel] Error in sendBusinessCancellationEmail:', {
+                    appointmentId,
+                    error: err instanceof Error ? err.message : 'Unknown'
+                })
+            })
+
+            sendBusinessCancellationWhatsApp(prisma, {
+                appointmentId: appointment.id,
+                cancelledAt,
+                business: businessOwnerConfig,
+                service: { id: appointment.service.id, name: appointment.service.name },
+                resource: { id: appointment.resource.id, name: appointment.resource.name },
+                customer: { fullName: appointment.customer.fullName },
+                startAt: appointment.startAt
+            }).catch(err => {
+                console.error('[PublicCancel] Error in sendBusinessCancellationWhatsApp:', {
                     appointmentId,
                     error: err instanceof Error ? err.message : 'Unknown'
                 })

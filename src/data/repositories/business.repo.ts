@@ -17,6 +17,11 @@ export interface UpdateBusinessSettingsInput {
     reminderOffsetsMinutes?: number[]
     emailNotificationsEnabled?: boolean
     whatsappNotificationsEnabled?: boolean
+    ownerEmailNotificationsEnabled?: boolean
+    ownerWhatsappNotificationsEnabled?: boolean
+    ownerRemindersEnabled?: boolean
+    ownerReminderOffsetsMinutes?: number[]
+    ownerPhoneE164?: string | null
 }
 
 /**
@@ -35,7 +40,8 @@ export async function createBusinessWithOwner(
     prisma: PrismaClient,
     input: CreateBusinessInput,
     slug: string,
-    userId: string
+    userId: string,
+    ownerEmail?: string
 ): Promise<{ business: Business; member: BusinessMember }> {
     const result = await prisma.$transaction(async tx => {
         const business = await tx.business.create({
@@ -45,7 +51,8 @@ export async function createBusinessWithOwner(
                 timezone: input.timezone,
                 resourceLabel: input.resourceLabel ?? 'Recurso',
                 address: input.address ?? null,
-                area: input.area ?? null
+                area: input.area ?? null,
+                ownerEmail: ownerEmail ?? null
             }
         })
 
@@ -152,6 +159,21 @@ export async function updateBusinessSettings(
             }),
             ...(input.whatsappNotificationsEnabled !== undefined && {
                 whatsappNotificationsEnabled: input.whatsappNotificationsEnabled
+            }),
+            ...(input.ownerEmailNotificationsEnabled !== undefined && {
+                ownerEmailNotificationsEnabled: input.ownerEmailNotificationsEnabled
+            }),
+            ...(input.ownerWhatsappNotificationsEnabled !== undefined && {
+                ownerWhatsappNotificationsEnabled: input.ownerWhatsappNotificationsEnabled
+            }),
+            ...(input.ownerRemindersEnabled !== undefined && {
+                ownerRemindersEnabled: input.ownerRemindersEnabled
+            }),
+            ...(input.ownerReminderOffsetsMinutes !== undefined && {
+                ownerReminderOffsetsMinutes: input.ownerReminderOffsetsMinutes
+            }),
+            ...(input.ownerPhoneE164 !== undefined && {
+                ownerPhoneE164: input.ownerPhoneE164
             })
         }
     })
@@ -230,7 +252,7 @@ export async function deleteBusiness(prisma: PrismaClient, businessId: string): 
 
 /**
  * Get businesses that should be processed for a reminder offset.
- * Filters by remindersEnabled and configured offsets.
+ * Includes businesses with customer reminders OR owner reminders configured for this offset.
  */
 export async function getBusinessesForReminderOffset(
     prisma: PrismaClient,
@@ -239,10 +261,16 @@ export async function getBusinessesForReminderOffset(
 ): Promise<ReminderBusinessConfig[]> {
     return prisma.business.findMany({
         where: {
-            remindersEnabled: true,
-            reminderOffsetsMinutes: {
-                has: offsetMinutes
-            },
+            OR: [
+                {
+                    remindersEnabled: true,
+                    reminderOffsetsMinutes: { has: offsetMinutes }
+                },
+                {
+                    ownerRemindersEnabled: true,
+                    ownerReminderOffsetsMinutes: { has: offsetMinutes }
+                }
+            ],
             ...(businessId ? { id: businessId } : {})
         },
         select: {

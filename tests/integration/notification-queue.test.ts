@@ -99,7 +99,8 @@ describe('Notification Queue Repository', () => {
             channel: 'EMAIL',
             type: 'CONFIRMATION',
             to: 'queue-test@example.com',
-            scheduledFor: scheduledPast
+            scheduledFor: scheduledPast,
+            recipient: 'CUSTOMER'
         })
 
         const futureNotification = await createNotification(prisma, {
@@ -108,7 +109,8 @@ describe('Notification Queue Repository', () => {
             channel: 'WHATSAPP',
             type: 'CONFIRMATION',
             to: '+5491112345678',
-            scheduledFor: scheduledFuture
+            scheduledFor: scheduledFuture,
+            recipient: 'CUSTOMER'
         })
 
         const pending = await getPendingNotifications(prisma, 100, now)

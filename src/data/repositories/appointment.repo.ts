@@ -230,6 +230,10 @@ export interface PublicAppointmentWithRelations extends Appointment {
         address: string | null
         emailNotificationsEnabled: boolean
         whatsappNotificationsEnabled: boolean
+        ownerEmail: string | null
+        ownerPhoneE164: string | null
+        ownerEmailNotificationsEnabled: boolean
+        ownerWhatsappNotificationsEnabled: boolean
     }
 }
 
@@ -267,7 +271,11 @@ export async function getAppointmentByIdAndToken(
                     resourceLabel: true,
                     address: true,
                     emailNotificationsEnabled: true,
-                    whatsappNotificationsEnabled: true
+                    whatsappNotificationsEnabled: true,
+                    ownerEmail: true,
+                    ownerPhoneE164: true,
+                    ownerEmailNotificationsEnabled: true,
+                    ownerWhatsappNotificationsEnabled: true
                 }
             }
         }
@@ -679,6 +687,12 @@ export interface EligibleAppointment {
         reminderOffsetsMinutes: number[]
         emailNotificationsEnabled: boolean
         whatsappNotificationsEnabled: boolean
+        ownerEmail: string | null
+        ownerPhoneE164: string | null
+        ownerEmailNotificationsEnabled: boolean
+        ownerWhatsappNotificationsEnabled: boolean
+        ownerRemindersEnabled: boolean
+        ownerReminderOffsetsMinutes: number[]
     }
     service: {
         id: string
@@ -742,10 +756,16 @@ export async function findEligibleAppointmentsForReminders(
                 lte: windowEnd
             },
             business: {
-                remindersEnabled: true,
-                reminderOffsetsMinutes: {
-                    has: offsetMinutes
-                },
+                OR: [
+                    {
+                        remindersEnabled: true,
+                        reminderOffsetsMinutes: { has: offsetMinutes }
+                    },
+                    {
+                        ownerRemindersEnabled: true,
+                        ownerReminderOffsetsMinutes: { has: offsetMinutes }
+                    }
+                ],
                 ...(businessId ? { id: businessId } : {}),
                 ...(businessIdsFilter && businessIdsFilter.length > 0 ? { id: { in: businessIdsFilter } } : {})
             }
@@ -762,7 +782,13 @@ export async function findEligibleAppointmentsForReminders(
                     remindersEnabled: true,
                     reminderOffsetsMinutes: true,
                     emailNotificationsEnabled: true,
-                    whatsappNotificationsEnabled: true
+                    whatsappNotificationsEnabled: true,
+                    ownerEmail: true,
+                    ownerPhoneE164: true,
+                    ownerEmailNotificationsEnabled: true,
+                    ownerWhatsappNotificationsEnabled: true,
+                    ownerRemindersEnabled: true,
+                    ownerReminderOffsetsMinutes: true
                 }
             },
             service: {

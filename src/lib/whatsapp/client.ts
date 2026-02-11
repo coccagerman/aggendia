@@ -25,7 +25,11 @@ export const WHATSAPP_TEMPLATES = {
     CONFIRMATION: 'turnosapp_confirmation',
     CANCELLATION: 'turnosapp_cancellation',
     RESCHEDULED: 'turnosapp_rescheduled',
-    REMINDER: 'turnosapp_reminder'
+    REMINDER: 'turnosapp_reminder',
+    BUSINESS_CONFIRMATION: 'turnosapp_business_confirmation',
+    BUSINESS_CANCELLATION: 'turnosapp_business_cancellation',
+    BUSINESS_RESCHEDULED: 'turnosapp_business_rescheduled',
+    BUSINESS_REMINDER: 'turnosapp_business_reminder'
 } as const
 
 export type WhatsAppTemplateName = (typeof WHATSAPP_TEMPLATES)[keyof typeof WHATSAPP_TEMPLATES]

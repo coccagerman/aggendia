@@ -19,7 +19,12 @@ import {
 import { getAvailabilityByResourceId } from '@/data/repositories/availability.repo'
 import { getBlocksByResourceId } from '@/data/repositories/block.repo'
 import { getBusinessById } from '@/data/repositories/business.repo'
-import { sendRescheduledEmail, sendRescheduledWhatsApp } from '@/domain/notifications/notification.service'
+import {
+    sendRescheduledEmail,
+    sendRescheduledWhatsApp,
+    sendBusinessRescheduledEmail,
+    sendBusinessRescheduledWhatsApp
+} from '@/domain/notifications/notification.service'
 import { AppError, ValidationErrorCodes } from '@/domain/common/errors'
 import { rescheduleAppointmentSchema } from './dto'
 
@@ -166,6 +171,50 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
                     newStartAt: newAppointment.startAt
                 }).catch(err => {
                     console.error('[Reschedule] Unexpected error in sendRescheduledWhatsApp:', {
+                        appointmentId: newAppointment.id,
+                        error: err instanceof Error ? err.message : 'Unknown error'
+                    })
+                })
+
+                // Send business owner rescheduled notifications
+                const businessOwnerConfig = {
+                    id: business.id,
+                    name: business.name,
+                    timezone: business.timezone,
+                    resourceLabel: business.resourceLabel,
+                    ownerEmail: business.ownerEmail,
+                    ownerPhoneE164: business.ownerPhoneE164,
+                    ownerEmailNotificationsEnabled: business.ownerEmailNotificationsEnabled,
+                    ownerWhatsappNotificationsEnabled: business.ownerWhatsappNotificationsEnabled
+                }
+
+                sendBusinessRescheduledEmail(prisma, {
+                    appointmentId: newAppointment.id,
+                    createdAt: newAppointment.createdAt,
+                    business: businessOwnerConfig,
+                    service: { id: newAppointment.service.id, name: newAppointment.service.name },
+                    resource: { id: newAppointment.resource.id, name: newAppointment.resource.name },
+                    customer: { fullName: newAppointment.customer.fullName },
+                    originalStartAt,
+                    newStartAt: newAppointment.startAt
+                }).catch(err => {
+                    console.error('[Reschedule] Unexpected error in sendBusinessRescheduledEmail:', {
+                        appointmentId: newAppointment.id,
+                        error: err instanceof Error ? err.message : 'Unknown error'
+                    })
+                })
+
+                sendBusinessRescheduledWhatsApp(prisma, {
+                    appointmentId: newAppointment.id,
+                    createdAt: newAppointment.createdAt,
+                    business: businessOwnerConfig,
+                    service: { id: newAppointment.service.id, name: newAppointment.service.name },
+                    resource: { id: newAppointment.resource.id, name: newAppointment.resource.name },
+                    customer: { fullName: newAppointment.customer.fullName },
+                    originalStartAt,
+                    newStartAt: newAppointment.startAt
+                }).catch(err => {
+                    console.error('[Reschedule] Unexpected error in sendBusinessRescheduledWhatsApp:', {
                         appointmentId: newAppointment.id,
                         error: err instanceof Error ? err.message : 'Unknown error'
                     })
