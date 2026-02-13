@@ -354,17 +354,20 @@ model SubscriptionPlan {
   updatedAt       DateTime @updatedAt
 
   subscriptions   Subscription[]
+  scheduledSubscriptions Subscription[] @relation("ScheduledPlan")
 }
 
 model Subscription {
   id                       String             @id @default(uuid())
   userId                   String             @unique // Supabase Auth user UUID
   planId                   String?
+  scheduledPlanId          String?
   status                   SubscriptionStatus @default(TRIALING)
   trialStartsAt            DateTime
   trialEndsAt              DateTime
   currentPeriodStart       DateTime?
   currentPeriodEnd         DateTime?
+  scheduledPlanEffectiveAt DateTime?
   cancelAt                 DateTime?          // "cancel at end of period" target date
   canceledAt               DateTime?          // when cancellation was requested
   gracePeriodEndsAt        DateTime?
@@ -377,6 +380,7 @@ model Subscription {
   updatedAt                DateTime           @updatedAt
 
   plan                     SubscriptionPlan?  @relation(fields: [planId], references: [id])
+  scheduledPlan            SubscriptionPlan?  @relation("ScheduledPlan", fields: [scheduledPlanId], references: [id])
   trialLink                TrialLink?         @relation(fields: [trialLinkId], references: [id])
   paymentTransactions      PaymentTransaction[]
   subscriptionNotifications SubscriptionNotification[]
@@ -384,6 +388,8 @@ model Subscription {
   @@index([status])
   @@index([trialEndsAt])
   @@index([currentPeriodEnd])
+  @@index([scheduledPlanId])
+  @@index([scheduledPlanEffectiveAt])
 }
 
 model PaymentTransaction {

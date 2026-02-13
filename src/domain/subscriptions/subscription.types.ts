@@ -28,11 +28,13 @@ export interface Subscription {
     id: string
     userId: string
     planId: string | null
+    scheduledPlanId: string | null
     status: SubscriptionStatus
     trialStartsAt: Date
     trialEndsAt: Date
     currentPeriodStart: Date | null
     currentPeriodEnd: Date | null
+    scheduledPlanEffectiveAt: Date | null
     cancelAt: Date | null
     canceledAt: Date | null
     gracePeriodEndsAt: Date | null

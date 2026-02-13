@@ -23,14 +23,14 @@ interface AssignResourcesDialogProps {
     service: Service
     allResources: Resource[]
     assignedResourceIds: string[]
-    trigger?: React.ReactNode
+    resourceCount?: number
 }
 
 export function AssignResourcesDialog({
     service,
     allResources,
     assignedResourceIds,
-    trigger
+    resourceCount
 }: AssignResourcesDialogProps) {
     const router = useRouter()
     const [isSubmitting, setIsSubmitting] = useState(false)
@@ -107,12 +107,24 @@ export function AssignResourcesDialog({
     return (
         <Dialog open={open} onOpenChange={setOpen}>
             <DialogTrigger asChild>
-                {trigger || (
-                    <Button variant='outline' size='sm'>
-                        <Users className='mr-2 h-4 w-4' />
-                        Asignar recursos
-                    </Button>
-                )}
+                <button
+                    type='button'
+                    data-testid={`assign-resources-${service.id}`}
+                    className={`inline-flex cursor-pointer items-center gap-1.5 rounded-md px-2 py-1 text-xs font-medium transition-colors ${
+                        typeof resourceCount === 'number'
+                            ? resourceCount > 0
+                                ? 'bg-blue-100 text-blue-800 hover:bg-blue-200 dark:bg-blue-900/30 dark:text-blue-300 dark:hover:bg-blue-900/50'
+                                : 'bg-amber-100 text-amber-800 hover:bg-amber-200 dark:bg-amber-900/30 dark:text-amber-300 dark:hover:bg-amber-900/50'
+                            : 'bg-zinc-100 text-zinc-800 hover:bg-zinc-200 dark:bg-zinc-900/30 dark:text-zinc-300 dark:hover:bg-zinc-900/50'
+                    }`}
+                >
+                    <Users className='h-3 w-3' />
+                    {typeof resourceCount === 'number'
+                        ? resourceCount > 0
+                            ? `${resourceCount} recurso${resourceCount !== 1 ? 's' : ''}`
+                            : 'Sin recursos'
+                        : 'Asignar recursos'}
+                </button>
             </DialogTrigger>
             <DialogContent className='sm:max-w-md'>
                 <DialogHeader>

@@ -11,15 +11,37 @@ import { Page, expect } from '@playwright/test'
  * Asume que el usuario ya está autenticado y en /dashboard.
  */
 export async function createBusiness(page: Page, businessName: string) {
-    await page.getByRole('link', { name: /crear negocio/i }).click()
+    if (!page.url().includes('/dashboard/business/new')) {
+        await page.getByRole('link', { name: /crear negocio/i }).click()
+        await page.waitForURL('**/dashboard/business/new', { timeout: 10000 })
+    }
+
     await page.getByLabel(/nombre/i).fill(businessName)
-    await page.getByLabel(/zona horaria/i).click()
+
+    const timezoneTrigger = page.getByRole('combobox', { name: /zona horaria/i }).first()
+    await timezoneTrigger.click()
+
     await page
         .getByRole('option', { name: /buenos aires/i })
         .first()
         .click()
+
+    await expect(timezoneTrigger).toContainText(/buenos aires/i)
+
+    const createResponsePromise = page.waitForResponse(
+        resp => resp.url().includes('/api/v1/businesses') && resp.request().method() === 'POST',
+        { timeout: 15000 }
+    )
+
     await page.getByRole('button', { name: /crear negocio/i }).click()
-    await expect(page).toHaveURL('/dashboard')
+    const response = await createResponsePromise
+
+    if (!response.ok()) {
+        const body = await response.text()
+        throw new Error(`Create business failed (${response.status()}): ${body}`)
+    }
+
+    await expect(page).toHaveURL(/\/dashboard$/, { timeout: 10000 })
 }
 
 /**

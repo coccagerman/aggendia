@@ -21,8 +21,10 @@ import type {
     PaymentEvent,
     CancelSubscriptionInput,
     TrialType,
-    SubscriptionStatus
+    SubscriptionStatus,
+    PaymentProviderType
 } from './subscription.types'
+import { SUBSCRIPTION_DEFAULTS } from './subscription.types'
 import { assertValidTransition, hasAppAccess } from './subscription.policy'
 import { SubscriptionErrorCodes } from './subscription.errors'
 import { AppError } from '@/domain/common/errors'
@@ -126,9 +128,25 @@ export async function handlePaymentSucceeded(prisma: PrismaClient, event: Paymen
     if (subscription.status === 'ACTIVE') {
         // Just update period dates if provided
         if (event.currentPeriodStart || event.currentPeriodEnd) {
-            await updateSubscriptionStatus(prisma, subscription.id, 'ACTIVE', {
+            const additionalData: Parameters<typeof updateSubscriptionStatus>[3] = {
                 currentPeriodStart: event.currentPeriodStart ?? subscription.currentPeriodStart,
                 currentPeriodEnd: event.currentPeriodEnd ?? subscription.currentPeriodEnd
+            }
+
+            const shouldApplyScheduledPlan =
+                subscription.scheduledPlanId &&
+                subscription.scheduledPlanEffectiveAt &&
+                event.currentPeriodStart &&
+                event.currentPeriodStart >= subscription.scheduledPlanEffectiveAt
+
+            if (shouldApplyScheduledPlan) {
+                additionalData.planId = subscription.scheduledPlanId
+                additionalData.scheduledPlanId = null
+                additionalData.scheduledPlanEffectiveAt = null
+            }
+
+            await updateSubscriptionStatus(prisma, subscription.id, 'ACTIVE', {
+                ...additionalData
             })
         }
         return
@@ -267,7 +285,9 @@ export async function cancelSubscription(prisma: PrismaClient, input: CancelSubs
 
         return updateSubscriptionStatus(prisma, subscription.id, 'EXPIRED', {
             canceledAt: new Date(),
-            cancelAt: null
+            cancelAt: null,
+            scheduledPlanId: null,
+            scheduledPlanEffectiveAt: null
         })
     } else {
         // Cancel at end of period
@@ -275,7 +295,9 @@ export async function cancelSubscription(prisma: PrismaClient, input: CancelSubs
             // For trials, cancel at trial end
             assertValidTransition('TRIALING', 'EXPIRED')
             return updateSubscriptionStatus(prisma, subscription.id, 'EXPIRED', {
-                canceledAt: new Date()
+                canceledAt: new Date(),
+                scheduledPlanId: null,
+                scheduledPlanEffectiveAt: null
             })
         }
 
@@ -293,9 +315,61 @@ export async function cancelSubscription(prisma: PrismaClient, input: CancelSubs
 
         return updateSubscriptionStatus(prisma, subscription.id, 'CANCELED', {
             canceledAt: new Date(),
-            cancelAt
+            cancelAt,
+            scheduledPlanId: null,
+            scheduledPlanEffectiveAt: null
         })
     }
+}
+
+/**
+ * Reactivate a canceled subscription before its paid period ends.
+ * Optionally keeps a scheduled plan change for next renewal.
+ */
+export async function reactivateCanceledSubscription(
+    prisma: PrismaClient,
+    input: {
+        userId: string
+        planId?: string | null
+        scheduledPlanId?: string | null
+        scheduledPlanEffectiveAt?: Date | null
+    }
+): Promise<Subscription> {
+    const subscription = await getSubscriptionByUserId(prisma, input.userId)
+    if (!subscription) {
+        throw new AppError(SubscriptionErrorCodes.SUBSCRIPTION_NOT_FOUND, 'No se encontró la suscripción.', 404)
+    }
+
+    if (subscription.status !== 'CANCELED') {
+        throw new AppError(
+            SubscriptionErrorCodes.INVALID_STATUS_TRANSITION,
+            `No se puede reactivar una suscripción en estado ${subscription.status}.`,
+            400
+        )
+    }
+
+    if (!subscription.cancelAt || subscription.cancelAt <= new Date()) {
+        throw new AppError(
+            SubscriptionErrorCodes.INVALID_STATUS_TRANSITION,
+            'El período de la suscripción cancelada ya venció. Debes iniciar una nueva suscripción.',
+            400
+        )
+    }
+
+    assertValidTransition('CANCELED', 'ACTIVE')
+
+    const additionalData: Parameters<typeof updateSubscriptionStatus>[3] = {
+        cancelAt: null,
+        canceledAt: null,
+        scheduledPlanId: input.scheduledPlanId ?? null,
+        scheduledPlanEffectiveAt: input.scheduledPlanEffectiveAt ?? null
+    }
+
+    if (input.planId) {
+        additionalData.planId = input.planId
+    }
+
+    return updateSubscriptionStatus(prisma, subscription.id, 'ACTIVE', additionalData)
 }
 
 // ============================================================================
@@ -310,9 +384,27 @@ export async function checkUserAccess(
     prisma: PrismaClient,
     userId: string
 ): Promise<{ allowed: boolean; subscription: Subscription | null; reason?: string }> {
-    const subscription = await getSubscriptionByUserId(prisma, userId)
+    let subscription = await getSubscriptionByUserId(prisma, userId)
 
-    // No subscription record → deny (should not happen after migration)
+    // Self-healing: ensure every authenticated user has a default trial.
+    // This guarantees the 30-day onboarding trial even if signup/callback hooks failed.
+    if (!subscription) {
+        try {
+            subscription = await startTrial(prisma, userId, SUBSCRIPTION_DEFAULTS.DEFAULT_TRIAL_DAYS, 'STANDARD')
+        } catch (error) {
+            // Concurrent request may have created it first.
+            subscription = await getSubscriptionByUserId(prisma, userId)
+
+            if (subscription) {
+                // row was created concurrently
+            } else if (error instanceof AppError && error.code === SubscriptionErrorCodes.SUBSCRIPTION_ALREADY_EXISTS) {
+                // unique race: row exists but read might be momentarily stale; keep fallback below
+            } else {
+                throw error
+            }
+        }
+    }
+
     if (!subscription) {
         return {
             allowed: false,
@@ -336,6 +428,46 @@ export async function checkUserAccess(
  */
 export async function getSubscriptionStatus(prisma: PrismaClient, userId: string): Promise<Subscription | null> {
     return getSubscriptionByUserId(prisma, userId)
+}
+
+/**
+ * Activate/sync a user subscription from a verified provider snapshot.
+ * Used as a fallback when webhook delivery is delayed/missing but we can
+ * confirm the checkout/subscription state directly with the provider.
+ */
+export async function activateSubscriptionFromProviderSnapshot(
+    prisma: PrismaClient,
+    input: {
+        userId: string
+        provider: PaymentProviderType
+        providerCustomerId: string
+        providerSubscriptionId: string
+        currentPeriodStart: Date
+        currentPeriodEnd: Date
+    }
+): Promise<Subscription> {
+    const subscription = await getSubscriptionByUserId(prisma, input.userId)
+    if (!subscription) {
+        throw new AppError(SubscriptionErrorCodes.SUBSCRIPTION_NOT_FOUND, 'No se encontró la suscripción.', 404)
+    }
+
+    if (!subscription.planId) {
+        throw new AppError(
+            SubscriptionErrorCodes.PLAN_NOT_FOUND,
+            'No hay un plan seleccionado para activar la suscripción.',
+            400
+        )
+    }
+
+    return activateSubscriptionRepo(prisma, subscription.id, {
+        userId: subscription.userId,
+        planId: subscription.planId,
+        provider: input.provider,
+        providerCustomerId: input.providerCustomerId,
+        providerSubscriptionId: input.providerSubscriptionId,
+        currentPeriodStart: input.currentPeriodStart,
+        currentPeriodEnd: input.currentPeriodEnd
+    })
 }
 
 // ============================================================================

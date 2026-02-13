@@ -29,7 +29,7 @@ export function SubscriptionBanner({ status, trialDaysLeft }: SubscriptionBanner
 
         return (
             <Link
-                href='/dashboard/subscription'
+                href='/subscription'
                 className='block bg-amber-50 border-b border-amber-200 px-4 py-2.5 text-center text-sm text-amber-800 hover:bg-amber-100 transition-colors'
             >
                 <Clock className='inline-block h-4 w-4 mr-1.5 -mt-0.5' />
@@ -44,7 +44,7 @@ export function SubscriptionBanner({ status, trialDaysLeft }: SubscriptionBanner
             <div className='bg-red-50 border-b border-red-200 px-4 py-2.5 text-center text-sm text-red-800'>
                 <AlertTriangle className='inline-block h-4 w-4 mr-1.5 -mt-0.5' />
                 Hay un problema con tu pago. Actualizá tu método de pago para no perder acceso.{' '}
-                <Link href='/dashboard/subscription' className='font-semibold underline hover:text-red-900'>
+                <Link href='/subscription' className='font-semibold underline hover:text-red-900'>
                     Ver detalles
                 </Link>
             </div>
@@ -56,7 +56,7 @@ export function SubscriptionBanner({ status, trialDaysLeft }: SubscriptionBanner
             <div className='bg-orange-50 border-b border-orange-200 px-4 py-2.5 text-center text-sm text-orange-800'>
                 <AlertTriangle className='inline-block h-4 w-4 mr-1.5 -mt-0.5' />
                 Tu suscripción fue cancelada. Seguís teniendo acceso hasta el fin del período pagado.{' '}
-                <Link href='/dashboard/subscription' className='font-semibold underline hover:text-orange-900'>
+                <Link href='/subscription' className='font-semibold underline hover:text-orange-900'>
                     Reactivar
                 </Link>
             </div>

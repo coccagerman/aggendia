@@ -28,3 +28,18 @@ export const createCheckoutRequestSchema = z.object({
 export const cancelSubscriptionRequestSchema = z.object({
     immediate: z.boolean().default(false)
 })
+
+// POST /api/v1/subscription/sync-checkout
+export const syncCheckoutRequestSchema = z.object({
+    sessionId: z.string().trim().min(1).optional()
+})
+
+// POST /api/v1/subscription/change-plan
+export const changePlanRequestSchema = z.object({
+    planId: z.string().uuid('Plan inválido')
+})
+
+// POST /api/v1/subscription/reactivate
+export const reactivateSubscriptionRequestSchema = z.object({
+    planId: z.string().uuid('Plan inválido')
+})

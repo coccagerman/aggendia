@@ -59,6 +59,23 @@ export interface CancelProviderSubscriptionInput {
 }
 
 /**
+ * Input for changing a subscription plan price in the provider.
+ * Used for downgrades scheduled to take effect on next renewal.
+ */
+export interface ChangeProviderSubscriptionPlanInput {
+    providerSubscriptionId: string
+    newPlanPriceId: string
+    effective?: 'next_renewal' | 'immediate_prorated'
+}
+
+/**
+ * Input for reactivating a previously canceled-at-period-end subscription.
+ */
+export interface ReactivateProviderSubscriptionInput {
+    providerSubscriptionId: string
+}
+
+/**
  * The PaymentProvider interface that all providers must implement.
  */
 export interface PaymentProvider {
@@ -80,6 +97,18 @@ export interface PaymentProvider {
      * If immediate=false, cancels at end of current billing period.
      */
     cancelSubscription(input: CancelProviderSubscriptionInput): Promise<void>
+
+    /**
+     * Change the provider subscription plan price without charging immediately.
+     * Intended for downgrades that should become effective on next renewal.
+     */
+    changeSubscriptionPlan(input: ChangeProviderSubscriptionPlanInput): Promise<void>
+
+    /**
+     * Reactivate a subscription that was marked to cancel at period end.
+     * Must not generate an immediate extra charge.
+     */
+    reactivateSubscription(input: ReactivateProviderSubscriptionInput): Promise<void>
 
     /**
      * Verify and parse a webhook payload from the provider.

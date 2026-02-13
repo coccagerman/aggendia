@@ -26,6 +26,7 @@ describe('Subscription Policy', () => {
             ['PAST_DUE', 'ACTIVE'],
             ['PAST_DUE', 'EXPIRED'],
             ['PAST_DUE', 'CANCELED'],
+            ['CANCELED', 'ACTIVE'],
             ['CANCELED', 'EXPIRED'],
             ['EXPIRED', 'ACTIVE']
         ] as const)('allows %s → %s', (from, to) => {
@@ -39,7 +40,6 @@ describe('Subscription Policy', () => {
             ['ACTIVE', 'TRIALING'],
             ['ACTIVE', 'EXPIRED'],
             ['PAST_DUE', 'TRIALING'],
-            ['CANCELED', 'ACTIVE'],
             ['CANCELED', 'TRIALING'],
             ['EXPIRED', 'TRIALING'],
             ['EXPIRED', 'PAST_DUE'],

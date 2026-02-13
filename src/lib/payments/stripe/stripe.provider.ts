@@ -17,7 +17,9 @@ import type {
     ProviderCustomer,
     CreateCheckoutSessionInput,
     CheckoutSession,
-    CancelProviderSubscriptionInput
+    CancelProviderSubscriptionInput,
+    ChangeProviderSubscriptionPlanInput,
+    ReactivateProviderSubscriptionInput
 } from '@/domain/subscriptions/payment-provider'
 import type { PaymentEvent } from '@/domain/subscriptions/subscription.types'
 import { stripe, stripeWebhookSecret } from './stripe.client'
@@ -95,6 +97,40 @@ export class StripeProvider implements PaymentProvider {
                 cancel_at_period_end: true
             })
         }
+    }
+
+    async changeSubscriptionPlan(input: ChangeProviderSubscriptionPlanInput): Promise<void> {
+        const client = this.getClient()
+
+        const subscription = await client.subscriptions.retrieve(input.providerSubscriptionId)
+        const currentItem = subscription.items.data[0]
+
+        if (!currentItem) {
+            throw new AppError(
+                SubscriptionErrorCodes.PAYMENT_PROVIDER_ERROR,
+                'No se encontró el ítem de suscripción en Stripe para cambiar de plan.',
+                500
+            )
+        }
+
+        await client.subscriptions.update(input.providerSubscriptionId, {
+            items: [
+                {
+                    id: currentItem.id,
+                    price: input.newPlanPriceId
+                }
+            ],
+            proration_behavior: input.effective === 'immediate_prorated' ? 'always_invoice' : 'none'
+        })
+    }
+
+    async reactivateSubscription(input: ReactivateProviderSubscriptionInput): Promise<void> {
+        const client = this.getClient()
+
+        await client.subscriptions.update(input.providerSubscriptionId, {
+            cancel_at_period_end: false,
+            proration_behavior: 'none'
+        })
     }
 
     async constructWebhookEvent(payload: Buffer, signature: string): Promise<unknown> {

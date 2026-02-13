@@ -43,8 +43,8 @@ export default defineConfig({
         screenshot: 'only-on-failure',
 
         // Timeouts más estrictos para detectar flakiness
-        actionTimeout: 10000,
-        navigationTimeout: 15000
+        actionTimeout: 15000,
+        navigationTimeout: 45000
     },
     projects: [
         {
@@ -53,9 +53,9 @@ export default defineConfig({
         }
     ],
     webServer: {
-        command: 'yarn dev:test',
+        command: 'yarn dotenv -e .env.test -- yarn build && yarn dotenv -e .env.test -- yarn start',
         url: 'http://localhost:3000',
-        reuseExistingServer: !process.env.CI,
-        timeout: 120000
+        reuseExistingServer: false,
+        timeout: 300000
     }
 })

@@ -97,11 +97,7 @@ export const test = businessTest.extend<{ bookableSetup: BookableSetupData }>({
         const serviceId = service?.id || ''
 
         // Asignar recurso al servicio
-        await page
-            .getByRole('button', { name: /sin recursos/i })
-            .or(page.getByRole('button', { name: /asignar recursos/i }))
-            .first()
-            .click()
+        await page.locator(`[data-testid="assign-resources-${serviceId}"]`).click()
 
         const assignDialog = page.getByRole('dialog', { name: /asignar recursos/i })
         await expect(assignDialog).toBeVisible({ timeout: 5000 })

@@ -69,12 +69,12 @@ SUPABASE_SERVICE_ROLE_KEY=${serviceRoleKey}
 
 # Database (Supabase local)
 DATABASE_URL=${dbUrl}
-    DIRECT_DATABASE_URL=${dbUrl}
+DIRECT_DATABASE_URL=${dbUrl}
 
 # Next.js
 NEXT_PUBLIC_APP_URL=http://localhost:3000
-    # Disable rate limits for automated tests
-    DISABLE_RATE_LIMIT=true
+# Disable rate limits for automated tests
+DISABLE_RATE_LIMIT=true
 `
 
     const envTestPath = path.join(process.cwd(), '.env.test')

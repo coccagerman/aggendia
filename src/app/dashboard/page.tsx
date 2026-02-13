@@ -15,7 +15,7 @@ import { getResourcesByBusinessIdsMap } from '@/data/repositories/resource.repo'
 import { getServicesByBusinessIdsMap } from '@/data/repositories/service.repo'
 import { prisma } from '@/data/prisma/prisma'
 import { type Service } from '@/domain/services/service.types'
-import { Settings } from 'lucide-react'
+import { Settings, Wallet } from 'lucide-react'
 
 interface Business {
     id: string
@@ -111,6 +111,20 @@ export default async function DashboardPage() {
                 <div className='container mx-auto flex h-16 items-center justify-between px-4 sm:px-6 lg:px-8'>
                     <h1 className='text-xl font-semibold text-zinc-900 dark:text-zinc-50'>TurnosApp</h1>
                     <div className='flex items-center gap-3'>
+                        <TooltipProvider>
+                            <Tooltip>
+                                <TooltipTrigger asChild>
+                                    <Button asChild variant='ghost' size='icon' aria-label='Gestionar mi suscripción'>
+                                        <Link href='/subscription'>
+                                            <Wallet className='h-4 w-4' />
+                                        </Link>
+                                    </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                    <p>Gestionar mi suscripción</p>
+                                </TooltipContent>
+                            </Tooltip>
+                        </TooltipProvider>
                         {isAdmin && (
                             <Link
                                 href='/dashboard/admin/trial-links'

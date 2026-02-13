@@ -11,7 +11,9 @@ import type {
     ProviderCustomer,
     CreateCheckoutSessionInput,
     CheckoutSession,
-    CancelProviderSubscriptionInput
+    CancelProviderSubscriptionInput,
+    ChangeProviderSubscriptionPlanInput,
+    ReactivateProviderSubscriptionInput
 } from '@/domain/subscriptions/payment-provider'
 import type { PaymentEvent } from '@/domain/subscriptions/subscription.types'
 
@@ -30,6 +32,16 @@ export class MercadoPagoProvider implements PaymentProvider {
 
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     async cancelSubscription(input: CancelProviderSubscriptionInput): Promise<void> {
+        throw new Error('MercadoPago provider not implemented yet')
+    }
+
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    async changeSubscriptionPlan(input: ChangeProviderSubscriptionPlanInput): Promise<void> {
+        throw new Error('MercadoPago provider not implemented yet')
+    }
+
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    async reactivateSubscription(input: ReactivateProviderSubscriptionInput): Promise<void> {
         throw new Error('MercadoPago provider not implemented yet')
     }
 

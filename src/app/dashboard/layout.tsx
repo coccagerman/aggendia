@@ -1,4 +1,3 @@
-import { headers } from 'next/headers'
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { prisma } from '@/data/prisma/prisma'
@@ -7,19 +6,12 @@ import { isWarningState } from '@/domain/subscriptions/subscription.policy'
 import { SubscriptionBanner } from '@/components/dashboard/subscription-banner'
 
 /**
- * Paths exempt from the subscription gate.
- * These pages must be accessible even when the subscription is expired.
- */
-const EXEMPT_PATHS = ['/dashboard/subscription-expired', '/dashboard/subscription']
-
-/**
  * Root layout for /dashboard/**
  *
  * Responsibilities:
  * 1. Validate user authentication
  * 2. Check subscription status (per-user, not per-business)
- * 3. If subscription expired → redirect to /dashboard/subscription-expired
- *    (except for exempt pages to avoid redirect loops)
+ * 3. If subscription expired → redirect to /subscription-expired
  * 4. If subscription in warning state → show global banner across ALL views
  *
  * This layout runs for every dashboard page, ensuring the banner and gate
@@ -38,18 +30,14 @@ export default async function DashboardLayout({ children }: { children: React.Re
     // Check user-level subscription
     const { allowed, subscription } = await checkUserAccess(prisma, user.id)
 
-    // Determine current path from middleware header
-    const headersList = await headers()
-    const pathname = headersList.get('x-pathname') || ''
-    const isExempt = EXEMPT_PATHS.some(p => pathname.startsWith(p))
-
-    // Gate: redirect to expired page (skip if we're already on an exempt page)
-    if (!allowed && !isExempt) {
-        redirect('/dashboard/subscription-expired')
+    // Gate (robust): route to a top-level page outside /dashboard layout
+    // to avoid self-redirect loops.
+    if (!allowed) {
+        redirect('/subscription-expired')
     }
 
-    // Determine if we need a global warning banner (only on non-exempt pages)
-    const showBanner = !isExempt && subscription ? isWarningState(subscription.status) : false
+    // Determine if we need a global warning banner
+    const showBanner = subscription ? isWarningState(subscription.status) : false
     const now = new Date()
     const trialDaysLeft =
         subscription?.status === 'TRIALING' && subscription.trialEndsAt

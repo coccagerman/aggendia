@@ -125,7 +125,9 @@ export async function GET(request: NextRequest) {
 
                     const { email: ownerEmail, businessName } = await resolveUserEmailAndBusinessName(sub.userId)
                     if (!ownerEmail) {
-                        console.warn(`[Cron:TrialWarnings] No owner email for subscription ${sub.id} (user: ${sub.userId})`)
+                        console.warn(
+                            `[Cron:TrialWarnings] No owner email for subscription ${sub.id} (user: ${sub.userId})`
+                        )
                         continue
                     }
 
@@ -140,7 +142,7 @@ export async function GET(request: NextRequest) {
                     if (!notification) continue
 
                     if (isEmailEnabled()) {
-                        const subscribeUrl = `${APP_URL}/dashboard/subscription`
+                        const subscribeUrl = `${APP_URL}/subscription`
                         const html = renderTrialExpiringEmail({
                             businessName: businessName || 'Tu negocio',
                             daysRemaining,
@@ -273,7 +275,7 @@ async function sendTrialExpiredEmails(now: Date): Promise<number> {
             if (!notification) continue
 
             if (isEmailEnabled()) {
-                const subscribeUrl = `${APP_URL}/dashboard/subscription`
+                const subscribeUrl = `${APP_URL}/subscription`
                 const html = renderTrialExpiredEmail({
                     businessName: businessName || 'Tu negocio',
                     subscribeUrl

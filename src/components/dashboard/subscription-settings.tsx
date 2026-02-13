@@ -5,20 +5,32 @@ import { useRouter } from 'next/navigation'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle
+} from '@/components/ui/alert-dialog'
 import { Loader2, CheckCircle2, AlertTriangle, CreditCard, XCircle } from 'lucide-react'
 import type { SubscriptionStatus } from '@/domain/subscriptions/subscription.types'
 
 interface SubscriptionData {
     id: string
+    planId?: string | null
+    scheduledPlanId?: string | null
     status: SubscriptionStatus
     trialStartsAt: string | null
     trialEndsAt: string | null
     trialType: string
     currentPeriodStart: string | null
     currentPeriodEnd: string | null
+    scheduledPlanEffectiveAt: string | null
     cancelAt: string | null
     canceledAt: string | null
-    paymentProvider: string | null
 }
 
 interface Plan {
@@ -34,6 +46,7 @@ interface SubscriptionSettingsClientProps {
     subscription: SubscriptionData | null
     plans: Plan[]
     checkoutResult: string | null
+    checkoutSessionId: string | null
 }
 
 const STATUS_LABELS: Record<
@@ -64,21 +77,54 @@ function formatPrice(cents: number, currency: string): string {
     return `US$${amount.toLocaleString('en-US')}`
 }
 
-export function SubscriptionSettingsClient({ subscription, plans, checkoutResult }: SubscriptionSettingsClientProps) {
+export function SubscriptionSettingsClient({
+    subscription,
+    plans,
+    checkoutResult,
+    checkoutSessionId
+}: SubscriptionSettingsClientProps) {
     const router = useRouter()
     const [checkoutLoading, setCheckoutLoading] = useState<string | null>(null)
+    const [changePlanLoading, setChangePlanLoading] = useState<string | null>(null)
     const [cancelLoading, setCancelLoading] = useState(false)
+    const [cancelDialogOpen, setCancelDialogOpen] = useState(false)
+    const [syncingCheckout, setSyncingCheckout] = useState(false)
     const [error, setError] = useState<string | null>(null)
+    const [infoMessage, setInfoMessage] = useState<string | null>(null)
 
     // Show checkout result feedback
     useEffect(() => {
-        if (checkoutResult === 'success') {
-            // Refresh to get updated subscription status
-            router.refresh()
+        if (checkoutResult !== 'success') return
+
+        let isCancelled = false
+
+        const syncCheckout = async () => {
+            setSyncingCheckout(true)
+            try {
+                await fetch('/api/v1/subscription/sync-checkout', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ sessionId: checkoutSessionId ?? undefined })
+                })
+            } catch {
+                // Keep UX non-blocking; webhook may still update shortly.
+            } finally {
+                if (!isCancelled) {
+                    setSyncingCheckout(false)
+                    router.refresh()
+                }
+            }
         }
-    }, [checkoutResult, router])
+
+        void syncCheckout()
+
+        return () => {
+            isCancelled = true
+        }
+    }, [checkoutResult, checkoutSessionId, router])
 
     const handleCheckout = async (planId: string) => {
+        setInfoMessage(null)
         setCheckoutLoading(planId)
         setError(null)
 
@@ -105,15 +151,66 @@ export function SubscriptionSettingsClient({ subscription, plans, checkoutResult
         }
     }
 
-    const handleCancel = async () => {
-        if (
-            !confirm(
-                '¿Estás seguro de que querés cancelar tu suscripción? Seguirás teniendo acceso hasta el fin del período pagado.'
-            )
-        ) {
-            return
-        }
+    const handleChangePlan = async (planId: string) => {
+        setInfoMessage(null)
+        setChangePlanLoading(planId)
+        setError(null)
 
+        try {
+            const response = await fetch('/api/v1/subscription/change-plan', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ planId })
+            })
+
+            const data = await response.json()
+
+            if (!response.ok) {
+                setError(data.error?.message || 'No se pudo programar el cambio de plan.')
+                setChangePlanLoading(null)
+                return
+            }
+
+            setInfoMessage(data.data?.message || 'Cambio de plan programado para la próxima renovación.')
+            router.refresh()
+        } catch {
+            setError('No se pudo conectar con el servidor.')
+        } finally {
+            setChangePlanLoading(null)
+        }
+    }
+
+    const handleReactivate = async (planId: string) => {
+        setInfoMessage(null)
+        setChangePlanLoading(planId)
+        setError(null)
+
+        try {
+            const response = await fetch('/api/v1/subscription/reactivate', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ planId })
+            })
+
+            const data = await response.json()
+
+            if (!response.ok) {
+                setError(data.error?.message || 'No se pudo reactivar la suscripción.')
+                setChangePlanLoading(null)
+                return
+            }
+
+            setInfoMessage(data.data?.message || 'Suscripción reactivada correctamente.')
+            router.refresh()
+        } catch {
+            setError('No se pudo conectar con el servidor.')
+        } finally {
+            setChangePlanLoading(null)
+        }
+    }
+
+    const handleCancel = async () => {
+        setInfoMessage(null)
         setCancelLoading(true)
         setError(null)
 
@@ -132,6 +229,7 @@ export function SubscriptionSettingsClient({ subscription, plans, checkoutResult
                 return
             }
 
+            setCancelDialogOpen(false)
             router.refresh()
         } catch {
             setError('No se pudo conectar con el servidor.')
@@ -142,8 +240,25 @@ export function SubscriptionSettingsClient({ subscription, plans, checkoutResult
 
     const status = subscription?.status as SubscriptionStatus | undefined
     const statusInfo = status ? STATUS_LABELS[status] : null
-    const canSubscribe = !status || status === 'TRIALING' || status === 'EXPIRED'
+    const currentPlanId = subscription?.planId ?? null
+    const currentPlan = currentPlanId ? plans.find(p => p.id === currentPlanId) : undefined
+    const scheduledPlanId = subscription?.scheduledPlanId ?? null
+    const scheduledPlanEffectiveAt = subscription?.scheduledPlanEffectiveAt ?? null
+    const scheduledPlan = scheduledPlanId ? plans.find(p => p.id === scheduledPlanId) : undefined
+    const scheduledPlanEffectiveAtMs = scheduledPlanEffectiveAt ? new Date(scheduledPlanEffectiveAt).getTime() : null
+    const hasScheduledPlanChange =
+        status === 'ACTIVE' &&
+        scheduledPlanEffectiveAtMs !== null &&
+        Boolean(scheduledPlanId) &&
+        scheduledPlanEffectiveAtMs > Date.now()
+    const canSubscribe =
+        !status || status === 'TRIALING' || status === 'EXPIRED' || status === 'ACTIVE' || status === 'CANCELED'
     const canCancel = status === 'ACTIVE'
+
+    function isUpgradePlan(plan: Plan): boolean {
+        if (!currentPlan) return true
+        return plan.priceCents > currentPlan.priceCents
+    }
 
     return (
         <div className='space-y-6'>
@@ -154,9 +269,17 @@ export function SubscriptionSettingsClient({ subscription, plans, checkoutResult
                     <div>
                         <p className='font-medium text-green-800'>¡Pago exitoso!</p>
                         <p className='text-sm text-green-700'>
-                            Tu suscripción está activa. Ya podés usar todas las funciones de TurnosApp.
+                            {syncingCheckout
+                                ? 'Estamos confirmando tu suscripción. Esto puede demorar unos segundos.'
+                                : 'Tu suscripción está activa. Ya podés usar todas las funciones de TurnosApp.'}
                         </p>
                     </div>
+                </div>
+            )}
+
+            {infoMessage && (
+                <div className='rounded-md border border-blue-200 bg-blue-50 p-3 text-sm text-blue-800'>
+                    {infoMessage}
                 </div>
             )}
 
@@ -198,10 +321,27 @@ export function SubscriptionSettingsClient({ subscription, plans, checkoutResult
                                     </p>
                                 </div>
                             )}
-                            {subscription.paymentProvider && (
+                            {status === 'ACTIVE' && currentPlan && (
                                 <div className='flex justify-between'>
-                                    <span className='text-muted-foreground'>Proveedor de pago</span>
-                                    <span className='font-medium'>{subscription.paymentProvider}</span>
+                                    <span className='text-muted-foreground'>Plan actual</span>
+                                    <span className='font-medium'>
+                                        {currentPlan.name} ({formatPrice(currentPlan.priceCents, currentPlan.currency)}{' '}
+                                        /{' '}
+                                        {currentPlan.intervalMonths === 1
+                                            ? 'mes'
+                                            : `${currentPlan.intervalMonths} meses`}
+                                        )
+                                    </span>
+                                </div>
+                            )}
+                            {hasScheduledPlanChange && scheduledPlanEffectiveAt && (
+                                <div className='rounded-md bg-blue-50 p-3 flex items-start gap-2'>
+                                    <CreditCard className='h-4 w-4 text-blue-600 mt-0.5 shrink-0' />
+                                    <p className='text-blue-800 text-sm'>
+                                        Cambio programado para próxima renovación:{' '}
+                                        <span className='font-medium'>{scheduledPlan?.name ?? 'nuevo plan'}</span> el{' '}
+                                        <span className='font-medium'>{formatDate(scheduledPlanEffectiveAt)}</span>.
+                                    </p>
                                 </div>
                             )}
                         </div>
@@ -211,20 +351,44 @@ export function SubscriptionSettingsClient({ subscription, plans, checkoutResult
 
                     {canCancel && (
                         <div className='pt-4 border-t'>
-                            <Button
-                                variant='outline'
-                                size='sm'
-                                onClick={handleCancel}
-                                disabled={cancelLoading}
-                                className='text-red-600 hover:text-red-700'
-                            >
-                                {cancelLoading ? (
-                                    <Loader2 className='mr-2 h-4 w-4 animate-spin' />
-                                ) : (
-                                    <XCircle className='mr-2 h-4 w-4' />
-                                )}
-                                Cancelar suscripción
-                            </Button>
+                            <AlertDialog open={cancelDialogOpen} onOpenChange={setCancelDialogOpen}>
+                                <Button
+                                    variant='outline'
+                                    size='sm'
+                                    onClick={() => setCancelDialogOpen(true)}
+                                    disabled={cancelLoading}
+                                    className='text-red-600 hover:text-red-700'
+                                >
+                                    {cancelLoading ? (
+                                        <Loader2 className='mr-2 h-4 w-4 animate-spin' />
+                                    ) : (
+                                        <XCircle className='mr-2 h-4 w-4' />
+                                    )}
+                                    Cancelar suscripción
+                                </Button>
+                                <AlertDialogContent>
+                                    <AlertDialogHeader>
+                                        <AlertDialogTitle>¿Cancelar suscripción?</AlertDialogTitle>
+                                        <AlertDialogDescription>
+                                            Vas a mantener acceso hasta el fin del período ya pagado. Podés volver a
+                                            suscribirte cuando quieras.
+                                        </AlertDialogDescription>
+                                    </AlertDialogHeader>
+                                    <AlertDialogFooter>
+                                        <AlertDialogCancel disabled={cancelLoading}>Volver</AlertDialogCancel>
+                                        <AlertDialogAction
+                                            onClick={e => {
+                                                e.preventDefault()
+                                                void handleCancel()
+                                            }}
+                                            disabled={cancelLoading}
+                                            className='bg-red-600 hover:bg-red-700'
+                                        >
+                                            {cancelLoading ? 'Cancelando...' : 'Sí, cancelar'}
+                                        </AlertDialogAction>
+                                    </AlertDialogFooter>
+                                </AlertDialogContent>
+                            </AlertDialog>
                         </div>
                     )}
                 </CardContent>
@@ -248,14 +412,63 @@ export function SubscriptionSettingsClient({ subscription, plans, checkoutResult
                                             {plan.intervalMonths === 1 ? 'mes' : `${plan.intervalMonths} meses`}
                                         </p>
                                     </div>
-                                    <Button onClick={() => handleCheckout(plan.id)} disabled={checkoutLoading !== null}>
-                                        {checkoutLoading === plan.id ? (
-                                            <Loader2 className='mr-2 h-4 w-4 animate-spin' />
-                                        ) : (
-                                            <CreditCard className='mr-2 h-4 w-4' />
-                                        )}
-                                        Suscribirse
-                                    </Button>
+                                    {status === 'ACTIVE' && currentPlanId === plan.id ? (
+                                        <Button variant='secondary' disabled>
+                                            Plan actual
+                                        </Button>
+                                    ) : status === 'ACTIVE' && scheduledPlanId === plan.id ? (
+                                        <Button variant='secondary' disabled>
+                                            Cambio programado
+                                        </Button>
+                                    ) : status === 'CANCELED' && currentPlanId === plan.id ? (
+                                        <Button
+                                            onClick={() => handleReactivate(plan.id)}
+                                            disabled={checkoutLoading !== null || changePlanLoading !== null}
+                                        >
+                                            {changePlanLoading === plan.id ? (
+                                                <Loader2 className='mr-2 h-4 w-4 animate-spin' />
+                                            ) : (
+                                                <CreditCard className='mr-2 h-4 w-4' />
+                                            )}
+                                            Reactivar
+                                        </Button>
+                                    ) : status === 'CANCELED' && currentPlan && currentPlanId !== plan.id ? (
+                                        <Button
+                                            onClick={() => handleReactivate(plan.id)}
+                                            disabled={checkoutLoading !== null || changePlanLoading !== null}
+                                        >
+                                            {changePlanLoading === plan.id ? (
+                                                <Loader2 className='mr-2 h-4 w-4 animate-spin' />
+                                            ) : (
+                                                <CreditCard className='mr-2 h-4 w-4' />
+                                            )}
+                                            {isUpgradePlan(plan) ? 'Mejorar plan' : 'Cambiar plan'}
+                                        </Button>
+                                    ) : status === 'ACTIVE' && currentPlan && !isUpgradePlan(plan) ? (
+                                        <Button
+                                            onClick={() => handleChangePlan(plan.id)}
+                                            disabled={checkoutLoading !== null || changePlanLoading !== null}
+                                        >
+                                            {changePlanLoading === plan.id ? (
+                                                <Loader2 className='mr-2 h-4 w-4 animate-spin' />
+                                            ) : (
+                                                <CreditCard className='mr-2 h-4 w-4' />
+                                            )}
+                                            Cambiar plan
+                                        </Button>
+                                    ) : (
+                                        <Button
+                                            onClick={() => handleCheckout(plan.id)}
+                                            disabled={checkoutLoading !== null || changePlanLoading !== null}
+                                        >
+                                            {checkoutLoading === plan.id ? (
+                                                <Loader2 className='mr-2 h-4 w-4 animate-spin' />
+                                            ) : (
+                                                <CreditCard className='mr-2 h-4 w-4' />
+                                            )}
+                                            {status === 'ACTIVE' ? 'Mejorar plan' : 'Suscribirse'}
+                                        </Button>
+                                    )}
                                 </div>
                             ))}
                         </div>

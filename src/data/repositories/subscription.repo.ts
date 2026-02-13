@@ -139,8 +139,10 @@ export async function updateSubscriptionStatus(
     status: SubscriptionStatus,
     additionalData?: Partial<{
         planId: string | null
+        scheduledPlanId: string | null
         currentPeriodStart: Date | null
         currentPeriodEnd: Date | null
+        scheduledPlanEffectiveAt: Date | null
         cancelAt: Date | null
         canceledAt: Date | null
         gracePeriodEndsAt: Date | null
@@ -177,9 +179,28 @@ export async function activateSubscription(
             providerSubscriptionId: input.providerSubscriptionId,
             currentPeriodStart: input.currentPeriodStart,
             currentPeriodEnd: input.currentPeriodEnd,
+            scheduledPlanId: null,
+            scheduledPlanEffectiveAt: null,
             cancelAt: null,
             canceledAt: null,
             gracePeriodEndsAt: null
+        }
+    })
+}
+
+export async function scheduleSubscriptionPlanChange(
+    prisma: PrismaClient,
+    subscriptionId: string,
+    input: {
+        scheduledPlanId: string
+        scheduledPlanEffectiveAt: Date
+    }
+): Promise<Subscription> {
+    return prisma.subscription.update({
+        where: { id: subscriptionId },
+        data: {
+            scheduledPlanId: input.scheduledPlanId,
+            scheduledPlanEffectiveAt: input.scheduledPlanEffectiveAt
         }
     })
 }

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { Suspense, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { Eye, EyeOff } from 'lucide-react'
@@ -10,7 +10,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { GoogleSignInButton } from '@/components/auth/google-sign-in-button'
 
-export default function SignupPage() {
+function SignupPageContent() {
     const router = useRouter()
     const searchParams = useSearchParams()
     const [email, setEmail] = useState('')
@@ -198,5 +198,26 @@ export default function SignupPage() {
                 </form>
             </Card>
         </div>
+    )
+}
+
+function SignupPageFallback() {
+    return (
+        <div className='flex min-h-screen items-center justify-center bg-zinc-50 px-4 dark:bg-zinc-950'>
+            <Card className='w-full max-w-md'>
+                <CardHeader>
+                    <CardTitle className='text-2xl'>Crear cuenta</CardTitle>
+                    <CardDescription>Cargando...</CardDescription>
+                </CardHeader>
+            </Card>
+        </div>
+    )
+}
+
+export default function SignupPage() {
+    return (
+        <Suspense fallback={<SignupPageFallback />}>
+            <SignupPageContent />
+        </Suspense>
     )
 }

@@ -119,10 +119,7 @@ businessTest.describe('Booking Flow - Edge Cases', () => {
             await expect(dialog).not.toBeVisible({ timeout: 5000 })
 
             // Asignar ambos recursos al servicio
-            await page
-                .getByRole('button', { name: /sin recursos/i })
-                .first()
-                .click()
+            await page.locator('[data-testid^="assign-resources-"]').first().click()
             await expect(page.getByRole('dialog')).toBeVisible()
 
             const checkbox1 = page.getByRole('checkbox', { name: resource1Name })
@@ -185,10 +182,7 @@ businessTest.describe('Booking Flow - Edge Cases', () => {
             await expect(dialog).not.toBeVisible({ timeout: 5000 })
 
             // Asignar recurso al servicio
-            await page
-                .getByRole('button', { name: /sin recursos/i })
-                .first()
-                .click()
+            await page.locator('[data-testid^="assign-resources-"]').first().click()
             await expect(page.getByRole('dialog')).toBeVisible()
 
             const checkbox = page.getByRole('checkbox', { name: resourceName })

@@ -7,7 +7,12 @@ import type { SubscriptionPlan } from '@/domain/subscriptions/subscription.types
 
 export async function getActivePlans(prisma: PrismaClient): Promise<SubscriptionPlan[]> {
     return prisma.subscriptionPlan.findMany({
-        where: { isActive: true },
+        where: {
+            isActive: true,
+            slug: {
+                in: ['base', 'premium']
+            }
+        },
         orderBy: { priceCents: 'asc' }
     })
 }

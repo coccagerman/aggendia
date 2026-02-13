@@ -10,8 +10,13 @@ import { createServerClient } from '@supabase/ssr'
  * Las variables se validan en build-time por lib/env.ts usado en otros módulos.
  */
 export async function middleware(request: NextRequest) {
+    const requestHeaders = new Headers(request.headers)
+    requestHeaders.set('x-pathname', request.nextUrl.pathname)
+
     let supabaseResponse = NextResponse.next({
-        request
+        request: {
+            headers: requestHeaders
+        }
     })
 
     const supabase = createServerClient(
@@ -25,7 +30,9 @@ export async function middleware(request: NextRequest) {
                 setAll(cookiesToSet) {
                     cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value))
                     supabaseResponse = NextResponse.next({
-                        request
+                        request: {
+                            headers: requestHeaders
+                        }
                     })
                     cookiesToSet.forEach(({ name, value, options }) =>
                         supabaseResponse.cookies.set(name, value, options)
@@ -55,7 +62,7 @@ export async function middleware(request: NextRequest) {
         return NextResponse.redirect(redirectUrl)
     }
 
-    // Pass current pathname to layouts for conditional rendering
+    // Keep response header as a debug aid; layout reads request header.
     supabaseResponse.headers.set('x-pathname', request.nextUrl.pathname)
 
     return supabaseResponse

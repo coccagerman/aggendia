@@ -164,10 +164,7 @@ test.describe('Public Business Page - Resource Selection', () => {
         await expect(dialog).not.toBeVisible({ timeout: 5000 })
 
         // Asignar ambos recursos al servicio
-        await page
-            .getByRole('button', { name: /sin recursos/i })
-            .first()
-            .click()
+        await page.locator('[data-testid^="assign-resources-"]').first().click()
         await expect(page.getByRole('dialog')).toBeVisible()
 
         const checkbox1 = page.getByRole('checkbox', { name: resourceName1 })
@@ -230,10 +227,7 @@ test.describe('Public Business Page - Resource Selection', () => {
         await expect(dialog).not.toBeVisible({ timeout: 5000 })
 
         // Asignar ambos recursos al servicio
-        await page
-            .getByRole('button', { name: /sin recursos/i })
-            .first()
-            .click()
+        await page.locator('[data-testid^="assign-resources-"]').first().click()
         await expect(page.getByRole('dialog')).toBeVisible()
 
         const checkbox1 = page.getByRole('checkbox', { name: resourceName1 })

@@ -21,14 +21,14 @@ import { SubscriptionErrorCodes } from './subscription.errors'
  *   TRIALING  → ACTIVE, EXPIRED
  *   ACTIVE    → PAST_DUE, CANCELED
  *   PAST_DUE  → ACTIVE, EXPIRED, CANCELED
- *   CANCELED  → EXPIRED
+ *   CANCELED  → ACTIVE, EXPIRED
  *   EXPIRED   → ACTIVE (reactivation via payment)
  */
 const VALID_TRANSITIONS: Record<SubscriptionStatus, SubscriptionStatus[]> = {
     TRIALING: ['ACTIVE', 'EXPIRED'],
     ACTIVE: ['PAST_DUE', 'CANCELED'],
     PAST_DUE: ['ACTIVE', 'EXPIRED', 'CANCELED'],
-    CANCELED: ['EXPIRED'],
+    CANCELED: ['ACTIVE', 'EXPIRED'],
     EXPIRED: ['ACTIVE']
 }
 
