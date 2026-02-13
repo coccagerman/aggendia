@@ -1,6 +1,10 @@
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 import { createServerClient } from '@supabase/ssr'
+import { prisma } from '@/data/prisma/prisma'
+import { getSubscriptionByUserId } from '@/data/repositories/subscription.repo'
+import { startTrial } from '@/domain/subscriptions/subscription.service'
+import { SUBSCRIPTION_DEFAULTS } from '@/domain/subscriptions/subscription.types'
 
 /**
  * GET /auth/callback
@@ -8,6 +12,9 @@ import { createServerClient } from '@supabase/ssr'
  * Completa el flujo OAuth PKCE de Supabase.
  * Supabase redirige aquí con un `code` después del consent screen de Google.
  * Intercambiamos el code por una sesión (cookies httpOnly).
+ *
+ * After successful authentication, ensures the user has a subscription.
+ * New users get a TRIALING subscription automatically (30-day trial).
  *
  * Este Route Handler no usa el server client de lib/supabase/server.ts
  * porque necesitamos control explícito sobre la respuesta (NextResponse)
@@ -54,13 +61,31 @@ export async function GET(request: NextRequest) {
         }
     )
 
-    const { error } = await supabase.auth.exchangeCodeForSession(code)
+    const { error, data } = await supabase.auth.exchangeCodeForSession(code)
 
     if (error) {
         console.error('OAuth callback: error exchanging code for session', error.message)
         const loginUrl = new URL('/login', origin)
         loginUrl.searchParams.set('error', 'Error al completar la autenticación. Intentá nuevamente.')
         return NextResponse.redirect(loginUrl)
+    }
+
+    // Ensure user has a subscription (create trial for new users)
+    if (data.user) {
+        try {
+            const existing = await getSubscriptionByUserId(prisma, data.user.id)
+            if (!existing) {
+                await startTrial(prisma, data.user.id, SUBSCRIPTION_DEFAULTS.DEFAULT_TRIAL_DAYS, 'STANDARD')
+                console.info(`[Auth:Callback] Created trial subscription for new user ${data.user.id}`)
+            }
+        } catch (subError) {
+            // Non-blocking: log the error but don't prevent login.
+            // The dashboard layout will redirect to subscription-expired if no sub.
+            console.error(
+                '[Auth:Callback] Error creating trial subscription:',
+                subError instanceof Error ? subError.message : 'UNKNOWN'
+            )
+        }
     }
 
     return supabaseResponse

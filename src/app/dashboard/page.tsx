@@ -15,6 +15,7 @@ import { getResourcesByBusinessIdsMap } from '@/data/repositories/resource.repo'
 import { getServicesByBusinessIdsMap } from '@/data/repositories/service.repo'
 import { prisma } from '@/data/prisma/prisma'
 import { type Service } from '@/domain/services/service.types'
+import { Settings } from 'lucide-react'
 
 interface Business {
     id: string
@@ -66,6 +67,10 @@ export default async function DashboardPage() {
         // Continuar con array vacío
     }
 
+    // Check if user is admin (for trial-links link in header)
+    const adminEmails = process.env.ADMIN_EMAILS?.split(',').map(e => e.trim().toLowerCase()) ?? []
+    const isAdmin = user.email ? adminEmails.includes(user.email.toLowerCase()) : false
+
     // Cargar recursos en batch para evitar N+1 usando repositorio (capa data)
     const businessIds = businesses.map(b => b.id)
     let resourcesByBusinessId: Record<string, Resource[]> = {}
@@ -105,7 +110,18 @@ export default async function DashboardPage() {
             <header className='border-b border-zinc-200 bg-white dark:border-zinc-800 dark:bg-black'>
                 <div className='container mx-auto flex h-16 items-center justify-between px-4 sm:px-6 lg:px-8'>
                     <h1 className='text-xl font-semibold text-zinc-900 dark:text-zinc-50'>TurnosApp</h1>
-                    <LogoutButton />
+                    <div className='flex items-center gap-3'>
+                        {isAdmin && (
+                            <Link
+                                href='/dashboard/admin/trial-links'
+                                className='flex items-center gap-1.5 text-sm text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-200'
+                            >
+                                <Settings className='h-4 w-4' />
+                                Admin
+                            </Link>
+                        )}
+                        <LogoutButton />
+                    </div>
                 </div>
             </header>
 
@@ -200,9 +216,9 @@ export default async function DashboardPage() {
                                             {businessesWithData.map(business => (
                                                 <div
                                                     key={business.id}
-                                                    className='rounded-lg border border-zinc-200 p-4 dark:border-zinc-800'
+                                                    className='rounded-lg border border-zinc-200 overflow-hidden dark:border-zinc-800'
                                                 >
-                                                    <div>
+                                                    <div className='p-4'>
                                                         <div>
                                                             <div className='flex items-center gap-2'>
                                                                 <h3 className='flex-1 font-semibold text-zinc-900 dark:text-zinc-50'>

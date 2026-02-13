@@ -15,6 +15,7 @@ import { createBlock } from '@/data/repositories/block.repo'
 import { addDays, startOfDay } from 'date-fns'
 import { fromZonedTime } from 'date-fns-tz'
 import { GET } from '@/app/api/v1/public/slots/route'
+import { ensureTrialSubscription } from '../helpers/subscription.helper'
 
 const TIMEZONE = 'America/Argentina/Buenos_Aires'
 
@@ -41,6 +42,9 @@ describe('Public Slots API - Integration Tests', () => {
         )
         businessId = biz.business.id
         businessSlug = biz.business.slug
+
+        // Ensure the owner has an active subscription (required by public routes)
+        await ensureTrialSubscription(userId)
 
         // Create resource with availability
         const resource = await createResource(prisma, businessId, {
@@ -421,6 +425,7 @@ describe('Public Slots API - Integration Tests', () => {
 
         it('enforces multi-tenant isolation', async () => {
             // Create another business
+            const otherUserId = `other-user-${Date.now()}`
             const otherBiz = await createBusinessWithOwner(
                 prisma,
                 {
@@ -429,8 +434,9 @@ describe('Public Slots API - Integration Tests', () => {
                     resourceLabel: 'Sala'
                 },
                 `other-${Date.now()}`,
-                'other-user'
+                otherUserId
             )
+            await ensureTrialSubscription(otherUserId)
 
             const fromDate = startOfDay(new Date()).toISOString()
             const toDate = addDays(startOfDay(new Date()), 1).toISOString()
@@ -467,6 +473,7 @@ describe('Public Slots API - Integration Tests', () => {
 
         beforeAll(async () => {
             // Create business
+            const noticeUserId = `slots-notice-user-${Date.now()}`
             const biz = await createBusinessWithOwner(
                 prisma,
                 {
@@ -475,10 +482,13 @@ describe('Public Slots API - Integration Tests', () => {
                     resourceLabel: 'Cancha'
                 },
                 `slots-notice-${Date.now()}`,
-                `slots-notice-user-${Date.now()}`
+                noticeUserId
             )
             noticeBusinessId = biz.business.id
             noticeBusinessSlug = biz.business.slug
+
+            // Ensure the owner has an active subscription
+            await ensureTrialSubscription(noticeUserId)
 
             // Create resource with all-week availability
             const resource = await createResource(prisma, noticeBusinessId, {

@@ -21,6 +21,20 @@ vi.mock('@supabase/ssr', () => ({
     })
 }))
 
+// Mock subscription dependencies (non-blocking in callback)
+const mockGetSubscriptionByUserId = vi.fn()
+const mockStartTrial = vi.fn()
+vi.mock('@/data/prisma/prisma', () => ({ prisma: {} }))
+vi.mock('@/data/repositories/subscription.repo', () => ({
+    getSubscriptionByUserId: (...args: unknown[]) => mockGetSubscriptionByUserId(...args)
+}))
+vi.mock('@/domain/subscriptions/subscription.service', () => ({
+    startTrial: (...args: unknown[]) => mockStartTrial(...args)
+}))
+vi.mock('@/domain/subscriptions/subscription.types', () => ({
+    SUBSCRIPTION_DEFAULTS: { DEFAULT_TRIAL_DAYS: 30 }
+}))
+
 // Importar después del mock
 import { GET } from '@/app/auth/callback/route'
 
@@ -74,7 +88,11 @@ describe('GET /auth/callback', () => {
     })
 
     it('redirige a /dashboard cuando el code exchange es exitoso', async () => {
-        mockExchangeCodeForSession.mockResolvedValue({ error: null })
+        mockExchangeCodeForSession.mockResolvedValue({
+            error: null,
+            data: { user: { id: 'test-user-id' }, session: {} }
+        })
+        mockGetSubscriptionByUserId.mockResolvedValue({ id: 'existing-sub' })
 
         const request = buildRequest('/auth/callback?code=valid-code')
 

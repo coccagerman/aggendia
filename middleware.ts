@@ -55,6 +55,9 @@ export async function middleware(request: NextRequest) {
         return NextResponse.redirect(redirectUrl)
     }
 
+    // Pass current pathname to layouts for conditional rendering
+    supabaseResponse.headers.set('x-pathname', request.nextUrl.pathname)
+
     return supabaseResponse
 }
 

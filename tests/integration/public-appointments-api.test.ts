@@ -16,6 +16,7 @@ import { setAvailability } from '@/data/repositories/availability.repo'
 import { addDays, addHours, startOfDay } from 'date-fns'
 import { fromZonedTime } from 'date-fns-tz'
 import { POST } from '@/app/api/v1/public/appointments/route'
+import { ensureTrialSubscription } from '../helpers/subscription.helper'
 
 const TIMEZONE = 'America/Argentina/Buenos_Aires'
 
@@ -52,6 +53,9 @@ describe('Public Appointments API - Integration Tests', () => {
         )
         businessId = biz.business.id
         businessSlug = biz.business.slug
+
+        // Ensure the owner has an active subscription (required by public routes)
+        await ensureTrialSubscription(userId)
 
         // Create active resource with availability
         const resource = await createResource(prisma, businessId, {
@@ -918,6 +922,7 @@ describe('Public Appointments API - Integration Tests', () => {
 
         beforeAll(async () => {
             // Create business
+            const noticeUserId = `notice-user-${Date.now()}`
             const biz = await createBusinessWithOwner(
                 prisma,
                 {
@@ -926,10 +931,13 @@ describe('Public Appointments API - Integration Tests', () => {
                     resourceLabel: 'Cancha'
                 },
                 `notice-test-${Date.now()}`,
-                `notice-user-${Date.now()}`
+                noticeUserId
             )
             noticeBusinessId = biz.business.id
             noticeBusinessSlug = biz.business.slug
+
+            // Ensure the owner has an active subscription
+            await ensureTrialSubscription(noticeUserId)
 
             // Create resource with all-week availability
             const resource = await createResource(prisma, noticeBusinessId, {

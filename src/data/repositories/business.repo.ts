@@ -35,6 +35,7 @@ export interface ReminderBusinessConfig {
 
 /**
  * Crea un negocio y asocia al usuario como OWNER en una transacción atómica.
+ * Note: Subscription is NOT created here — it's per-user, created at signup.
  */
 export async function createBusinessWithOwner(
     prisma: PrismaClient,
@@ -121,6 +122,18 @@ export async function getBusinessById(prisma: PrismaClient, businessId: string):
     return prisma.business.findUnique({
         where: { id: businessId }
     })
+}
+
+/**
+ * Get the owner's userId for a given businessId.
+ * Used by public routes to check subscription access.
+ */
+export async function getBusinessOwnerUserId(prisma: PrismaClient, businessId: string): Promise<string | null> {
+    const member = await prisma.businessMember.findFirst({
+        where: { businessId, role: 'OWNER' },
+        select: { userId: true }
+    })
+    return member?.userId ?? null
 }
 
 /**

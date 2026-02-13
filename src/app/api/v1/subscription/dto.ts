@@ -1,0 +1,30 @@
+import { z } from 'zod'
+
+/**
+ * DTOs for user-level subscription endpoints
+ */
+
+// GET /api/v1/subscription
+export const subscriptionResponseSchema = z.object({
+    id: z.string().uuid(),
+    status: z.enum(['TRIALING', 'ACTIVE', 'PAST_DUE', 'CANCELED', 'EXPIRED']),
+    trialStartsAt: z.date().nullable(),
+    trialEndsAt: z.date().nullable(),
+    trialType: z.enum(['STANDARD', 'SPECIAL']),
+    currentPeriodStart: z.date().nullable(),
+    currentPeriodEnd: z.date().nullable(),
+    cancelAt: z.date().nullable(),
+    canceledAt: z.date().nullable(),
+    paymentProvider: z.enum(['STRIPE', 'MERCADOPAGO']).nullable(),
+    createdAt: z.date()
+})
+
+// POST /api/v1/subscription/checkout
+export const createCheckoutRequestSchema = z.object({
+    planId: z.string().uuid('Plan inválido')
+})
+
+// POST /api/v1/subscription/cancel
+export const cancelSubscriptionRequestSchema = z.object({
+    immediate: z.boolean().default(false)
+})

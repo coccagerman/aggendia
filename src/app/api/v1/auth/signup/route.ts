@@ -4,6 +4,10 @@ import { signupRequestSchema } from '../dto'
 import { mapAuthError } from '@/lib/auth/map-auth-error'
 import { AppError, ValidationErrorCodes, SystemErrorCodes } from '@/domain/common/errors'
 import { checkRateLimit, getClientIp } from '@/lib/rate-limit'
+import { prisma } from '@/data/prisma/prisma'
+import { getSubscriptionByUserId } from '@/data/repositories/subscription.repo'
+import { startTrial } from '@/domain/subscriptions/subscription.service'
+import { SUBSCRIPTION_DEFAULTS } from '@/domain/subscriptions/subscription.types'
 
 /**
  * POST /api/v1/auth/signup
@@ -73,6 +77,24 @@ export async function POST(request: Request) {
         if (signUpError) {
             const appError = mapAuthError(signUpError)
             return NextResponse.json(appError.toJSON(), { status: appError.httpStatus })
+        }
+
+        // Ensure new user has a TRIALING subscription (same as auth callback for OAuth)
+        if (data.user) {
+            try {
+                const existing = await getSubscriptionByUserId(prisma, data.user.id)
+                if (!existing) {
+                    await startTrial(prisma, data.user.id, SUBSCRIPTION_DEFAULTS.DEFAULT_TRIAL_DAYS, 'STANDARD')
+                    console.info(`[Auth:Signup] Created trial subscription for new user ${data.user.id}`)
+                }
+            } catch (subError) {
+                // Non-blocking: log but don't prevent signup completion.
+                // Dashboard layout will redirect to subscription-expired if no sub.
+                console.error(
+                    '[Auth:Signup] Error creating trial subscription:',
+                    subError instanceof Error ? subError.message : 'UNKNOWN'
+                )
+            }
         }
 
         // CRÍTICO 2: Detectar si email confirmation está habilitada

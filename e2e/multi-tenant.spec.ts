@@ -143,12 +143,14 @@ test.describe('Multi-tenant Isolation E2E', () => {
 
         await signupUser(pageA, emailA, passwordA)
         await createBusiness(pageA, businessNameA)
+        await pageA.waitForLoadState('networkidle')
 
-        // Create resource for User A
-        await pageA
-            .getByRole('link', { name: /crear.*recurso/i })
-            .first()
-            .click()
+        // Get business ID via API (reliable, same pattern as testBusiness fixture)
+        const resA = await pageA.request.get('/api/v1/businesses')
+        const bizA = ((await resA.json()).data || []).find((b: { name: string }) => b.name === businessNameA)
+
+        // Create resource for User A — navigate directly to avoid flaky Tooltip interaction
+        await pageA.goto(`/dashboard/business/${bizA.id}/resources/new`)
         await pageA.getByLabel(/nombre/i).fill(resourceNameA)
         await pageA.getByRole('button', { name: /crear/i }).click()
         await expect(pageA).toHaveURL('/dashboard', { timeout: 10000 })
@@ -166,12 +168,14 @@ test.describe('Multi-tenant Isolation E2E', () => {
 
         await signupUser(pageB, emailB, passwordB)
         await createBusiness(pageB, businessNameB)
+        await pageB.waitForLoadState('networkidle')
 
-        // Create resource for User B
-        await pageB
-            .getByRole('link', { name: /crear.*recurso/i })
-            .first()
-            .click()
+        // Get business ID via API
+        const resB = await pageB.request.get('/api/v1/businesses')
+        const bizB = ((await resB.json()).data || []).find((b: { name: string }) => b.name === businessNameB)
+
+        // Create resource for User B — navigate directly
+        await pageB.goto(`/dashboard/business/${bizB.id}/resources/new`)
         await pageB.getByLabel(/nombre/i).fill(resourceNameB)
         await pageB.getByRole('button', { name: /crear/i }).click()
         await expect(pageB).toHaveURL('/dashboard', { timeout: 10000 })

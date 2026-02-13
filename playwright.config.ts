@@ -1,4 +1,9 @@
 import { defineConfig, devices } from '@playwright/test'
+import os from 'node:os'
+import path from 'node:path'
+
+const PLAYWRIGHT_ARTIFACTS_DIR = path.join(os.tmpdir(), 'turnosapp-playwright-artifacts')
+const PLAYWRIGHT_REPORT_DIR = path.join(os.tmpdir(), 'turnosapp-playwright-report')
 
 /**
  * Playwright Configuration for E2E Tests
@@ -10,6 +15,10 @@ import { defineConfig, devices } from '@playwright/test'
  */
 export default defineConfig({
     testDir: './e2e',
+
+    // Importante: guardar artifacts fuera del workspace para evitar que Next dev
+    // entre en recompilación continua al detectar cambios en test-results/.
+    outputDir: PLAYWRIGHT_ARTIFACTS_DIR,
 
     // Paralelismo: cada test corre independiente
     fullyParallel: true,
@@ -23,7 +32,7 @@ export default defineConfig({
     retries: process.env.CI ? 2 : 1,
 
     // Reporters: HTML para debugging + list para output en consola
-    reporter: [['html', { open: 'never' }], ['list']],
+    reporter: [['html', { open: 'never', outputFolder: PLAYWRIGHT_REPORT_DIR }], ['list']],
 
     // Timeout por test: 60s máximo (antes era hasta 180s)
     timeout: 60000,

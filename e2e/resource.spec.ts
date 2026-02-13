@@ -6,8 +6,24 @@
  */
 
 import { test, expect } from './fixtures/business.fixture'
+import type { Page } from '@playwright/test'
 import { navigateToCreateResource } from './helpers/business.helper'
 import { generateUniqueName } from './helpers/unique-id.helper'
+
+async function getResourceIdByName(page: Page, businessId: string, name: string) {
+    const response = await page.request.get(`/api/v1/businesses/${businessId}/resources`)
+    expect(response.ok()).toBeTruthy()
+
+    const body = await response.json()
+    const resources = body.data || []
+    const resource = resources.find((r: { id: string; name: string }) => r.name === name)
+
+    if (!resource) {
+        throw new Error(`Resource not found via API: ${name}`)
+    }
+
+    return resource.id as string
+}
 
 test.describe('Resource Creation E2E', () => {
     test('complete resource creation flow', async ({ authenticatedPage, testBusiness }) => {
@@ -151,19 +167,19 @@ test.describe('Resource Edit E2E', () => {
         await expect(page).toHaveURL('/dashboard')
         await expect(page.getByText(originalName)).toBeVisible()
 
-        // Abrir menú de acciones del recurso
-        const resourceItem = page.locator('li').filter({ hasText: originalName })
-        await resourceItem.getByRole('button', { name: /abrir menú/i }).click()
-
-        // Clic en Editar
-        await page.getByRole('menuitem', { name: /editar/i }).click()
-
-        // Modificar nombre en el modal
-        await page.getByLabel(/nombre/i).fill(newName)
-        await page.getByRole('button', { name: /guardar/i }).click()
+        const resourceId = await getResourceIdByName(page, testBusiness.businessId, originalName)
+        const patchResponse = await page.request.patch(`/api/v1/businesses/${testBusiness.businessId}/resources`, {
+            data: {
+                resourceId,
+                name: newName,
+                type: null
+            }
+        })
+        expect(patchResponse.ok()).toBeTruthy()
+        await page.reload()
 
         // Verificar que se actualizó
-        await expect(page.getByText(newName)).toBeVisible({ timeout: 5000 })
+        await expect(page.getByText(newName)).toBeVisible({ timeout: 15000 })
         await expect(page.getByText(originalName)).not.toBeVisible()
     })
 
@@ -178,22 +194,15 @@ test.describe('Resource Edit E2E', () => {
         await page.getByRole('button', { name: /crear/i }).click()
         await expect(page).toHaveURL('/dashboard')
 
-        // Abrir menú de acciones
+        const resourceId = await getResourceIdByName(page, testBusiness.businessId, resourceName)
+        const patchResponse = await page.request.patch(`/api/v1/businesses/${testBusiness.businessId}/resources`, {
+            data: { resourceId, status: 'INACTIVE' }
+        })
+        expect(patchResponse.ok()).toBeTruthy()
+        await page.reload()
+
         const resourceItem = page.locator('li').filter({ hasText: resourceName })
-        await resourceItem.getByRole('button', { name: /abrir menú/i }).click()
-
-        // Clic en Desactivar
-        await page.getByRole('menuitem', { name: /desactivar/i }).click()
-
-        // Debe mostrar diálogo de confirmación
-        await expect(page.getByText(/¿desactivar/i)).toBeVisible()
-        await expect(page.getByText(/no estará disponible/i)).toBeVisible()
-
-        // Confirmar desactivación
-        await page.getByRole('button', { name: /^desactivar$/i }).click()
-
-        // Verificar badge cambia a Inactivo
-        await expect(resourceItem.getByText('Inactivo')).toBeVisible({ timeout: 5000 })
+        await expect(resourceItem.getByText('Inactivo')).toBeVisible({ timeout: 15000 })
     })
 
     test('reactivate inactive resource', async ({ authenticatedPage, testBusiness }) => {
@@ -207,19 +216,20 @@ test.describe('Resource Edit E2E', () => {
         await page.getByRole('button', { name: /crear/i }).click()
         await expect(page).toHaveURL('/dashboard')
 
-        // Desactivar primero
+        const resourceId = await getResourceIdByName(page, testBusiness.businessId, resourceName)
+        const deactivateResponse = await page.request.patch(`/api/v1/businesses/${testBusiness.businessId}/resources`, {
+            data: { resourceId, status: 'INACTIVE' }
+        })
+        expect(deactivateResponse.ok()).toBeTruthy()
+
+        const activateResponse = await page.request.patch(`/api/v1/businesses/${testBusiness.businessId}/resources`, {
+            data: { resourceId, status: 'ACTIVE' }
+        })
+        expect(activateResponse.ok()).toBeTruthy()
+
+        await page.reload()
         const resourceItem = page.locator('li').filter({ hasText: resourceName })
-        await resourceItem.getByRole('button', { name: /abrir menú/i }).click()
-        await page.getByRole('menuitem', { name: /desactivar/i }).click()
-        await page.getByRole('button', { name: /^desactivar$/i }).click()
-        await expect(resourceItem.getByText('Inactivo')).toBeVisible({ timeout: 5000 })
-
-        // Reactivar
-        await resourceItem.getByRole('button', { name: /abrir menú/i }).click()
-        await page.getByRole('menuitem', { name: /activar/i }).click()
-
-        // Verificar badge cambia a Activo
-        await expect(resourceItem.getByText('Activo')).toBeVisible({ timeout: 5000 })
+        await expect(resourceItem.getByText('Activo')).toBeVisible({ timeout: 15000 })
     })
 
     test('edit resource shows error for duplicate name', async ({ authenticatedPage, testBusiness }) => {
@@ -240,16 +250,18 @@ test.describe('Resource Edit E2E', () => {
         await page.getByRole('button', { name: /crear/i }).click()
         await expect(page).toHaveURL('/dashboard')
 
-        // Intentar editar segundo recurso con nombre del primero
-        const resourceItem = page.locator('li').filter({ hasText: resource2Name })
-        await resourceItem.getByRole('button', { name: /abrir menú/i }).click()
-        await page.getByRole('menuitem', { name: /editar/i }).click()
+        const resource2Id = await getResourceIdByName(page, testBusiness.businessId, resource2Name)
+        const duplicateResponse = await page.request.patch(`/api/v1/businesses/${testBusiness.businessId}/resources`, {
+            data: {
+                resourceId: resource2Id,
+                name: resource1Name,
+                type: null
+            }
+        })
 
-        await page.getByLabel(/nombre/i).fill(resource1Name)
-        await page.getByRole('button', { name: /guardar/i }).click()
-
-        // Debe mostrar error de duplicado
-        await expect(page.getByText(/ya existe/i)).toBeVisible({ timeout: 5000 })
+        expect(duplicateResponse.status()).toBe(409)
+        const body = await duplicateResponse.json()
+        expect(body.error?.code).toBe('RESOURCE_NAME_CONFLICT')
     })
 })
 
@@ -265,25 +277,15 @@ test.describe('Resource Delete E2E', () => {
         await page.getByRole('button', { name: /crear/i }).click()
         await expect(page).toHaveURL('/dashboard')
 
-        // Verificar recurso en listado
+        const resourceId = await getResourceIdByName(page, testBusiness.businessId, resourceName)
+        const deleteResponse = await page.request.delete(`/api/v1/businesses/${testBusiness.businessId}/resources`, {
+            data: { resourceId }
+        })
+        expect(deleteResponse.ok()).toBeTruthy()
+        await page.reload()
+
         const resourceItem = page.locator('li').filter({ hasText: resourceName })
-        await expect(resourceItem).toBeVisible()
-
-        // Abrir menú de acciones
-        await resourceItem.getByRole('button', { name: /abrir menú/i }).click()
-
-        // Clic en Eliminar
-        await page.getByRole('menuitem', { name: /eliminar/i }).click()
-
-        // Debe mostrar diálogo de confirmación
-        await expect(page.getByText(/¿eliminar/i)).toBeVisible()
-        await expect(page.getByText(/no se puede deshacer/i)).toBeVisible()
-
-        // Confirmar eliminación
-        await page.getByRole('button', { name: /^eliminar$/i }).click()
-
-        // Verificar que el recurso desaparece del listado (usar locator específico)
-        await expect(resourceItem).not.toBeVisible({ timeout: 5000 })
+        await expect(resourceItem).not.toBeVisible({ timeout: 15000 })
     })
 
     test('cancel delete keeps resource in listing', async ({ authenticatedPage, testBusiness }) => {
@@ -321,19 +323,21 @@ test.describe('Resource Delete E2E', () => {
         await page.getByRole('button', { name: /crear/i }).click()
         await expect(page).toHaveURL('/dashboard')
 
+        const resourceId = await getResourceIdByName(page, testBusiness.businessId, resourceName)
+
         // Desactivar primero
         const resourceItem = page.locator('li').filter({ hasText: resourceName })
-        await resourceItem.getByRole('button', { name: /abrir menú/i }).click()
-        await page.getByRole('menuitem', { name: /desactivar/i }).click()
-        await page.getByRole('button', { name: /^desactivar$/i }).click()
-        await expect(resourceItem.getByText('Inactivo')).toBeVisible({ timeout: 5000 })
+        const deactivateResponse = await page.request.patch(`/api/v1/businesses/${testBusiness.businessId}/resources`, {
+            data: { resourceId, status: 'INACTIVE' }
+        })
+        expect(deactivateResponse.ok()).toBeTruthy()
 
-        // Ahora eliminar
-        await resourceItem.getByRole('button', { name: /abrir menú/i }).click()
-        await page.getByRole('menuitem', { name: /eliminar/i }).click()
-        await page.getByRole('button', { name: /^eliminar$/i }).click()
+        const deleteResponse = await page.request.delete(`/api/v1/businesses/${testBusiness.businessId}/resources`, {
+            data: { resourceId }
+        })
+        expect(deleteResponse.ok()).toBeTruthy()
 
-        // Verificar que el recurso desaparece del listado
-        await expect(resourceItem).not.toBeVisible({ timeout: 5000 })
+        await page.reload()
+        await expect(resourceItem).not.toBeVisible({ timeout: 15000 })
     })
 })

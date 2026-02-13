@@ -1,7 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect, notFound } from 'next/navigation'
 import Link from 'next/link'
-import { ArrowLeft, Settings } from 'lucide-react'
+import { ArrowLeft, Settings, CreditCard } from 'lucide-react'
 import { prisma } from '@/data/prisma/prisma'
 import { getBusinessById } from '@/data/repositories/business.repo'
 import { checkBusinessAccess } from '@/lib/auth/require-business-access'
@@ -61,8 +61,26 @@ export default async function SettingsPage({ params }: SettingsPageProps) {
                 </div>
             </header>
 
-            {/* Content — two-column layout handled by NotificationSettings */}
-            <main className='max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8'>
+            {/* Content */}
+            <main className='max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8'>
+                {/* Subscription link */}
+                <Link
+                    href={`/dashboard/business/${businessId}/settings/subscription`}
+                    className='block rounded-lg border bg-white p-4 hover:bg-gray-50 transition-colors'
+                >
+                    <div className='flex items-center justify-between'>
+                        <div className='flex items-center gap-3'>
+                            <CreditCard className='h-5 w-5 text-muted-foreground' />
+                            <div>
+                                <p className='font-medium'>Suscripción</p>
+                                <p className='text-sm text-muted-foreground'>Gestioná tu plan y método de pago</p>
+                            </div>
+                        </div>
+                        <ArrowLeft className='h-4 w-4 rotate-180 text-muted-foreground' />
+                    </div>
+                </Link>
+
+                {/* Notification settings */}
                 <NotificationSettings
                     businessId={businessId}
                     customerEmailEnabled={business.emailNotificationsEnabled}

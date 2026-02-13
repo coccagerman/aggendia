@@ -1,0 +1,78 @@
+# Page snapshot
+
+```yaml
+- generic [active] [ref=e1]:
+  - generic [ref=e2]:
+    - banner [ref=e3]:
+      - generic [ref=e4]:
+        - heading "TurnosApp" [level=1] [ref=e5]
+        - button "Cerrar sesión" [ref=e8] [cursor=pointer]
+    - main [ref=e9]:
+      - generic [ref=e11]:
+        - generic [ref=e12]:
+          - generic [ref=e13]:
+            - generic [ref=e14]: Bienvenido al Dashboard
+            - generic [ref=e15]: Gestioná tu negocio desde acá
+          - generic [ref=e18]:
+            - paragraph [ref=e19]: Email de la cuenta
+            - paragraph [ref=e20]: e2e-506bc870-9b14-4908-9461-ea00c461b956@test.turnosapp.local
+        - generic [ref=e21]:
+          - generic [ref=e23]:
+            - generic [ref=e24]:
+              - generic [ref=e25]: Mis Negocios
+              - generic [ref=e26]: 1 negocio configurado
+            - link "Crear negocio" [ref=e27] [cursor=pointer]:
+              - /url: /dashboard/business/new
+          - generic [ref=e32]:
+            - generic [ref=e33]:
+              - heading "Business 93cf360c" [level=3] [ref=e34]
+              - generic [ref=e35]: Activo
+              - button "Abrir menú" [ref=e36] [cursor=pointer]:
+                - generic [ref=e37]: Abrir menú
+                - img
+            - generic [ref=e38]:
+              - paragraph [ref=e39]: "Slug: business-93cf360c"
+              - paragraph [ref=e40]: "Timezone: America/Argentina/Buenos_Aires"
+              - paragraph [ref=e41]: "Etiqueta de recurso: Recurso"
+            - generic [ref=e42]:
+              - paragraph [ref=e43]: 🔗 Link público para compartir
+              - generic [ref=e44]:
+                - code [ref=e45]: http://localhost:3000/b/business-93cf360c
+                - button "🔗 Copiar" [ref=e46] [cursor=pointer]
+            - generic [ref=e48]:
+              - generic [ref=e49]:
+                - heading "Agenda" [level=4] [ref=e50]
+                - paragraph [ref=e51]: Visualizá y organizá los turnos por día y recurso.
+              - link "Ver Agenda" [ref=e52] [cursor=pointer]:
+                - /url: /dashboard/business/bd3f4753-788f-41f2-bc24-7f3e2f5f9bf1/agenda
+            - generic [ref=e54]:
+              - generic [ref=e55]:
+                - heading "Notificaciones" [level=4] [ref=e56]
+                - paragraph [ref=e57]: Configurá recordatorios y notificaciones por mail y WhatsApp.
+              - link "Configurar notificaciones" [ref=e58] [cursor=pointer]:
+                - /url: /dashboard/business/bd3f4753-788f-41f2-bc24-7f3e2f5f9bf1/settings
+            - generic [ref=e59]:
+              - generic [ref=e60]:
+                - heading "Recursos" [level=4] [ref=e61]
+                - link "Crear Recurso" [ref=e62] [cursor=pointer]:
+                  - /url: /dashboard/business/bd3f4753-788f-41f2-bc24-7f3e2f5f9bf1/resources/new
+              - paragraph [ref=e63]: No hay recursos creados todavía.
+            - generic [ref=e64]:
+              - generic [ref=e65]:
+                - heading "Servicios" [level=4] [ref=e66]
+                - button "Crear servicio" [ref=e67] [cursor=pointer]
+              - paragraph [ref=e68]: No hay servicios creados todavía.
+        - generic [ref=e69]:
+          - generic [ref=e70]:
+            - generic [ref=e71]: Próximos pasos
+            - generic [ref=e72]: Configurá tu negocio para comenzar a recibir turnos
+          - generic [ref=e74]:
+            - paragraph [ref=e75]: ✓ Cuenta creada
+            - paragraph [ref=e76]: ✓ Crear negocio
+            - paragraph [ref=e77]: ○ Agregar recursos
+            - paragraph [ref=e78]: ○ Definir servicios
+  - region "Notifications alt+T"
+  - button "Open Next.js Dev Tools" [ref=e84] [cursor=pointer]:
+    - img [ref=e85]
+  - alert [ref=e88]
+```

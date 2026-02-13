@@ -20,7 +20,9 @@ export const createBusinessRequestSchema = z.object({
         message: 'Timezone inválido. Seleccioná una opción válida.'
     }),
     address: z.string().max(200, 'La dirección es demasiado larga').optional().nullable(),
-    area: z.string().max(100, 'La ciudad/zona es demasiado larga').optional().nullable()
+    area: z.string().max(100, 'La ciudad/zona es demasiado larga').optional().nullable(),
+    /** Optional trial link code — extends trial duration if valid */
+    trialCode: z.string().max(50).optional()
 })
 
 export type CreateBusinessRequest = z.infer<typeof createBusinessRequestSchema>

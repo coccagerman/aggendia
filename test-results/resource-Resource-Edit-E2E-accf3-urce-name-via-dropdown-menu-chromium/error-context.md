@@ -1,0 +1,130 @@
+# Page snapshot
+
+```yaml
+- generic [active]:
+  - generic:
+    - banner:
+      - generic:
+        - heading [level=1]: TurnosApp
+        - generic:
+          - generic:
+            - button: Cerrar sesión
+    - main:
+      - generic:
+        - generic:
+          - generic:
+            - generic:
+              - generic: Bienvenido al Dashboard
+              - generic: Gestioná tu negocio desde acá
+            - generic:
+              - generic:
+                - generic:
+                  - paragraph: Email de la cuenta
+                  - paragraph: e2e-26c1b932-37e0-418b-9899-e4452ae93d70@test.turnosapp.local
+          - generic:
+            - generic:
+              - generic:
+                - generic:
+                  - generic: Mis Negocios
+                  - generic: 1 negocio configurado
+                - link:
+                  - /url: /dashboard/business/new
+                  - text: Crear negocio
+            - generic:
+              - generic:
+                - generic:
+                  - generic:
+                    - generic:
+                      - generic:
+                        - heading [level=3]: Business e5f63e2d
+                        - generic: Activo
+                        - button:
+                          - generic: Abrir menú
+                          - img
+                      - generic:
+                        - paragraph: "Slug: business-e5f63e2d"
+                        - paragraph: "Timezone: America/Argentina/Buenos_Aires"
+                        - paragraph: "Etiqueta de recurso: Recurso"
+                      - generic:
+                        - paragraph: 🔗 Link público para compartir
+                        - generic:
+                          - code: http://localhost:3000/b/business-e5f63e2d
+                          - button: 🔗 Copiar
+                      - generic:
+                        - generic:
+                          - generic:
+                            - heading [level=4]: Agenda
+                            - paragraph: Visualizá y organizá los turnos por día y recurso.
+                          - link:
+                            - /url: /dashboard/business/0e903c51-c1d3-417c-89dc-5b0c003095ba/agenda
+                            - text: Ver Agenda
+                      - generic:
+                        - generic:
+                          - generic:
+                            - heading [level=4]: Notificaciones
+                            - paragraph: Configurá recordatorios y notificaciones por mail y WhatsApp.
+                          - link:
+                            - /url: /dashboard/business/0e903c51-c1d3-417c-89dc-5b0c003095ba/settings
+                            - text: Configurar notificaciones
+                      - generic:
+                        - generic:
+                          - heading [level=4]: Recursos
+                          - link:
+                            - /url: /dashboard/business/0e903c51-c1d3-417c-89dc-5b0c003095ba/resources/new
+                            - text: Crear Recurso
+                        - list:
+                          - listitem:
+                            - link:
+                              - /url: /dashboard/business/0e903c51-c1d3-417c-89dc-5b0c003095ba/resources/4f5cf2fb-4178-4a09-95c6-edc883820f39
+                              - text: Recurso Original 277bf004
+                            - generic: Activo
+                            - button:
+                              - generic: Abrir menú
+                              - img
+                      - generic:
+                        - generic:
+                          - heading [level=4]: Servicios
+                          - button: Crear servicio
+                        - paragraph: No hay servicios creados todavía.
+          - generic:
+            - generic:
+              - generic: Próximos pasos
+              - generic: Configurá tu negocio para comenzar a recibir turnos
+            - generic:
+              - generic:
+                - paragraph: ✓ Cuenta creada
+                - paragraph: ✓ Crear negocio
+                - paragraph: ✓ Agregar recursos
+                - paragraph: ○ Definir servicios
+  - region "Notifications alt+T"
+  - button "Open Next.js Dev Tools" [ref=e6] [cursor=pointer]:
+    - generic [ref=e9]:
+      - text: Compiling
+      - generic [ref=e10]:
+        - generic [ref=e11]: .
+        - generic [ref=e12]: .
+        - generic [ref=e13]: .
+  - alert
+  - dialog "Editar Recurso" [ref=e15]:
+    - generic [ref=e16]:
+      - heading "Editar Recurso" [level=2] [ref=e17]
+      - paragraph [ref=e18]: Modificá los datos del recurso.
+    - generic [ref=e19]:
+      - generic [ref=e20]:
+        - generic [ref=e21]: Nombre
+        - textbox "Nombre" [disabled]:
+          - /placeholder: Nombre del recurso
+          - text: Recurso Editado c7f39328
+      - generic [ref=e22]:
+        - generic [ref=e23]: Tipo
+        - combobox "Tipo" [disabled] [ref=e24]:
+          - option "Sin especificar" [selected]
+          - option "Persona"
+          - option "Recurso físico"
+    - generic [ref=e25]:
+      - button "Cancelar" [disabled]
+      - button "Guardando..." [disabled]
+    - button "Close" [ref=e26] [cursor=pointer]:
+      - img
+      - generic [ref=e27]: Close
+```

@@ -1,19 +1,10 @@
 import { PrismaClient } from '@prisma/client'
 import { Resource, CreateResourceInput, UpdateResourceInput } from '@/domain/resources/resource.types'
-import { AppError, ResourceErrorCodes, ValidationErrorCodes, SystemErrorCodes } from '@/domain/common/errors'
+import { AppError, ResourceErrorCodes, ValidationErrorCodes } from '@/domain/common/errors'
 import { removeAllServiceLinksForResource } from './serviceResource.repo'
 
 function ensureResourceClient(prisma: PrismaClient): PrismaClient {
-    if ((prisma as unknown as { resource?: unknown }).resource) {
-        return prisma
-    }
-
-    // Fallback defensivo: re-instanciar PrismaClient directo si el adaptador global no tiene el modelo
-    const fallback = new PrismaClient()
-    if (!(fallback as unknown as { resource?: unknown }).resource) {
-        throw new AppError(SystemErrorCodes.DB_ERROR, 'Prisma Client no inicializado para Resource.', 500)
-    }
-    return fallback
+    return prisma
 }
 
 /**

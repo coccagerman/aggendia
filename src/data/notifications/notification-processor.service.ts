@@ -15,6 +15,8 @@ import {
     updateNotificationStatus,
     PendingNotificationWithAppointment
 } from '@/data/repositories/notification.repo'
+import { getBusinessOwnerUserId } from '@/data/repositories/business.repo'
+import { checkUserAccess } from '@/domain/subscriptions/subscription.service'
 import { resend, defaultFromEmail, isEmailEnabled } from '@/lib/resend/client'
 import { sendTemplateMessage, isWhatsAppEnabled, WHATSAPP_TEMPLATES } from '@/lib/whatsapp/client'
 import {
@@ -74,7 +76,8 @@ const SKIPPABLE_ERROR_PATTERNS = [
     'Business has no owner email',
     'Business has no owner phone',
     'Owner email notifications are disabled',
-    'Owner WhatsApp notifications are disabled'
+    'Owner WhatsApp notifications are disabled',
+    'Business owner subscription inactive'
 ]
 
 /**
@@ -590,8 +593,40 @@ export async function processNotifications(
         count: notifications.length
     })
 
+    // Cache subscription status per businessId to avoid redundant DB queries
+    const subscriptionCache = new Map<string, boolean>()
+
     for (const notification of notifications) {
         result.totalProcessed++
+
+        // ── Subscription gate: skip notifications for expired subscriptions ──
+        let isActive = subscriptionCache.get(notification.businessId)
+        if (isActive === undefined) {
+            const ownerUserId = await getBusinessOwnerUserId(prisma, notification.businessId)
+            if (ownerUserId) {
+                const { allowed } = await checkUserAccess(prisma, ownerUserId)
+                isActive = allowed
+            } else {
+                isActive = false
+            }
+            subscriptionCache.set(notification.businessId, isActive)
+        }
+
+        if (!isActive) {
+            await updateNotificationStatus(
+                prisma,
+                notification.id,
+                'FAILED',
+                undefined,
+                'Business owner subscription inactive'
+            )
+            result.skipped++
+            console.info('[NotificationProcessor] Notification skipped: subscription inactive', {
+                notificationId: notification.id,
+                businessId: notification.businessId
+            })
+            continue
+        }
 
         let sendResult: { success: boolean; error?: string }
 

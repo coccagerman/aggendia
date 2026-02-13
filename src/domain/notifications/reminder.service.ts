@@ -17,7 +17,8 @@ import { DateTime } from 'luxon'
 import { SendNotificationResult, SendReminderWhatsAppInput } from './notification.types'
 import { createNotification, updateNotificationStatus, notificationExists } from '@/data/repositories/notification.repo'
 import { findEligibleAppointmentsForReminders } from '@/data/repositories/appointment.repo'
-import { getBusinessesForReminderOffset } from '@/data/repositories/business.repo'
+import { getBusinessesForReminderOffset, getBusinessOwnerUserId } from '@/data/repositories/business.repo'
+import { checkUserAccess } from '@/domain/subscriptions/subscription.service'
 import { resend, defaultFromEmail, isEmailEnabled } from '@/lib/resend/client'
 import { sendTemplateMessage, isWhatsAppEnabled, WHATSAPP_TEMPLATES } from '@/lib/whatsapp/client'
 import { formatDateTimeForNotification, getTimezoneDisplayName } from '@/lib/notifications/notification-time'
@@ -602,6 +603,24 @@ export async function processReminders(
         now: now.toISOString()
     })
 
+    // Cache subscription status per businessId across all offsets
+    const subscriptionCache = new Map<string, boolean>()
+
+    async function isBusinessActive(bizId: string): Promise<boolean> {
+        let active = subscriptionCache.get(bizId)
+        if (active !== undefined) return active
+
+        const ownerUserId = await getBusinessOwnerUserId(prisma, bizId)
+        if (ownerUserId) {
+            const { allowed } = await checkUserAccess(prisma, ownerUserId)
+            active = allowed
+        } else {
+            active = false
+        }
+        subscriptionCache.set(bizId, active)
+        return active
+    }
+
     try {
         // Process each allowed offset
         for (const offset of ALLOWED_OFFSETS) {
@@ -614,8 +633,23 @@ export async function processReminders(
                 continue
             }
 
+            // Filter out businesses whose owner subscription is inactive
+            const activeBusinesses: typeof businesses = []
+            for (const biz of businesses) {
+                if (await isBusinessActive(biz.id)) {
+                    activeBusinesses.push(biz)
+                } else {
+                    console.info(`[Reminder] Skipping business: owner subscription inactive`, { businessId: biz.id })
+                }
+            }
+
+            if (activeBusinesses.length === 0) {
+                console.info(`[Reminder] No active businesses for offset ${offset}`)
+                continue
+            }
+
             const businessesByTimezone = new Map<string, string[]>()
-            for (const business of businesses) {
+            for (const business of activeBusinesses) {
                 const existing = businessesByTimezone.get(business.timezone)
                 if (existing) {
                     existing.push(business.id)

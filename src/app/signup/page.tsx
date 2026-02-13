@@ -22,6 +22,19 @@ export default function SignupPage() {
     const [error, setError] = useState<string | null>(searchParams.get('error'))
     const [successMessage, setSuccessMessage] = useState<string | null>(null)
 
+    // Preserve trial code from URL (e.g. /signup?trial=campana-2025) in localStorage
+    // so the business creation form can pick it up later.
+    const trialCode = searchParams.get('trial')
+    useState(() => {
+        if (trialCode) {
+            try {
+                localStorage.setItem('trialCode', trialCode)
+            } catch {
+                /* SSR guard */
+            }
+        }
+    })
+
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault()
         setError(null)

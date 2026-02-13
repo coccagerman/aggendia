@@ -66,10 +66,11 @@ export function ResourceActions({ resource, resourceLabel }: ResourceActionsProp
         setError(null)
 
         try {
-            const response = await fetch(`/api/v1/businesses/${resource.businessId}/resources/${resource.id}`, {
+            const response = await fetch(`/api/v1/businesses/${resource.businessId}/resources`, {
                 method: 'PATCH',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
+                    resourceId: resource.id,
                     name: editName,
                     type: editType || null
                 })
@@ -101,10 +102,10 @@ export function ResourceActions({ resource, resourceLabel }: ResourceActionsProp
 
         try {
             const newStatus = isActive ? 'INACTIVE' : 'ACTIVE'
-            const response = await fetch(`/api/v1/businesses/${resource.businessId}/resources/${resource.id}`, {
+            const response = await fetch(`/api/v1/businesses/${resource.businessId}/resources`, {
                 method: 'PATCH',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ status: newStatus })
+                body: JSON.stringify({ resourceId: resource.id, status: newStatus })
             })
 
             if (!response.ok) {
@@ -140,8 +141,10 @@ export function ResourceActions({ resource, resourceLabel }: ResourceActionsProp
         setDeleteError(null)
 
         try {
-            const response = await fetch(`/api/v1/businesses/${resource.businessId}/resources/${resource.id}`, {
-                method: 'DELETE'
+            const response = await fetch(`/api/v1/businesses/${resource.businessId}/resources`, {
+                method: 'DELETE',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ resourceId: resource.id })
             })
 
             if (!response.ok) {
@@ -167,10 +170,10 @@ export function ResourceActions({ resource, resourceLabel }: ResourceActionsProp
     const handleDeactivateFromDeleteError = async () => {
         setIsDeleting(true)
         try {
-            const response = await fetch(`/api/v1/businesses/${resource.businessId}/resources/${resource.id}`, {
+            const response = await fetch(`/api/v1/businesses/${resource.businessId}/resources`, {
                 method: 'PATCH',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ status: 'INACTIVE' })
+                body: JSON.stringify({ resourceId: resource.id, status: 'INACTIVE' })
             })
 
             if (!response.ok) {

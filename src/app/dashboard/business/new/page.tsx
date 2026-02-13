@@ -48,6 +48,14 @@ export default function NewBusinessPage() {
         setLoading(true)
 
         try {
+            // Check for a saved trial code from the signup flow
+            let trialCode: string | undefined
+            try {
+                trialCode = localStorage.getItem('trialCode') ?? undefined
+            } catch {
+                /* SSR guard */
+            }
+
             const response = await fetch('/api/v1/businesses', {
                 method: 'POST',
                 headers: {
@@ -57,7 +65,8 @@ export default function NewBusinessPage() {
                     name: formData.name,
                     timezone: formData.timezone,
                     address: formData.address || null,
-                    area: formData.area || null
+                    area: formData.area || null,
+                    ...(trialCode ? { trialCode } : {})
                 })
             })
 
@@ -69,6 +78,13 @@ export default function NewBusinessPage() {
                 setError(errorMessage)
                 setLoading(false)
                 return
+            }
+
+            // Clear the trial code after successful business creation
+            try {
+                localStorage.removeItem('trialCode')
+            } catch {
+                /* SSR guard */
             }
 
             // Éxito: redirigir a dashboard

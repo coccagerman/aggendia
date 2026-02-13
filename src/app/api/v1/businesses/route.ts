@@ -44,7 +44,8 @@ export async function POST(request: NextRequest) {
             return existing !== null
         })
 
-        // Crear business + member en transacción (con ownerEmail del usuario autenticado)
+        // Crear business + member en transacción
+        // Note: subscription is per-user (created at signup), not per-business
         const result = await createBusinessWithOwner(prisma, input, slug, userId, email)
 
         return NextResponse.json(

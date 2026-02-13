@@ -18,5 +18,24 @@ export const updateResourceSchema = z.object({
     status: z.enum(['ACTIVE', 'INACTIVE']).optional()
 })
 
+/**
+ * Schema para actualizar un recurso vía colección (PATCH /resources)
+ */
+export const patchResourceByIdSchema = z.object({
+    resourceId: z.string().uuid('resourceId inválido'),
+    name: z.string().trim().min(1).max(100).optional(),
+    type: z.enum(['PERSON', 'ASSET']).optional().nullable(),
+    status: z.enum(['ACTIVE', 'INACTIVE']).optional()
+})
+
+/**
+ * Schema para eliminar un recurso vía colección (DELETE /resources)
+ */
+export const deleteResourceByIdSchema = z.object({
+    resourceId: z.string().uuid('resourceId inválido')
+})
+
 export type CreateResourceRequest = z.infer<typeof createResourceSchema>
 export type UpdateResourceRequest = z.infer<typeof updateResourceSchema>
+export type PatchResourceByIdRequest = z.infer<typeof patchResourceByIdSchema>
+export type DeleteResourceByIdRequest = z.infer<typeof deleteResourceByIdSchema>

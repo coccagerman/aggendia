@@ -64,13 +64,13 @@ model Business {
   createdAt                     DateTime       @default(now())
   updatedAt                     DateTime       @updatedAt
 
-  members           BusinessMember[]
-  resources         Resource[]
-  services          Service[]
-  serviceResources  ServiceResource[]
-  customers         Customer[]
-  appointments      Appointment[]
-  notifications     Notification[]
+  members                  BusinessMember[]
+  resources                Resource[]
+  services                 Service[]
+  serviceResources         ServiceResource[]
+  customers                Customer[]
+  appointments             Appointment[]
+  notifications            Notification[]
 
   @@index([status])
 }
@@ -154,8 +154,8 @@ model Service {
 model ResourceBlock {
   id         String   @id @default(uuid())
   resourceId String
-  startAt    DateTime // timestamptz - inicio del bloqueo (UTC)
-  endAt      DateTime // timestamptz - fin del bloqueo (UTC)
+  startAt    DateTime // inicio del bloqueo (UTC)
+  endAt      DateTime // fin del bloqueo (UTC)
   reason     String?  // motivo opcional
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
@@ -220,9 +220,9 @@ model Appointment {
   serviceId          String
   customerId         String
   status             AppointmentStatus @default(SCHEDULED)
-  startAt            DateTime          // timestamptz - inicio del turno (UTC)
-  endAt              DateTime          // timestamptz - fin del turno (UTC) = startAt + duration
-  occupiedEndAt      DateTime          // timestamptz - fin ocupación (UTC) = startAt + slotInterval
+  startAt            DateTime          @db.Timestamptz // inicio del turno (UTC)
+  endAt              DateTime          @db.Timestamptz // fin del turno (UTC) = startAt + duration
+  occupiedEndAt      DateTime          @db.Timestamptz // fin ocupación (UTC) = startAt + slotInterval
   notes              String?
   cancellationReason String?
   createdByUserId    String?           // null si fue creado por cliente público
@@ -282,11 +282,11 @@ model Notification {
   recipient     NotificationRecipient @default(CUSTOMER)
   to            String                // email address or phone_e164
   status        NotificationStatus    @default(PENDING)
-  scheduledFor  DateTime              // When the notification should be sent
-  sentAt        DateTime?             // When it was actually sent
+  scheduledFor  DateTime              @db.Timestamptz // When the notification should be sent
+  sentAt        DateTime?             @db.Timestamptz // When it was actually sent
   error         String?               // Error message if failed
-  createdAt     DateTime              @default(now())
-  updatedAt     DateTime              @updatedAt
+  createdAt     DateTime              @default(now()) @db.Timestamptz
+  updatedAt     DateTime              @updatedAt @db.Timestamptz
 
   business    Business    @relation(fields: [businessId], references: [id], onDelete: Cascade)
   appointment Appointment @relation(fields: [appointmentId], references: [id], onDelete: Cascade)
@@ -299,4 +299,166 @@ model Notification {
   @@index([status])
   @@index([channel])
   @@index([recipient])
+}
+
+// ============================================================================
+// Subscriptions & Payments
+// ============================================================================
+
+enum SubscriptionStatus {
+  TRIALING
+  ACTIVE
+  PAST_DUE
+  CANCELED
+  EXPIRED
+}
+
+enum TrialType {
+  STANDARD
+  SPECIAL
+}
+
+enum PaymentProvider {
+  STRIPE
+  MERCADOPAGO
+}
+
+enum PaymentTransactionType {
+  PAYMENT_SUCCEEDED
+  PAYMENT_FAILED
+  REFUND
+}
+
+enum PaymentTransactionStatus {
+  SUCCEEDED
+  FAILED
+  PENDING
+}
+
+enum SubscriptionNotificationType {
+  TRIAL_EXPIRING
+  TRIAL_EXPIRED
+  PAYMENT_FAILED
+  SUBSCRIPTION_CANCELED
+}
+
+model SubscriptionPlan {
+  id              String   @id @default(uuid())
+  name            String   // e.g. "Pro Mensual"
+  slug            String   @unique // e.g. "pro-monthly"
+  priceCents      Int      // e.g. 4990
+  currency        String   // e.g. "ARS", "USD"
+  intervalMonths  Int      @default(1)
+  isActive        Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  subscriptions   Subscription[]
+}
+
+model Subscription {
+  id                       String             @id @default(uuid())
+  userId                   String             @unique // Supabase Auth user UUID
+  planId                   String?
+  status                   SubscriptionStatus @default(TRIALING)
+  trialStartsAt            DateTime
+  trialEndsAt              DateTime
+  currentPeriodStart       DateTime?
+  currentPeriodEnd         DateTime?
+  cancelAt                 DateTime?          // "cancel at end of period" target date
+  canceledAt               DateTime?          // when cancellation was requested
+  gracePeriodEndsAt        DateTime?
+  paymentProvider          PaymentProvider?
+  providerCustomerId       String?            // customer ID in provider
+  providerSubscriptionId   String?            // subscription ID in provider
+  trialType                TrialType          @default(STANDARD)
+  trialLinkId              String?
+  createdAt                DateTime           @default(now())
+  updatedAt                DateTime           @updatedAt
+
+  plan                     SubscriptionPlan?  @relation(fields: [planId], references: [id])
+  trialLink                TrialLink?         @relation(fields: [trialLinkId], references: [id])
+  paymentTransactions      PaymentTransaction[]
+  subscriptionNotifications SubscriptionNotification[]
+
+  @@index([status])
+  @@index([trialEndsAt])
+  @@index([currentPeriodEnd])
+}
+
+model PaymentTransaction {
+  id                String                   @id @default(uuid())
+  subscriptionId    String
+  provider          PaymentProvider
+  providerEventId   String                   @unique // idempotency key
+  providerPaymentId String?
+  type              PaymentTransactionType
+  amountCents       Int
+  currency          String
+  status            PaymentTransactionStatus
+  metadata          Json?                    // raw provider payload
+  createdAt         DateTime                 @default(now())
+
+  subscription      Subscription             @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+
+  @@index([subscriptionId])
+}
+
+model TrialLink {
+  id         String    @id @default(uuid())
+  code       String    @unique
+  trialDays  Int       @default(60)
+  maxUses    Int?      // null = unlimited
+  usedCount  Int       @default(0)
+  expiresAt  DateTime?
+  isActive   Boolean   @default(true)
+  metadata   Json?     // campaign, source, etc.
+  createdBy  String?   // who generated this link
+  createdAt  DateTime  @default(now())
+
+  usages        TrialLinkUsage[]
+  subscriptions Subscription[]
+}
+
+model TrialLinkUsage {
+  id          String    @id @default(uuid())
+  trialLinkId String
+  userId      String    // Supabase Auth user UUID
+  usedAt      DateTime  @default(now())
+  convertedAt DateTime? // set when the user pays (for conversion metrics)
+
+  trialLink   TrialLink @relation(fields: [trialLinkId], references: [id], onDelete: Cascade)
+
+  @@unique([trialLinkId, userId])
+  @@index([trialLinkId])
+}
+
+model SubscriptionConfig {
+  id          String   @id @default(uuid())
+  key         String   @unique
+  value       String
+  description String?
+  updatedAt   DateTime @updatedAt
+}
+
+model SubscriptionNotification {
+  id              String                       @id @default(uuid())
+  subscriptionId  String
+  userId          String                       // Supabase Auth user UUID
+  type            SubscriptionNotificationType
+  channel         NotificationChannel          @default(EMAIL)
+  daysRemaining   Int?                         // for trial warnings
+  to              String                       // email destination
+  status          NotificationStatus           @default(PENDING)
+  sentAt          DateTime?
+  error           String?
+  createdAt       DateTime                     @default(now())
+
+  subscription    Subscription                 @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+
+  // Idempotency: one notification per subscription per type per day
+  @@unique([subscriptionId, type, daysRemaining])
+  @@index([subscriptionId])
+  @@index([userId])
+  @@index([status])
 }

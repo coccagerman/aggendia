@@ -13,13 +13,14 @@ import {
     AppointmentErrorCodes,
     ValidationErrorCodes
 } from '@/domain/common/errors'
-import { findActiveBusinessBySlug } from '@/data/repositories/business.repo'
+import { findActiveBusinessBySlug, getBusinessOwnerUserId } from '@/data/repositories/business.repo'
 import { getServiceById } from '@/data/repositories/service.repo'
 import { getResourceById } from '@/data/repositories/resource.repo'
 import { upsertCustomer } from '@/data/repositories/customer.repo'
 import { createAppointment, isSlotAvailable } from '@/data/repositories/appointment.repo'
 import { getAvailabilityByResourceId } from '@/data/repositories/availability.repo'
 import { isWithinAvailability } from '@/domain/availability/availability.service'
+import { checkUserAccess } from '@/domain/subscriptions/subscription.service'
 import {
     sendConfirmationEmail,
     sendConfirmationWhatsApp,
@@ -46,6 +47,16 @@ export async function createPublicAppointment(
     const business = await findActiveBusinessBySlug(prisma, input.slug)
     if (!business) {
         throw new AppError(BusinessErrorCodes.BUSINESS_NOT_FOUND, 'Negocio no encontrado', 404)
+    }
+
+    // 1b. Block if business owner's subscription is expired
+    const ownerUserId = await getBusinessOwnerUserId(prisma, business.id)
+    if (!ownerUserId) {
+        throw new AppError(BusinessErrorCodes.BUSINESS_NOT_FOUND, 'Negocio no encontrado', 404)
+    }
+    const { allowed: subAllowed } = await checkUserAccess(prisma, ownerUserId)
+    if (!subAllowed) {
+        throw new AppError(BusinessErrorCodes.BUSINESS_NOT_FOUND, 'Negocio no disponible', 404)
     }
 
     // 2. Validate service exists and is ACTIVE

@@ -1,12 +1,13 @@
 import { notFound } from 'next/navigation'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { findActiveBusinessBySlug } from '@/data/repositories/business.repo'
+import { findActiveBusinessBySlug, getBusinessOwnerUserId } from '@/data/repositories/business.repo'
 import { getActiveServicesByBusinessId } from '@/data/repositories/service.repo'
 import { getServiceIdsWithActiveResources } from '@/data/repositories/serviceResource.repo'
 import { prisma } from '@/data/prisma/prisma'
 import { Service } from '@/domain/services/service.types'
 import { formatPrice } from '@/lib/format'
 import { ServiceCard } from './service-card'
+import { checkUserAccess } from '@/domain/subscriptions/subscription.service'
 
 // Forzar renderizado dinámico para mostrar datos actualizados
 export const dynamic = 'force-dynamic'
@@ -28,6 +29,16 @@ export default async function PublicBusinessPage({ params }: PageProps) {
     }
 
     if (!business) {
+        notFound()
+    }
+
+    // Block public page if business owner's subscription is expired
+    const ownerUserId = await getBusinessOwnerUserId(prisma, business.id)
+    if (!ownerUserId) {
+        notFound()
+    }
+    const { allowed } = await checkUserAccess(prisma, ownerUserId)
+    if (!allowed) {
         notFound()
     }
 
