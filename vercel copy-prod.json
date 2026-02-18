@@ -3,15 +3,15 @@
     "crons": [
         {
             "path": "/api/cron/reminders",
-            "schedule": "0 3 * * *"
+            "schedule": "*/5 * * * *"
         },
         {
             "path": "/api/cron/notifications",
-            "schedule": "20 3 * * *"
+            "schedule": "5 * * * *"
         },
         {
             "path": "/api/cron/trial-warnings",
-            "schedule": "40 3 * * *"
+            "schedule": "0 9 * * *"
         }
     ]
 }
