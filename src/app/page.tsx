@@ -39,8 +39,9 @@ export default function Home() {
                                     <ArrowRight className='ml-2 h-4 w-4' />
                                 </Link>
                             </Button>
-                            <Button asChild variant='outline' size='lg' className='w-full sm:w-auto'>
-                                <Link href='/subscription'>Ver planes y suscribirme</Link>
+
+                            <Button asChild variant='ghost' size='lg' className='w-full sm:w-auto'>
+                                <Link href='/login'>¿Ya tenés tu cuenta? Iniciar sesión</Link>
                             </Button>
                         </div>
                     </div>

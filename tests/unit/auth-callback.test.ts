@@ -92,7 +92,7 @@ describe('GET /auth/callback', () => {
             error: null,
             data: { user: { id: 'test-user-id' }, session: {} }
         })
-        mockGetSubscriptionByUserId.mockResolvedValue({ id: 'existing-sub' })
+        mockGetSubscriptionByUserId.mockResolvedValue({ id: 'existing-sub', countryIso2: 'AR' })
 
         const request = buildRequest('/auth/callback?code=valid-code')
 

@@ -38,16 +38,28 @@ function GoogleIcon({ className }: { className?: string }) {
  * Funciona tanto para login como signup — Supabase decide si crear
  * un usuario nuevo o reutilizar uno existente según el email.
  */
-export function GoogleSignInButton() {
+interface GoogleSignInButtonProps {
+    countryIso2?: string | null
+    requireCountry?: boolean
+}
+
+export function GoogleSignInButton({ countryIso2 = null, requireCountry = false }: GoogleSignInButtonProps) {
     const [loading, setLoading] = useState(false)
     const [error, setError] = useState<string | null>(null)
 
     const handleGoogleSignIn = async () => {
         setError(null)
+
+        if (requireCountry && !countryIso2) {
+            setError('Seleccioná tu país para continuar con Google.')
+            return
+        }
+
         setLoading(true)
 
         try {
             const supabase = createClient()
+
             const { error: oauthError } = await supabase.auth.signInWithOAuth({
                 provider: 'google',
                 options: {

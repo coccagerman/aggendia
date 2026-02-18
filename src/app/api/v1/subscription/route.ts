@@ -28,6 +28,7 @@ export async function GET() {
         return NextResponse.json({
             data: {
                 id: subscription.id,
+                countryIso2: subscription.countryIso2,
                 status: subscription.status,
                 trialStartsAt: subscription.trialStartsAt,
                 trialEndsAt: subscription.trialEndsAt,

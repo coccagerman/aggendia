@@ -29,13 +29,6 @@ describe('Home Page', () => {
         expect(signupButton).toHaveAttribute('href', '/signup')
     })
 
-    it('renders direct subscribe CTA button', () => {
-        render(<Home />)
-        const subscribeButton = screen.getByRole('link', { name: /Ver planes y suscribirme/i })
-        expect(subscribeButton).toBeInTheDocument()
-        expect(subscribeButton).toHaveAttribute('href', '/subscription')
-    })
-
     it('renders benefits section', () => {
         render(<Home />)
         // Verificar que hay sección de beneficios con iconos y textos clave

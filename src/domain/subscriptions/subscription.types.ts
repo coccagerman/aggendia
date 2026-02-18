@@ -27,6 +27,7 @@ export type SubscriptionNotificationType =
 export interface Subscription {
     id: string
     userId: string
+    countryIso2: string | null
     planId: string | null
     scheduledPlanId: string | null
     status: SubscriptionStatus

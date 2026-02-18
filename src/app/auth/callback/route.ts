@@ -78,6 +78,11 @@ export async function GET(request: NextRequest) {
                 await startTrial(prisma, data.user.id, SUBSCRIPTION_DEFAULTS.DEFAULT_TRIAL_DAYS, 'STANDARD')
                 console.info(`[Auth:Callback] Created trial subscription for new user ${data.user.id}`)
             }
+
+            const currentSubscription = await getSubscriptionByUserId(prisma, data.user.id)
+            if (currentSubscription && !currentSubscription.countryIso2) {
+                supabaseResponse.headers.set('Location', new URL('/onboarding/country', origin).toString())
+            }
         } catch (subError) {
             // Non-blocking: log the error but don't prevent login.
             // The dashboard layout will redirect to subscription-expired if no sub.

@@ -48,6 +48,7 @@ interface SubscriptionSettingsClientProps {
     showPremiumDowngradeWarning: boolean
     checkoutResult: string | null
     checkoutSessionId: string | null
+    checkoutPreapprovalId: string | null
 }
 
 const STATUS_LABELS: Record<
@@ -83,7 +84,8 @@ export function SubscriptionSettingsClient({
     plans,
     showPremiumDowngradeWarning,
     checkoutResult,
-    checkoutSessionId
+    checkoutSessionId,
+    checkoutPreapprovalId
 }: SubscriptionSettingsClientProps) {
     const router = useRouter()
     const [checkoutLoading, setCheckoutLoading] = useState<string | null>(null)
@@ -106,7 +108,10 @@ export function SubscriptionSettingsClient({
                 await fetch('/api/v1/subscription/sync-checkout', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ sessionId: checkoutSessionId ?? undefined })
+                    body: JSON.stringify({
+                        sessionId: checkoutSessionId ?? undefined,
+                        preapprovalId: checkoutPreapprovalId ?? undefined
+                    })
                 })
             } catch {
                 // Keep UX non-blocking; webhook may still update shortly.
@@ -123,7 +128,7 @@ export function SubscriptionSettingsClient({
         return () => {
             isCancelled = true
         }
-    }, [checkoutResult, checkoutSessionId, router])
+    }, [checkoutResult, checkoutSessionId, checkoutPreapprovalId, router])
 
     const handleCheckout = async (planId: string) => {
         setInfoMessage(null)

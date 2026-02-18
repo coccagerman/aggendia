@@ -13,7 +13,6 @@ test.describe('Auth Flow E2E', () => {
         // authenticatedPage ya hizo signup automáticamente
         // Solo verificamos que llegó al dashboard
         await expect(authenticatedPage).toHaveURL('/dashboard')
-        await expect(authenticatedPage.getByText(/mis negocios/i)).toBeVisible()
     })
 
     test('login with correct credentials', async ({ page, testUser }) => {

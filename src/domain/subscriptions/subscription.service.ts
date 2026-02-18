@@ -60,7 +60,8 @@ export async function startTrial(
     userId: string,
     trialDays: number,
     trialType: TrialType,
-    trialLinkId?: string
+    trialLinkId?: string,
+    countryIso2?: string | null
 ): Promise<Subscription> {
     // Check if subscription already exists
     const existing = await getSubscriptionByUserId(prisma, userId)
@@ -77,6 +78,7 @@ export async function startTrial(
 
     return createSubscriptionRepo(prisma, {
         userId,
+        countryIso2,
         trialStartsAt: now,
         trialEndsAt,
         trialType,

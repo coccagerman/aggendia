@@ -36,6 +36,10 @@ export default async function DashboardLayout({ children }: { children: React.Re
         redirect('/subscription-expired')
     }
 
+    if (!subscription?.countryIso2) {
+        redirect('/onboarding/country')
+    }
+
     // Determine if we need a global warning banner
     const showBanner = subscription ? isWarningState(subscription.status) : false
     const now = new Date()

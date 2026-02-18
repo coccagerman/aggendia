@@ -8,28 +8,8 @@ import { reactivateSubscriptionRequestSchema } from '../dto'
 import { AppError, ValidationErrorCodes } from '@/domain/common/errors'
 import { SubscriptionErrorCodes } from '@/domain/subscriptions/subscription.errors'
 import { reactivateCanceledSubscription } from '@/domain/subscriptions/subscription.service'
-
-function resolveStripePriceId(planSlug: string): string {
-    const normalizedSlug = planSlug.toLowerCase()
-
-    if (normalizedSlug === 'base' && process.env.STRIPE_PRICE_ID_BASE) {
-        return process.env.STRIPE_PRICE_ID_BASE
-    }
-
-    if (normalizedSlug === 'premium' && process.env.STRIPE_PRICE_ID_PREMIUM) {
-        return process.env.STRIPE_PRICE_ID_PREMIUM
-    }
-
-    if (process.env.STRIPE_PRICE_ID) {
-        return process.env.STRIPE_PRICE_ID
-    }
-
-    throw new AppError(
-        SubscriptionErrorCodes.PAYMENT_PROVIDER_ERROR,
-        `No hay Price ID configurado para el plan ${planSlug}. Configurá STRIPE_PRICE_ID_${normalizedSlug.toUpperCase()}.`,
-        500
-    )
-}
+import { resolvePaymentRouting } from '@/domain/subscriptions/payment-provider-selection'
+import { resolvePlanPriceId } from '@/lib/payments/plan-price-id'
 
 /**
  * POST /api/v1/subscription/reactivate
@@ -102,10 +82,16 @@ export async function POST(request: NextRequest) {
         const isUpgrade = targetPlan.priceCents > currentPlan.priceCents
 
         if (!isSamePlan) {
-            const stripePriceId = resolveStripePriceId(targetPlan.slug)
+            const paymentRouting = resolvePaymentRouting(subscription.countryIso2)
+            const planPriceId = resolvePlanPriceId({
+                provider: subscription.paymentProvider,
+                planSlug: targetPlan.slug,
+                currency: paymentRouting.currency
+            })
+
             await provider.changeSubscriptionPlan({
                 providerSubscriptionId: subscription.providerSubscriptionId,
-                newPlanPriceId: stripePriceId,
+                newPlanPriceId: planPriceId,
                 effective: isUpgrade ? 'immediate_prorated' : 'next_renewal'
             })
         }

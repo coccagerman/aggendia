@@ -21,7 +21,7 @@ import type {
 // ============================================================================
 
 export async function getSubscriptionByUserId(prisma: PrismaClient, userId: string): Promise<Subscription | null> {
-    return prisma.subscription.findUnique({
+    return prisma.subscription.findFirst({
         where: { userId }
     })
 }
@@ -115,6 +115,7 @@ export async function createSubscription(
     prisma: PrismaClient,
     input: {
         userId: string
+        countryIso2?: string | null
         trialStartsAt: Date
         trialEndsAt: Date
         trialType: TrialType
@@ -124,6 +125,7 @@ export async function createSubscription(
     return prisma.subscription.create({
         data: {
             userId: input.userId,
+            countryIso2: input.countryIso2 ?? null,
             status: 'TRIALING',
             trialStartsAt: input.trialStartsAt,
             trialEndsAt: input.trialEndsAt,
@@ -212,6 +214,7 @@ export async function createSubscriptionInTransaction(
     tx: Prisma.TransactionClient,
     input: {
         userId: string
+        countryIso2?: string | null
         trialStartsAt: Date
         trialEndsAt: Date
         trialType: TrialType
@@ -221,11 +224,25 @@ export async function createSubscriptionInTransaction(
     return tx.subscription.create({
         data: {
             userId: input.userId,
+            countryIso2: input.countryIso2 ?? null,
             status: 'TRIALING',
             trialStartsAt: input.trialStartsAt,
             trialEndsAt: input.trialEndsAt,
             trialType: input.trialType,
             trialLinkId: input.trialLinkId ?? null
+        }
+    })
+}
+
+export async function updateSubscriptionCountry(
+    prisma: PrismaClient,
+    subscriptionId: string,
+    countryIso2: string
+): Promise<Subscription> {
+    return prisma.subscription.update({
+        where: { id: subscriptionId },
+        data: {
+            countryIso2
         }
     })
 }

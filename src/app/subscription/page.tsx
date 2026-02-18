@@ -10,7 +10,7 @@ import { SubscriptionSettingsClient } from '@/components/dashboard/subscription-
 import { Button } from '@/components/ui/button'
 
 interface PageProps {
-    searchParams: Promise<{ checkout?: string; session_id?: string }>
+    searchParams: Promise<{ checkout?: string; session_id?: string; preapproval_id?: string }>
 }
 
 /**
@@ -18,7 +18,7 @@ interface PageProps {
  * Lives outside /dashboard gate so expired users can always manage billing.
  */
 export default async function SubscriptionPage({ searchParams }: PageProps) {
-    const { checkout, session_id: sessionId } = await searchParams
+    const { checkout, session_id: sessionId, preapproval_id: preapprovalId } = await searchParams
 
     const supabase = await createClient()
     const {
@@ -92,6 +92,7 @@ export default async function SubscriptionPage({ searchParams }: PageProps) {
                     showPremiumDowngradeWarning={showPremiumDowngradeWarning}
                     checkoutResult={checkout ?? null}
                     checkoutSessionId={sessionId ?? null}
+                    checkoutPreapprovalId={preapprovalId ?? null}
                 />
             </main>
         </div>

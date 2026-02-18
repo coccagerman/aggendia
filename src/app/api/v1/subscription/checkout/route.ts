@@ -16,31 +16,10 @@ import { AppError, ValidationErrorCodes } from '@/domain/common/errors'
 import { SubscriptionErrorCodes } from '@/domain/subscriptions/subscription.errors'
 import { startTrial } from '@/domain/subscriptions/subscription.service'
 import { SUBSCRIPTION_DEFAULTS } from '@/domain/subscriptions/subscription.types'
+import { resolvePaymentRouting } from '@/domain/subscriptions/payment-provider-selection'
+import { resolvePlanPriceId } from '@/lib/payments/plan-price-id'
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
-
-function resolveStripePriceId(planSlug: string): string {
-    const normalizedSlug = planSlug.toLowerCase()
-
-    if (normalizedSlug === 'base' && process.env.STRIPE_PRICE_ID_BASE) {
-        return process.env.STRIPE_PRICE_ID_BASE
-    }
-
-    if (normalizedSlug === 'premium' && process.env.STRIPE_PRICE_ID_PREMIUM) {
-        return process.env.STRIPE_PRICE_ID_PREMIUM
-    }
-
-    // Backward compatibility fallback
-    if (process.env.STRIPE_PRICE_ID) {
-        return process.env.STRIPE_PRICE_ID
-    }
-
-    throw new AppError(
-        SubscriptionErrorCodes.PAYMENT_PROVIDER_ERROR,
-        `No hay Price ID configurado para el plan ${planSlug}. Configurá STRIPE_PRICE_ID_${normalizedSlug.toUpperCase()}.`,
-        500
-    )
-}
 
 export async function POST(request: NextRequest) {
     try {
@@ -95,7 +74,24 @@ export async function POST(request: NextRequest) {
             throw new AppError(SubscriptionErrorCodes.SUBSCRIPTION_ALREADY_EXISTS, 'Ya tenés este plan activo.', 409)
         }
 
-        const provider = getPaymentProvider('STRIPE')
+        const countryIso2 = subscription.countryIso2
+
+        if (!countryIso2) {
+            throw new AppError(
+                ValidationErrorCodes.VALIDATION_ERROR,
+                'Necesitamos que confirmes tu país antes de iniciar el checkout.',
+                400
+            )
+        }
+
+        const paymentRouting = resolvePaymentRouting(countryIso2)
+        const planPriceId = resolvePlanPriceId({
+            provider: paymentRouting.provider,
+            planSlug: plan.slug,
+            currency: paymentRouting.currency
+        })
+
+        const provider = getPaymentProvider(paymentRouting.provider)
 
         // Create or reuse Stripe customer
         let providerCustomerId = subscription.providerCustomerId
@@ -114,18 +110,22 @@ export async function POST(request: NextRequest) {
             where: { id: subscription.id },
             data: {
                 planId,
+                countryIso2,
                 providerCustomerId,
-                paymentProvider: 'STRIPE'
+                paymentProvider: paymentRouting.provider
             }
         })
 
-        // Create Checkout Session
-        const stripePriceId = resolveStripePriceId(plan.slug)
+        const successUrl =
+            paymentRouting.provider === 'STRIPE'
+                ? `${APP_URL}/subscription?checkout=success&session_id={CHECKOUT_SESSION_ID}`
+                : `${APP_URL}/subscription?checkout=success`
+
         const session = await provider.createCheckoutSession({
             providerCustomerId,
-            planPriceId: stripePriceId,
+            planPriceId,
             businessId: userId,
-            successUrl: `${APP_URL}/subscription?checkout=success&session_id={CHECKOUT_SESSION_ID}`,
+            successUrl,
             cancelUrl: `${APP_URL}/subscription?checkout=canceled`
         })
 

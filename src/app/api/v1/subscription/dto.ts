@@ -7,6 +7,10 @@ import { z } from 'zod'
 // GET /api/v1/subscription
 export const subscriptionResponseSchema = z.object({
     id: z.string().uuid(),
+    countryIso2: z
+        .string()
+        .regex(/^[A-Z]{2}$/)
+        .nullable(),
     status: z.enum(['TRIALING', 'ACTIVE', 'PAST_DUE', 'CANCELED', 'EXPIRED']),
     trialStartsAt: z.date().nullable(),
     trialEndsAt: z.date().nullable(),
@@ -31,7 +35,8 @@ export const cancelSubscriptionRequestSchema = z.object({
 
 // POST /api/v1/subscription/sync-checkout
 export const syncCheckoutRequestSchema = z.object({
-    sessionId: z.string().trim().min(1).optional()
+    sessionId: z.string().trim().min(1).optional(),
+    preapprovalId: z.string().trim().min(1).optional()
 })
 
 // POST /api/v1/subscription/change-plan

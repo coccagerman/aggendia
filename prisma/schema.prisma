@@ -360,6 +360,7 @@ model SubscriptionPlan {
 model Subscription {
   id                       String             @id @default(uuid())
   userId                   String             @unique // Supabase Auth user UUID
+  countryIso2              String?
   planId                   String?
   scheduledPlanId          String?
   status                   SubscriptionStatus @default(TRIALING)
@@ -386,6 +387,7 @@ model Subscription {
   subscriptionNotifications SubscriptionNotification[]
 
   @@index([status])
+  @@index([countryIso2])
   @@index([trialEndsAt])
   @@index([currentPeriodEnd])
   @@index([scheduledPlanId])

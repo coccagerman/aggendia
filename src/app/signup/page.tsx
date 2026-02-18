@@ -82,8 +82,8 @@ function SignupPageContent() {
                 return
             }
 
-            // Redirigir al dashboard tras registro exitoso
-            router.push('/dashboard')
+            // Después del registro, el siguiente paso es confirmar país
+            router.push('/onboarding/country')
             router.refresh()
             // No llamamos setLoading(false) aquí porque el componente se desmonta tras el redirect
         } catch {

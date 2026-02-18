@@ -7,6 +7,40 @@
 import { expect, Page } from '@playwright/test'
 import { generateTestEmail as generateTestEmailFromHelper } from './unique-id.helper'
 
+async function completeCountryOnboardingIfNeeded(page: Page) {
+    if (!page.url().includes('/onboarding/country')) {
+        return
+    }
+
+    // For fixture setup, use API to avoid flaky UI timing/hydration issues.
+    let lastError = ''
+    for (let attempt = 1; attempt <= 3; attempt++) {
+        const response = await page.request.post('/api/v1/auth/country', {
+            data: { countryIso2: 'AR' }
+        })
+
+        if (response.ok()) {
+            await page.goto('/dashboard', { waitUntil: 'domcontentloaded', timeout: 45000 })
+            return
+        }
+
+        lastError = await response.text().catch(() => '')
+        await page.waitForTimeout(250 * attempt)
+    }
+
+    throw new Error(`Failed to set country via API fallback after retries: ${lastError}`)
+}
+
+async function waitForAuthLanding(page: Page, timeout = 20000) {
+    await page.waitForURL(
+        url => {
+            const href = url.toString()
+            return href.includes('/dashboard') || href.includes('/onboarding/country') || href.includes('/login')
+        },
+        { timeout }
+    )
+}
+
 export async function signupUser(page: Page, email: string, password: string) {
     await page.goto('/signup', { waitUntil: 'domcontentloaded', timeout: 45000 })
     await expect(page.getByLabel(/email/i)).toBeVisible({ timeout: 10000 })
@@ -30,17 +64,13 @@ export async function signupUser(page: Page, email: string, password: string) {
         // Email confirmation required: fall back to manual login
         await page.goto('/login', { waitUntil: 'domcontentloaded', timeout: 45000 })
     } else if (status === 200) {
-        // Wait for navigation to complete - use domcontentloaded as networkidle can be flaky
-        await page.waitForLoadState('domcontentloaded', { timeout: 10000 })
+        await waitForAuthLanding(page)
     } else {
         const body = await response.json().catch(() => ({}))
         throw new Error(`Signup failed (status ${status}): ${JSON.stringify(body)}`)
     }
 
-    // If we already landed on dashboard, finish
-    if (page.url().includes('/dashboard')) {
-        return
-    }
+    await completeCountryOnboardingIfNeeded(page)
 
     // If we were redirected to login or stayed on signup, perform an explicit login
     if (page.url().includes('/login') || page.url().includes('/signup')) {
@@ -49,7 +79,10 @@ export async function signupUser(page: Page, email: string, password: string) {
         await page.getByLabel(/email/i).fill(email)
         await page.getByLabel(/contraseña/i).fill(password)
         await page.getByRole('button', { name: /iniciar sesión/i }).click()
+        await waitForAuthLanding(page)
     }
+
+    await completeCountryOnboardingIfNeeded(page)
 
     // Wait for final redirect to dashboard (covers auto-redirect or manual login)
     await page.waitForURL('**/dashboard', { timeout: 20000 })
@@ -61,6 +94,9 @@ export async function loginUser(page: Page, email: string, password: string) {
     await page.getByLabel(/email/i).fill(email)
     await page.getByLabel(/contraseña/i).fill(password)
     await page.getByRole('button', { name: /iniciar sesión/i }).click()
+
+    await waitForAuthLanding(page)
+    await completeCountryOnboardingIfNeeded(page)
 
     // Wait for redirect to dashboard
     await page.waitForURL('**/dashboard', { timeout: 20000 })
