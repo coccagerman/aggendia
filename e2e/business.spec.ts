@@ -56,7 +56,7 @@ test.describe('Business Creation E2E', () => {
         await page.getByRole('button', { name: /crear negocio/i }).click()
 
         // Should show client-side validation error
-        await expect(page.getByText('El nombre del negocio es requerido.')).toBeVisible()
+        await expect(page.getByText('El nombre del negocio o sede es requerido.')).toBeVisible()
     })
 })
 

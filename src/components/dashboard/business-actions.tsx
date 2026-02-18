@@ -99,7 +99,7 @@ export function BusinessActions({ business }: BusinessActionsProps) {
             }
 
             setIsEditOpen(false)
-            toast.success('Negocio actualizado correctamente.')
+            toast.success('Negocio o sede actualizado correctamente.')
             router.refresh()
         } catch {
             setError('Error de conexión. Intentá nuevamente.')
@@ -122,12 +122,12 @@ export function BusinessActions({ business }: BusinessActionsProps) {
 
             if (!response.ok) {
                 const data = await response.json()
-                toast.error(data.error?.message || 'Error al cambiar el estado del negocio.')
+                toast.error(data.error?.message || 'Error al cambiar el estado del negocio o sede.')
                 return
             }
 
             setIsDeactivateOpen(false)
-            toast.success(isActive ? 'Negocio desactivado.' : 'Negocio activado.')
+            toast.success(isActive ? 'Negocio o sede desactivado.' : 'Negocio o sede activado.')
             router.refresh()
         } catch {
             toast.error('Error de conexión. Intentá nuevamente.')
@@ -185,7 +185,7 @@ export function BusinessActions({ business }: BusinessActionsProps) {
             }
 
             setIsDeleteOpen(false)
-            toast.success('Negocio eliminado correctamente.')
+            toast.success('Negocio o sede eliminado correctamente.')
             router.refresh()
         } catch {
             setDeleteError('Error de conexión. Intentá nuevamente.')
@@ -246,8 +246,8 @@ export function BusinessActions({ business }: BusinessActionsProps) {
             <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
                 <DialogContent>
                     <DialogHeader>
-                        <DialogTitle>Editar negocio</DialogTitle>
-                        <DialogDescription>Modificá los datos del negocio.</DialogDescription>
+                        <DialogTitle>Editar negocio o sede</DialogTitle>
+                        <DialogDescription>Modificá los datos del negocio o sede.</DialogDescription>
                     </DialogHeader>
 
                     <div className='space-y-4 py-4'>
@@ -263,7 +263,7 @@ export function BusinessActions({ business }: BusinessActionsProps) {
                                 id='edit-business-name'
                                 value={editName}
                                 onChange={e => setEditName(e.target.value)}
-                                placeholder='Nombre del negocio'
+                                placeholder='Nombre del negocio o sede'
                                 disabled={isSubmitting}
                             />
                         </div>
@@ -290,7 +290,7 @@ export function BusinessActions({ business }: BusinessActionsProps) {
                                 id='edit-business-address'
                                 value={editAddress}
                                 onChange={e => setEditAddress(e.target.value)}
-                                placeholder='Dirección del negocio'
+                                placeholder='Dirección del negocio o sede'
                                 disabled={isSubmitting}
                             />
                         </div>
@@ -322,9 +322,10 @@ export function BusinessActions({ business }: BusinessActionsProps) {
             <AlertDialog open={isDeactivateOpen} onOpenChange={setIsDeactivateOpen}>
                 <AlertDialogContent>
                     <AlertDialogHeader>
-                        <AlertDialogTitle>¿Desactivar negocio «{business.name}»?</AlertDialogTitle>
+                        <AlertDialogTitle>¿Desactivar negocio o sede «{business.name}»?</AlertDialogTitle>
                         <AlertDialogDescription>
-                            El negocio dejará de ser visible en la página pública y no se podrán crear nuevas reservas.
+                            El negocio o sede dejará de ser visible en la página pública y no se podrán crear nuevas
+                            reservas.
                         </AlertDialogDescription>
                     </AlertDialogHeader>
                     <div className='rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800 dark:border-amber-900/50 dark:bg-amber-950/30 dark:text-amber-200'>
@@ -348,9 +349,9 @@ export function BusinessActions({ business }: BusinessActionsProps) {
             <AlertDialog open={isDeleteOpen} onOpenChange={setIsDeleteOpen}>
                 <AlertDialogContent>
                     <AlertDialogHeader>
-                        <AlertDialogTitle>¿Eliminar negocio «{business.name}»?</AlertDialogTitle>
+                        <AlertDialogTitle>¿Eliminar negocio o sede «{business.name}»?</AlertDialogTitle>
                         <AlertDialogDescription>
-                            Esta acción no se puede deshacer. El negocio desaparecerá del listado y de la página
+                            Esta acción no se puede deshacer. El negocio o sede desaparecerá del listado y de la página
                             pública.
                         </AlertDialogDescription>
                     </AlertDialogHeader>

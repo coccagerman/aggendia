@@ -15,7 +15,11 @@ import { getResourcesByBusinessIdsMap } from '@/data/repositories/resource.repo'
 import { getServicesByBusinessIdsMap } from '@/data/repositories/service.repo'
 import { prisma } from '@/data/prisma/prisma'
 import { type Service } from '@/domain/services/service.types'
+import { getSubscriptionStatus } from '@/domain/subscriptions/subscription.service'
+import { getPlanById } from '@/data/repositories/subscription-plan.repo'
 import { Settings, Wallet } from 'lucide-react'
+
+const BASE_ACTIVE_BUSINESSES_LIMIT = 3
 
 interface Business {
     id: string
@@ -63,7 +67,7 @@ export default async function DashboardPage() {
         businesses = await getBusinessesByUserId(prisma, user.id)
     } catch (error) {
         console.error('Error al obtener negocios:', error instanceof Error ? error.message : 'UNKNOWN')
-        fetchError = 'No pudimos cargar tus negocios. Probá nuevamente en unos minutos.'
+        fetchError = 'No pudimos cargar tus negocios o sedes. Probá nuevamente en unos minutos.'
         // Continuar con array vacío
     }
 
@@ -103,6 +107,18 @@ export default async function DashboardPage() {
         (acc, b) => acc + b.services.filter(s => s.status === 'ACTIVE').length,
         0
     )
+    const activeBusinessesCount = businessesWithData.filter(b => b.status === 'ACTIVE').length
+
+    const subscription = await getSubscriptionStatus(prisma, user.id)
+    let isTrialOrBaseUser = false
+    if (subscription?.status === 'TRIALING') {
+        isTrialOrBaseUser = true
+    } else if (subscription?.planId) {
+        const plan = await getPlanById(prisma, subscription.planId)
+        isTrialOrBaseUser = plan?.slug === 'base'
+    }
+
+    const canCreateBusiness = !(isTrialOrBaseUser && activeBusinessesCount >= BASE_ACTIVE_BUSINESSES_LIMIT)
 
     return (
         <div className='flex min-h-screen flex-col bg-zinc-50 dark:bg-zinc-950'>
@@ -147,7 +163,7 @@ export default async function DashboardPage() {
                         <Card>
                             <CardHeader>
                                 <CardTitle>Bienvenido al Dashboard</CardTitle>
-                                <CardDescription>Gestioná tu negocio desde acá</CardDescription>
+                                <CardDescription>Gestioná tus negocios o sedes desde acá</CardDescription>
                             </CardHeader>
                             <CardContent>
                                 <div className='space-y-4'>
@@ -168,11 +184,13 @@ export default async function DashboardPage() {
                             <CardHeader>
                                 <div className='flex items-center justify-between'>
                                     <div>
-                                        <CardTitle>Mis Negocios</CardTitle>
+                                        <CardTitle>Mis negocios o sedes</CardTitle>
                                         <CardDescription>
                                             {businessesWithData.length === 0
-                                                ? 'Creá tu primer negocio para comenzar'
+                                                ? 'Creá tu primer negocio o sede para comenzar'
                                                 : `${businessesWithData.length} negocio${
+                                                      businessesWithData.length > 1 ? 's' : ''
+                                                  } o sede${
                                                       businessesWithData.length > 1 ? 's' : ''
                                                   } configurado${businessesWithData.length > 1 ? 's' : ''}`}
                                         </CardDescription>
@@ -180,12 +198,22 @@ export default async function DashboardPage() {
                                     <TooltipProvider>
                                         <Tooltip>
                                             <TooltipTrigger asChild>
-                                                <Button asChild>
-                                                    <Link href='/dashboard/business/new'>Crear negocio</Link>
-                                                </Button>
+                                                {canCreateBusiness ? (
+                                                    <Button asChild>
+                                                        <Link href='/dashboard/business/new'>Crear negocio o sede</Link>
+                                                    </Button>
+                                                ) : (
+                                                    <span className='inline-flex'>
+                                                        <Button disabled>Crear negocio o sede</Button>
+                                                    </span>
+                                                )}
                                             </TooltipTrigger>
                                             <TooltipContent>
-                                                <p>Creá un nuevo negocio para gestionar turnos y recursos</p>
+                                                {canCreateBusiness ? (
+                                                    <p>Creá un nuevo negocio o sede para gestionar turnos y recursos</p>
+                                                ) : (
+                                                    <p>suscribite al plan premium para crear más negocios</p>
+                                                )}
                                             </TooltipContent>
                                         </Tooltip>
                                     </TooltipProvider>
@@ -216,13 +244,15 @@ export default async function DashboardPage() {
                                                 </svg>
                                             </div>
                                             <h3 className='mt-4 text-sm font-medium text-zinc-900 dark:text-zinc-50'>
-                                                No tenés negocios todavía
+                                                No tenés negocios o sedes todavía
                                             </h3>
                                             <p className='mt-1 text-sm text-zinc-500 dark:text-zinc-400'>
-                                                Comenzá creando tu primer negocio.
+                                                Comenzá creando tu primer negocio o sede.
                                             </p>
                                             <Button asChild className='mt-6'>
-                                                <Link href='/dashboard/business/new'>Crear mi primer negocio</Link>
+                                                <Link href='/dashboard/business/new'>
+                                                    Crear mi primer negocio o sede
+                                                </Link>
                                             </Button>
                                         </div>
                                     ) : (
@@ -511,7 +541,9 @@ export default async function DashboardPage() {
                         <Card>
                             <CardHeader>
                                 <CardTitle>Próximos pasos</CardTitle>
-                                <CardDescription>Configurá tu negocio para comenzar a recibir turnos</CardDescription>
+                                <CardDescription>
+                                    Configurá tu negocio o sede para comenzar a recibir turnos
+                                </CardDescription>
                             </CardHeader>
                             <CardContent>
                                 <div className='space-y-2 text-sm text-zinc-600 dark:text-zinc-400'>
@@ -521,7 +553,7 @@ export default async function DashboardPage() {
                                             businessesWithData.length > 0 ? '' : 'text-zinc-400 dark:text-zinc-600'
                                         }
                                     >
-                                        {businessesWithData.length > 0 ? '✓' : '○'} Crear negocio
+                                        {businessesWithData.length > 0 ? '✓' : '○'} Crear negocio o sede
                                     </p>
                                     <p className={totalResources > 0 ? '' : 'text-zinc-400 dark:text-zinc-600'}>
                                         {totalResources > 0 ? '✓' : '○'} Agregar recursos
@@ -529,7 +561,15 @@ export default async function DashboardPage() {
                                     <p className={totalActiveServices > 0 ? '' : 'text-zinc-400 dark:text-zinc-600'}>
                                         {totalActiveServices > 0 ? '✓' : '○'} Definir servicios
                                     </p>
+                                    {businessesWithData.length > 0 && totalResources > 0 && totalActiveServices > 0 && (
+                                        <p className='pt-2 font-medium text-green-700 dark:text-green-400'>
+                                            Listo! Ya podés compartir tu link y que tus clientes comiencen a reservar.
+                                        </p>
+                                    )}
                                 </div>
+                                <p className='mt-4 text-xs text-zinc-500 dark:text-zinc-400'>
+                                    Plan Base: hasta 3 negocios o sedes activos. Premium: activos ilimitados.
+                                </p>
                             </CardContent>
                         </Card>
                     </div>

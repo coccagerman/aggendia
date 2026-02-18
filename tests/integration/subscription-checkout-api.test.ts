@@ -1,6 +1,8 @@
 import { beforeAll, afterAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { NextRequest } from 'next/server'
 import { prisma } from '@/data/prisma/prisma'
+import { createBusinessWithOwner, countActiveBusinessesByUserId } from '@/data/repositories/business.repo'
+import { handlePaymentSucceeded } from '@/domain/subscriptions/subscription.service'
 
 vi.mock('@/lib/auth', () => ({
     requireAuth: vi.fn()
@@ -22,6 +24,7 @@ describe('Subscription Checkout API - Integration', () => {
     const missingSubscriptionUserId = `checkout-user-missing-${Date.now()}`
     const email = `${userId}@test.local`
     const missingSubscriptionEmail = `${missingSubscriptionUserId}@test.local`
+    const createdBusinessIds: string[] = []
     let basePlanId: string
     let premiumPlanId: string
 
@@ -97,6 +100,10 @@ describe('Subscription Checkout API - Integration', () => {
     })
 
     afterAll(async () => {
+        if (createdBusinessIds.length > 0) {
+            await prisma.business.deleteMany({ where: { id: { in: createdBusinessIds } } })
+        }
+
         await prisma.subscription.deleteMany({
             where: {
                 userId: {
@@ -405,5 +412,77 @@ describe('Subscription Checkout API - Integration', () => {
             providerSubscriptionId: 'sub_test_123',
             immediate: false
         })
+    })
+
+    it('deactivates all active businesses when scheduled downgrade to base becomes effective', async () => {
+        const ts = Date.now()
+
+        const b1 = await createBusinessWithOwner(
+            prisma,
+            { name: `Downgrade Biz 1 ${ts}`, timezone: 'UTC' },
+            `downgrade-biz-1-${ts}`,
+            userId,
+            email
+        )
+        const b2 = await createBusinessWithOwner(
+            prisma,
+            { name: `Downgrade Biz 2 ${ts}`, timezone: 'UTC' },
+            `downgrade-biz-2-${ts}`,
+            userId,
+            email
+        )
+        const b3 = await createBusinessWithOwner(
+            prisma,
+            { name: `Downgrade Biz 3 ${ts}`, timezone: 'UTC' },
+            `downgrade-biz-3-${ts}`,
+            userId,
+            email
+        )
+        const b4 = await createBusinessWithOwner(
+            prisma,
+            { name: `Downgrade Biz 4 ${ts}`, timezone: 'UTC' },
+            `downgrade-biz-4-${ts}`,
+            userId,
+            email
+        )
+
+        createdBusinessIds.push(b1.business.id, b2.business.id, b3.business.id, b4.business.id)
+
+        const periodEnd = new Date(Date.now() + 2 * 60 * 1000)
+        await prisma.subscription.update({
+            where: { userId },
+            data: {
+                status: 'ACTIVE',
+                planId: premiumPlanId,
+                scheduledPlanId: basePlanId,
+                scheduledPlanEffectiveAt: new Date(Date.now() - 60 * 1000),
+                paymentProvider: 'STRIPE',
+                providerCustomerId: 'cus_downgrade_123',
+                providerSubscriptionId: 'sub_downgrade_123',
+                currentPeriodStart: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000),
+                currentPeriodEnd: periodEnd
+            }
+        })
+
+        const activeBefore = await countActiveBusinessesByUserId(prisma, userId)
+        expect(activeBefore).toBeGreaterThan(3)
+
+        await handlePaymentSucceeded(prisma, {
+            providerEventId: `evt-downgrade-${ts}`,
+            provider: 'STRIPE',
+            type: 'payment_succeeded',
+            providerCustomerId: 'cus_downgrade_123',
+            providerSubscriptionId: 'sub_downgrade_123',
+            currentPeriodStart: new Date(),
+            currentPeriodEnd: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
+        })
+
+        const activeAfter = await countActiveBusinessesByUserId(prisma, userId)
+        expect(activeAfter).toBe(0)
+
+        const updatedSubscription = await prisma.subscription.findUnique({ where: { userId } })
+        expect(updatedSubscription?.planId).toBe(basePlanId)
+        expect(updatedSubscription?.scheduledPlanId).toBeNull()
+        expect(updatedSubscription?.scheduledPlanEffectiveAt).toBeNull()
     })
 })

@@ -22,16 +22,18 @@ describe('Home Page', () => {
 
     it('renders signup CTA button', () => {
         render(<Home />)
-        const signupButton = screen.getByRole('link', { name: /Crear cuenta gratis/i })
+        const signupButton = screen
+            .getAllByRole('link', { name: /Iniciar prueba gratis/i })
+            .find(link => link.getAttribute('href') === '/signup')
         expect(signupButton).toBeInTheDocument()
         expect(signupButton).toHaveAttribute('href', '/signup')
     })
 
-    it('renders login button', () => {
+    it('renders direct subscribe CTA button', () => {
         render(<Home />)
-        const loginButton = screen.getByRole('link', { name: /Iniciar sesión/i })
-        expect(loginButton).toBeInTheDocument()
-        expect(loginButton).toHaveAttribute('href', '/login')
+        const subscribeButton = screen.getByRole('link', { name: /Ver planes y suscribirme/i })
+        expect(subscribeButton).toBeInTheDocument()
+        expect(subscribeButton).toHaveAttribute('href', '/subscription')
     })
 
     it('renders benefits section', () => {

@@ -42,6 +42,10 @@ import {
 import { paymentEventExists, createPaymentTransaction } from '@/data/repositories/payment-transaction.repo'
 import { getGracePeriodDays } from '@/data/repositories/subscription-config.repo'
 import { markTrialLinkUsageConverted } from '@/data/repositories/trial-link.repo'
+import { getPlanById } from '@/data/repositories/subscription-plan.repo'
+import { countActiveBusinessesByUserId, deactivateAllActiveBusinessesByUserId } from '@/data/repositories/business.repo'
+
+const BASE_ACTIVE_BUSINESSES_LIMIT = 3
 
 // ============================================================================
 // Trial management
@@ -148,6 +152,22 @@ export async function handlePaymentSucceeded(prisma: PrismaClient, event: Paymen
             await updateSubscriptionStatus(prisma, subscription.id, 'ACTIVE', {
                 ...additionalData
             })
+
+            if (shouldApplyScheduledPlan && subscription.scheduledPlanId) {
+                const scheduledPlan = await getPlanById(prisma, subscription.scheduledPlanId)
+                if (scheduledPlan?.slug === 'base') {
+                    const activeBusinesses = await countActiveBusinessesByUserId(prisma, subscription.userId)
+                    if (activeBusinesses > BASE_ACTIVE_BUSINESSES_LIMIT) {
+                        const deactivatedCount = await deactivateAllActiveBusinessesByUserId(
+                            prisma,
+                            subscription.userId
+                        )
+                        console.info(
+                            `[Subscription] Downgrade to Base applied: deactivated ${deactivatedCount} businesses for user ${subscription.userId}`
+                        )
+                    }
+                }
+            }
         }
         return
     }

@@ -45,6 +45,7 @@ interface Plan {
 interface SubscriptionSettingsClientProps {
     subscription: SubscriptionData | null
     plans: Plan[]
+    showPremiumDowngradeWarning: boolean
     checkoutResult: string | null
     checkoutSessionId: string | null
 }
@@ -80,6 +81,7 @@ function formatPrice(cents: number, currency: string): string {
 export function SubscriptionSettingsClient({
     subscription,
     plans,
+    showPremiumDowngradeWarning,
     checkoutResult,
     checkoutSessionId
 }: SubscriptionSettingsClientProps) {
@@ -399,76 +401,98 @@ export function SubscriptionSettingsClient({
                 <Card>
                     <CardHeader>
                         <CardTitle>Planes disponibles</CardTitle>
-                        <CardDescription>Elegí el plan que mejor se adapte a tu negocio</CardDescription>
+                        <CardDescription>Elegí el plan que mejor se adapte a tu operación</CardDescription>
                     </CardHeader>
                     <CardContent>
                         <div className='grid gap-4'>
                             {plans.map(plan => (
-                                <div key={plan.id} className='flex items-center justify-between rounded-lg border p-4'>
-                                    <div>
-                                        <h3 className='font-semibold'>{plan.name}</h3>
-                                        <p className='text-sm text-muted-foreground'>
+                                <div
+                                    key={plan.id}
+                                    className='flex flex-col gap-4 rounded-lg border p-4 md:flex-row md:items-start md:justify-between'
+                                >
+                                    <div className='space-y-2 md:max-w-[70%]'>
+                                        <h3 className='font-semibold leading-none'>{plan.name}</h3>
+                                        <p className='text-base font-medium text-zinc-900 dark:text-zinc-100'>
                                             {formatPrice(plan.priceCents, plan.currency)} /{' '}
                                             {plan.intervalMonths === 1 ? 'mes' : `${plan.intervalMonths} meses`}
                                         </p>
+                                        {plan.slug === 'base' ? (
+                                            <p className='text-sm text-muted-foreground'>
+                                                Turnos ilimitados y hasta 3 negocios o sedes activas.
+                                            </p>
+                                        ) : plan.slug === 'premium' ? (
+                                            <>
+                                                <p className='text-sm text-muted-foreground'>
+                                                    Turnos ilimitados y negocios o sedes activas ilimitadas.
+                                                </p>
+                                                {showPremiumDowngradeWarning && (
+                                                    <p className='text-sm text-muted-foreground'>
+                                                        Si pasás de Premium a Base con más de 3 activos, se desactivan y
+                                                        podés reactivar hasta 3.
+                                                    </p>
+                                                )}
+                                            </>
+                                        ) : null}
                                     </div>
-                                    {status === 'ACTIVE' && currentPlanId === plan.id ? (
-                                        <Button variant='secondary' disabled>
-                                            Plan actual
-                                        </Button>
-                                    ) : status === 'ACTIVE' && scheduledPlanId === plan.id ? (
-                                        <Button variant='secondary' disabled>
-                                            Cambio programado
-                                        </Button>
-                                    ) : status === 'CANCELED' && currentPlanId === plan.id ? (
-                                        <Button
-                                            onClick={() => handleReactivate(plan.id)}
-                                            disabled={checkoutLoading !== null || changePlanLoading !== null}
-                                        >
-                                            {changePlanLoading === plan.id ? (
-                                                <Loader2 className='mr-2 h-4 w-4 animate-spin' />
-                                            ) : (
-                                                <CreditCard className='mr-2 h-4 w-4' />
-                                            )}
-                                            Reactivar
-                                        </Button>
-                                    ) : status === 'CANCELED' && currentPlan && currentPlanId !== plan.id ? (
-                                        <Button
-                                            onClick={() => handleReactivate(plan.id)}
-                                            disabled={checkoutLoading !== null || changePlanLoading !== null}
-                                        >
-                                            {changePlanLoading === plan.id ? (
-                                                <Loader2 className='mr-2 h-4 w-4 animate-spin' />
-                                            ) : (
-                                                <CreditCard className='mr-2 h-4 w-4' />
-                                            )}
-                                            {isUpgradePlan(plan) ? 'Mejorar plan' : 'Cambiar plan'}
-                                        </Button>
-                                    ) : status === 'ACTIVE' && currentPlan && !isUpgradePlan(plan) ? (
-                                        <Button
-                                            onClick={() => handleChangePlan(plan.id)}
-                                            disabled={checkoutLoading !== null || changePlanLoading !== null}
-                                        >
-                                            {changePlanLoading === plan.id ? (
-                                                <Loader2 className='mr-2 h-4 w-4 animate-spin' />
-                                            ) : (
-                                                <CreditCard className='mr-2 h-4 w-4' />
-                                            )}
-                                            Cambiar plan
-                                        </Button>
-                                    ) : (
-                                        <Button
-                                            onClick={() => handleCheckout(plan.id)}
-                                            disabled={checkoutLoading !== null || changePlanLoading !== null}
-                                        >
-                                            {checkoutLoading === plan.id ? (
-                                                <Loader2 className='mr-2 h-4 w-4 animate-spin' />
-                                            ) : (
-                                                <CreditCard className='mr-2 h-4 w-4' />
-                                            )}
-                                            {status === 'ACTIVE' ? 'Mejorar plan' : 'Suscribirse'}
-                                        </Button>
-                                    )}
+                                    <div className='md:shrink-0 md:self-center'>
+                                        {status === 'ACTIVE' && currentPlanId === plan.id ? (
+                                            <Button variant='secondary' disabled>
+                                                Plan actual
+                                            </Button>
+                                        ) : status === 'ACTIVE' && scheduledPlanId === plan.id ? (
+                                            <Button variant='secondary' disabled>
+                                                Cambio programado
+                                            </Button>
+                                        ) : status === 'CANCELED' && currentPlanId === plan.id ? (
+                                            <Button
+                                                onClick={() => handleReactivate(plan.id)}
+                                                disabled={checkoutLoading !== null || changePlanLoading !== null}
+                                            >
+                                                {changePlanLoading === plan.id ? (
+                                                    <Loader2 className='mr-2 h-4 w-4 animate-spin' />
+                                                ) : (
+                                                    <CreditCard className='mr-2 h-4 w-4' />
+                                                )}
+                                                Reactivar
+                                            </Button>
+                                        ) : status === 'CANCELED' && currentPlan && currentPlanId !== plan.id ? (
+                                            <Button
+                                                onClick={() => handleReactivate(plan.id)}
+                                                disabled={checkoutLoading !== null || changePlanLoading !== null}
+                                            >
+                                                {changePlanLoading === plan.id ? (
+                                                    <Loader2 className='mr-2 h-4 w-4 animate-spin' />
+                                                ) : (
+                                                    <CreditCard className='mr-2 h-4 w-4' />
+                                                )}
+                                                {isUpgradePlan(plan) ? 'Mejorar plan' : 'Cambiar plan'}
+                                            </Button>
+                                        ) : status === 'ACTIVE' && currentPlan && !isUpgradePlan(plan) ? (
+                                            <Button
+                                                onClick={() => handleChangePlan(plan.id)}
+                                                disabled={checkoutLoading !== null || changePlanLoading !== null}
+                                            >
+                                                {changePlanLoading === plan.id ? (
+                                                    <Loader2 className='mr-2 h-4 w-4 animate-spin' />
+                                                ) : (
+                                                    <CreditCard className='mr-2 h-4 w-4' />
+                                                )}
+                                                Cambiar plan
+                                            </Button>
+                                        ) : (
+                                            <Button
+                                                onClick={() => handleCheckout(plan.id)}
+                                                disabled={checkoutLoading !== null || changePlanLoading !== null}
+                                            >
+                                                {checkoutLoading === plan.id ? (
+                                                    <Loader2 className='mr-2 h-4 w-4 animate-spin' />
+                                                ) : (
+                                                    <CreditCard className='mr-2 h-4 w-4' />
+                                                )}
+                                                {status === 'ACTIVE' ? 'Mejorar plan' : 'Suscribirse'}
+                                            </Button>
+                                        )}
+                                    </div>
                                 </div>
                             ))}
                         </div>

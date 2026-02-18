@@ -2,10 +2,37 @@ import { NextRequest, NextResponse } from 'next/server'
 import { Prisma } from '@prisma/client'
 import { requireAuth } from '@/lib/auth'
 import { prisma } from '@/data/prisma/prisma'
-import { createBusinessWithOwner, getBusinessesByUserId, findBusinessBySlug } from '@/data/repositories/business.repo'
+import {
+    createBusinessWithOwner,
+    getBusinessesByUserId,
+    findBusinessBySlug,
+    countActiveBusinessesByUserId
+} from '@/data/repositories/business.repo'
 import { generateUniqueSlug, validateCreateBusinessInput } from '@/domain/businesses/business.service'
 import { createBusinessRequestSchema } from './dto'
 import { AppError, ValidationErrorCodes, BusinessErrorCodes } from '@/domain/common/errors'
+import { getSubscriptionStatus } from '@/domain/subscriptions/subscription.service'
+import { getPlanById } from '@/data/repositories/subscription-plan.repo'
+
+const BASE_ACTIVE_BUSINESSES_LIMIT = 3
+
+async function isTrialOrBaseUser(userId: string): Promise<boolean> {
+    const subscription = await getSubscriptionStatus(prisma, userId)
+    if (!subscription) {
+        return false
+    }
+
+    if (subscription.status === 'TRIALING') {
+        return true
+    }
+
+    if (!subscription.planId) {
+        return false
+    }
+
+    const plan = await getPlanById(prisma, subscription.planId)
+    return plan?.slug === 'base'
+}
 
 /**
  * POST /api/v1/businesses
@@ -37,6 +64,21 @@ export async function POST(request: NextRequest) {
 
         // Validación adicional del domain
         validateCreateBusinessInput(input)
+
+        const trialOrBaseUser = await isTrialOrBaseUser(userId)
+        if (trialOrBaseUser) {
+            const activeBusinesses = await countActiveBusinessesByUserId(prisma, userId)
+            if (activeBusinesses >= BASE_ACTIVE_BUSINESSES_LIMIT) {
+                throw new AppError(
+                    BusinessErrorCodes.BUSINESS_PLAN_LIMIT_REACHED,
+                    'Tu período de prueba o plan Base permite hasta 3 negocios o sedes activos. Suscribite al plan premium para crear más negocios.',
+                    409,
+                    {
+                        limit: BASE_ACTIVE_BUSINESSES_LIMIT
+                    }
+                )
+            }
+        }
 
         // Generar slug único
         const slug = await generateUniqueSlug(input.name, async candidateSlug => {

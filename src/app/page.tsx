@@ -9,6 +9,7 @@ import {
     Dumbbell,
     Stethoscope,
     Wrench,
+    Building2,
     ArrowRight,
     Bell
 } from 'lucide-react'
@@ -34,12 +35,12 @@ export default function Home() {
                         <div className='mt-10 flex flex-col items-center justify-center gap-4 sm:flex-row'>
                             <Button asChild size='lg' className='w-full sm:w-auto'>
                                 <Link href='/signup'>
-                                    Crear cuenta gratis
+                                    Iniciar prueba gratis (30 días)
                                     <ArrowRight className='ml-2 h-4 w-4' />
                                 </Link>
                             </Button>
                             <Button asChild variant='outline' size='lg' className='w-full sm:w-auto'>
-                                <Link href='/login'>Iniciar sesión</Link>
+                                <Link href='/subscription'>Ver planes y suscribirme</Link>
                             </Button>
                         </div>
                     </div>
@@ -154,7 +155,7 @@ export default function Home() {
                                 1
                             </div>
                             <h3 className='mt-6 text-xl font-semibold text-zinc-900 dark:text-zinc-50'>
-                                Configurá tu negocio
+                                Configurá tu negocio o sede
                             </h3>
                             <p className='mt-4 text-zinc-600 dark:text-zinc-400'>
                                 Agregá tus servicios, profesionales (o recursos) y horarios de atención. Todo en un solo
@@ -197,11 +198,11 @@ export default function Home() {
                             ¿Para quién es?
                         </h2>
                         <p className='mt-4 text-lg text-zinc-600 dark:text-zinc-400'>
-                            Ideal para cualquier negocio que trabaje con turnos
+                            Ideal para cualquier negocio, sede o institución que trabaje con turnos
                         </p>
                     </div>
 
-                    <div className='mt-16 grid gap-6 sm:grid-cols-2 lg:grid-cols-4'>
+                    <div className='mt-16 grid gap-6 sm:grid-cols-2 lg:grid-cols-5'>
                         <Card>
                             <CardHeader>
                                 <Scissors className='mb-2 h-10 w-10 text-primary' />
@@ -249,26 +250,87 @@ export default function Home() {
                                 </p>
                             </CardContent>
                         </Card>
+
+                        <Card>
+                            <CardHeader>
+                                <Building2 className='mb-2 h-10 w-10 text-primary' />
+                                <CardTitle>Instituciones públicas</CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                                <p className='text-zinc-600 dark:text-zinc-400'>
+                                    Organismos, dependencias y centros de atención con múltiples sedes y agendas
+                                    ordenadas.
+                                </p>
+                            </CardContent>
+                        </Card>
                     </div>
                 </div>
             </section>
 
-            {/* Pricing Placeholder Section */}
+            {/* Pricing Section */}
             <section className='bg-zinc-50 py-16 dark:bg-zinc-950 sm:py-24'>
                 <div className='container mx-auto px-4 sm:px-6 lg:px-8'>
                     <div className='mx-auto max-w-2xl text-center'>
                         <h2 className='text-3xl font-bold tracking-tight text-zinc-900 dark:text-zinc-50 sm:text-4xl'>
-                            Planes accesibles
+                            Planes claros desde el primer día
                         </h2>
                         <p className='mt-6 text-lg leading-8 text-zinc-600 dark:text-zinc-400'>
-                            Próximamente: planes accesibles para negocios de cualquier tamaño
+                            Probá TurnosApp gratis por 30 días y después elegí el plan que mejor se adapte a tu
+                            operación.
                         </p>
-                        <div className='mt-10'>
+                    </div>
+
+                    <div className='mx-auto mt-12 grid max-w-5xl gap-6 md:grid-cols-2'>
+                        <Card>
+                            <CardContent className='flex flex-col gap-4 p-4 md:flex-row md:items-start md:justify-between'>
+                                <div className='space-y-2 md:max-w-[70%]'>
+                                    <h3 className='font-semibold leading-none'>Base</h3>
+                                    <p className='text-base font-medium text-zinc-900 dark:text-zinc-100'>US$9 / mes</p>
+                                    <p className='text-sm text-zinc-600 dark:text-zinc-400'>
+                                        Turnos ilimitados y hasta 3 negocios o sedes activas.
+                                    </p>
+                                </div>
+                                <div className='md:shrink-0 md:self-center'>
+                                    <Button asChild>
+                                        <Link href='/signup'>
+                                            Iniciar prueba gratis
+                                            <ArrowRight className='ml-2 h-4 w-4' />
+                                        </Link>
+                                    </Button>
+                                </div>
+                            </CardContent>
+                        </Card>
+
+                        <Card>
+                            <CardContent className='flex flex-col gap-4 p-4 md:flex-row md:items-start md:justify-between'>
+                                <div className='space-y-2 md:max-w-[70%]'>
+                                    <h3 className='font-semibold leading-none'>Premium</h3>
+                                    <p className='text-base font-medium text-zinc-900 dark:text-zinc-100'>
+                                        US$14 / mes
+                                    </p>
+                                    <p className='text-sm text-zinc-600 dark:text-zinc-400'>
+                                        Turnos ilimitados y negocios o sedes activas ilimitadas.
+                                    </p>
+                                </div>
+                                <div className='md:shrink-0 md:self-center'>
+                                    <Button asChild variant='outline'>
+                                        <Link href='/subscription'>
+                                            Suscribirme ahora
+                                            <ArrowRight className='ml-2 h-4 w-4' />
+                                        </Link>
+                                    </Button>
+                                </div>
+                            </CardContent>
+                        </Card>
+                    </div>
+
+                    <div className='mt-8 text-center'>
+                        <div className='inline-flex flex-col gap-3 sm:flex-row'>
                             <Button asChild size='lg'>
-                                <Link href='/signup'>
-                                    Empezá gratis
-                                    <ArrowRight className='ml-2 h-4 w-4' />
-                                </Link>
+                                <Link href='/signup'>Empezar prueba gratis</Link>
+                            </Button>
+                            <Button asChild size='lg' variant='outline'>
+                                <Link href='/subscription'>Suscribirme</Link>
                             </Button>
                         </div>
                     </div>

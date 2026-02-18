@@ -94,6 +94,56 @@ export async function getBusinessesByUserId(prisma: PrismaClient, userId: string
 }
 
 /**
+ * Cuenta negocios activos de un usuario (según membresías).
+ */
+export async function countActiveBusinessesByUserId(prisma: PrismaClient, userId: string): Promise<number> {
+    return prisma.businessMember.count({
+        where: {
+            userId,
+            business: {
+                status: 'ACTIVE'
+            }
+        }
+    })
+}
+
+/**
+ * Desactiva todos los negocios activos de un usuario y devuelve cuántos fueron modificados.
+ */
+export async function deactivateAllActiveBusinessesByUserId(prisma: PrismaClient, userId: string): Promise<number> {
+    const activeBusinessMembers = await prisma.businessMember.findMany({
+        where: {
+            userId,
+            business: {
+                status: 'ACTIVE'
+            }
+        },
+        select: {
+            businessId: true
+        }
+    })
+
+    const businessIds = activeBusinessMembers.map(member => member.businessId)
+    if (businessIds.length === 0) {
+        return 0
+    }
+
+    const result = await prisma.business.updateMany({
+        where: {
+            id: {
+                in: businessIds
+            },
+            status: 'ACTIVE'
+        },
+        data: {
+            status: 'INACTIVE'
+        }
+    })
+
+    return result.count
+}
+
+/**
  * Busca un negocio por slug (para validar colisiones).
  */
 export async function findBusinessBySlug(prisma: PrismaClient, slug: string): Promise<Business | null> {

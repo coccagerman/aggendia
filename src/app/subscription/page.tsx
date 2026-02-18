@@ -5,6 +5,7 @@ import { ArrowLeft, CreditCard } from 'lucide-react'
 import { prisma } from '@/data/prisma/prisma'
 import { getSubscriptionStatus } from '@/domain/subscriptions/subscription.service'
 import { getActivePlans } from '@/data/repositories/subscription-plan.repo'
+import { countActiveBusinessesByUserId } from '@/data/repositories/business.repo'
 import { SubscriptionSettingsClient } from '@/components/dashboard/subscription-settings'
 import { Button } from '@/components/ui/button'
 
@@ -28,7 +29,15 @@ export default async function SubscriptionPage({ searchParams }: PageProps) {
         redirect('/login')
     }
 
-    const [subscription, plans] = await Promise.all([getSubscriptionStatus(prisma, user.id), getActivePlans(prisma)])
+    const [subscription, plans, activeBusinessesCount] = await Promise.all([
+        getSubscriptionStatus(prisma, user.id),
+        getActivePlans(prisma),
+        countActiveBusinessesByUserId(prisma, user.id)
+    ])
+
+    const currentPlan = subscription?.planId ? plans.find(plan => plan.id === subscription.planId) : null
+    const showPremiumDowngradeWarning =
+        subscription?.status === 'ACTIVE' && currentPlan?.slug === 'premium' && activeBusinessesCount > 3
 
     return (
         <div className='min-h-screen bg-gray-50'>
@@ -80,6 +89,7 @@ export default async function SubscriptionPage({ searchParams }: PageProps) {
                         currency: p.currency,
                         intervalMonths: p.intervalMonths
                     }))}
+                    showPremiumDowngradeWarning={showPremiumDowngradeWarning}
                     checkoutResult={checkout ?? null}
                     checkoutSessionId={sessionId ?? null}
                 />

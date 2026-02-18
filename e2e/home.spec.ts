@@ -15,8 +15,8 @@ test.describe('Landing Page E2E', () => {
         await expect(page.getByRole('heading', { name: /gestioná tus turnos/i })).toBeVisible()
 
         // Check CTA buttons
-        await expect(page.getByRole('link', { name: /crear cuenta gratis/i })).toBeVisible()
-        await expect(page.getByRole('link', { name: /iniciar sesión/i })).toBeVisible()
+        await expect(page.getByRole('link', { name: /iniciar prueba gratis/i }).first()).toBeVisible()
+        await expect(page.getByRole('link', { name: /ver planes y suscribirme/i })).toBeVisible()
 
         // Check value proposition
         await expect(page.getByText(/dejá atrás el caos/i)).toBeVisible()
@@ -24,15 +24,18 @@ test.describe('Landing Page E2E', () => {
 
     test('navigates to signup page', async ({ page }) => {
         await page.goto('/')
-        await page.getByRole('link', { name: /crear cuenta gratis/i }).click()
+        await page
+            .getByRole('link', { name: /iniciar prueba gratis/i })
+            .first()
+            .click()
 
         await expect(page).toHaveURL('/signup')
     })
 
-    test('navigates to login page', async ({ page }) => {
+    test('navigates to subscription page', async ({ page }) => {
         await page.goto('/')
-        await page.getByRole('link', { name: /iniciar sesión/i }).click()
+        await page.getByRole('link', { name: /ver planes y suscribirme/i }).click()
 
-        await expect(page).toHaveURL('/login')
+        await expect(page).toHaveURL('/subscription')
     })
 })

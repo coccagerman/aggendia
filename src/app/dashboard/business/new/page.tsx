@@ -36,7 +36,7 @@ export default function NewBusinessPage() {
 
         // Validación client-side
         if (!formData.name.trim()) {
-            setError('El nombre del negocio es requerido.')
+            setError('El nombre del negocio o sede es requerido.')
             return
         }
 
@@ -117,9 +117,9 @@ export default function NewBusinessPage() {
                     <div className='mx-auto max-w-2xl'>
                         <Card>
                             <CardHeader>
-                                <CardTitle>Crear Negocio</CardTitle>
+                                <CardTitle>Crear negocio o sede</CardTitle>
                                 <CardDescription>
-                                    Completá la información de tu negocio para comenzar a recibir turnos
+                                    Completá la información para comenzar a recibir turnos
                                 </CardDescription>
                             </CardHeader>
                             <form onSubmit={handleSubmit} noValidate>
@@ -127,7 +127,7 @@ export default function NewBusinessPage() {
                                     {/* Nombre */}
                                     <div className='space-y-2'>
                                         <Label htmlFor='name'>
-                                            Nombre del negocio <span className='text-red-500'>*</span>
+                                            Nombre del negocio o sede <span className='text-red-500'>*</span>
                                         </Label>
                                         <Input
                                             id='name'
@@ -139,7 +139,7 @@ export default function NewBusinessPage() {
                                             maxLength={100}
                                         />
                                         <p className='text-xs text-zinc-600 dark:text-zinc-400'>
-                                            El nombre de tu negocio tal como querés que lo vean tus clientes
+                                            El nombre tal como querés que lo vean tus clientes
                                         </p>
                                     </div>
 
@@ -210,7 +210,7 @@ export default function NewBusinessPage() {
                                         <Link href='/dashboard'>Cancelar</Link>
                                     </Button>
                                     <Button type='submit' disabled={loading} className='flex-1'>
-                                        {loading ? 'Creando...' : 'Crear negocio'}
+                                        {loading ? 'Creando...' : 'Crear negocio o sede'}
                                     </Button>
                                 </CardFooter>
                             </form>

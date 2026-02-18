@@ -7,11 +7,34 @@ import {
     updateBusinessSettings,
     updateBusiness,
     deleteBusiness,
-    countFutureAppointments
+    countFutureAppointments,
+    countActiveBusinessesByUserId
 } from '@/data/repositories/business.repo'
 import { updateBusinessSettingsSchema, updateBusinessSchema } from './dto'
 import { validateUpdateBusinessInput } from '@/domain/businesses/business.service'
 import { AppError, BusinessErrorCodes, ValidationErrorCodes } from '@/domain/common/errors'
+import { getSubscriptionStatus } from '@/domain/subscriptions/subscription.service'
+import { getPlanById } from '@/data/repositories/subscription-plan.repo'
+
+const BASE_ACTIVE_BUSINESSES_LIMIT = 3
+
+async function isTrialOrBaseUser(userId: string): Promise<boolean> {
+    const subscription = await getSubscriptionStatus(prisma, userId)
+    if (!subscription) {
+        return false
+    }
+
+    if (subscription.status === 'TRIALING') {
+        return true
+    }
+
+    if (!subscription.planId) {
+        return false
+    }
+
+    const plan = await getPlanById(prisma, subscription.planId)
+    return plan?.slug === 'base'
+}
 
 type RouteContext = {
     params: Promise<{ businessId: string }>
@@ -121,6 +144,38 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
 
             const input = validationResult.data
             validateUpdateBusinessInput(input)
+
+            if (input.status === 'ACTIVE') {
+                const currentBusiness = await getBusinessById(prisma, businessId)
+                if (!currentBusiness) {
+                    return NextResponse.json(
+                        {
+                            error: {
+                                code: BusinessErrorCodes.BUSINESS_NOT_FOUND,
+                                message: 'Negocio no encontrado.'
+                            }
+                        },
+                        { status: 404 }
+                    )
+                }
+
+                if (currentBusiness.status !== 'ACTIVE') {
+                    const trialOrBaseUser = await isTrialOrBaseUser(userId)
+                    if (trialOrBaseUser) {
+                        const activeBusinesses = await countActiveBusinessesByUserId(prisma, userId)
+                        if (activeBusinesses >= BASE_ACTIVE_BUSINESSES_LIMIT) {
+                            throw new AppError(
+                                BusinessErrorCodes.BUSINESS_PLAN_LIMIT_REACHED,
+                                'Tu período de prueba o plan Base permite hasta 3 negocios o sedes activos. Suscribite al plan premium para crear más negocios.',
+                                409,
+                                {
+                                    limit: BASE_ACTIVE_BUSINESSES_LIMIT
+                                }
+                            )
+                        }
+                    }
+                }
+            }
 
             const updatedBusiness = await updateBusiness(prisma, businessId, input)
             return NextResponse.json({ data: updatedBusiness })
