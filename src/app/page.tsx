@@ -64,7 +64,7 @@ export default function Home() {
                         <Card>
                             <CardHeader>
                                 <Calendar className='mb-2 h-10 w-10 text-primary' />
-                                <CardTitle>Agenda ordenada por recurso</CardTitle>
+                                <CardTitle>Agenda ordenada por recurso o prestador</CardTitle>
                             </CardHeader>
                             <CardContent>
                                 <p className='text-zinc-600 dark:text-zinc-400'>

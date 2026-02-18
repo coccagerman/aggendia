@@ -32,7 +32,7 @@ describe('Home Page', () => {
     it('renders benefits section', () => {
         render(<Home />)
         // Verificar que hay sección de beneficios con iconos y textos clave
-        expect(screen.getByText(/agenda ordenada por recurso/i)).toBeInTheDocument()
+        expect(screen.getByText(/agenda ordenada por recurso o prestador/i)).toBeInTheDocument()
     })
 
     it('renders FAQ section', () => {
