@@ -88,7 +88,7 @@ export function renderBusinessConfirmationEmail(data: BusinessConfirmationEmailD
                     <tr>
                         <td style="padding: 24px 32px 32px 32px; text-align: center; border-top: 1px solid #eaeaea;">
                             <p style="margin: 0; font-size: 12px; color: #999999;">
-                                Este email fue enviado por TurnosApp
+                                Este email fue enviado por Aggendia
                             </p>
                         </td>
                     </tr>
@@ -120,7 +120,7 @@ export function renderBusinessConfirmationEmailText(data: BusinessConfirmationEm
         `Zona horaria: ${data.timezone}`,
         ``,
         `─────────────────────────`,
-        `Este email fue enviado por TurnosApp`
+        `Este email fue enviado por Aggendia`
     )
     return lines.join('\n')
 }

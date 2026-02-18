@@ -98,7 +98,7 @@ export function renderCancellationEmail(data: CancellationEmailData): string {
                                 Si deseas reservar un nuevo turno, visitá la página del negocio.
                             </p>
                             <p style="margin: 0; font-size: 12px; color: #999999;">
-                                Este email fue enviado por TurnosApp
+                                Este email fue enviado por Aggendia
                             </p>
                         </td>
                     </tr>
@@ -132,7 +132,7 @@ export function renderCancellationEmailText(data: CancellationEmailData): string
         `─────────────────────────`,
         `Si deseas reservar un nuevo turno, visitá la página del negocio.`,
         ``,
-        `Este email fue enviado por TurnosApp`
+        `Este email fue enviado por Aggendia`
     ]
 
     return lines.join('\n')

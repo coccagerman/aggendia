@@ -125,7 +125,7 @@ export default async function DashboardPage() {
             {/* Header */}
             <header className='border-b border-zinc-200 bg-white dark:border-zinc-800 dark:bg-black'>
                 <div className='container mx-auto flex h-16 items-center justify-between px-4 sm:px-6 lg:px-8'>
-                    <h1 className='text-xl font-semibold text-zinc-900 dark:text-zinc-50'>TurnosApp</h1>
+                    <h1 className='text-xl font-semibold text-zinc-900 dark:text-zinc-50'>Aggendia</h1>
                     <div className='flex items-center gap-3'>
                         <TooltipProvider>
                             <Tooltip>

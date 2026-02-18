@@ -157,7 +157,7 @@ export default async function PublicBusinessPage({ params }: PageProps) {
             <footer className='border-t border-zinc-200 bg-white py-6 dark:border-zinc-800 dark:bg-black'>
                 <div className='container mx-auto px-4 text-center sm:px-6 lg:px-8'>
                     <p className='text-sm text-zinc-500 dark:text-zinc-400'>
-                        Powered by <span className='font-semibold text-zinc-900 dark:text-zinc-50'>TurnosApp</span>
+                        Powered by <span className='font-semibold text-zinc-900 dark:text-zinc-50'>Aggendia</span>
                     </p>
                 </div>
             </footer>

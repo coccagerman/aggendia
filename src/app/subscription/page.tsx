@@ -53,7 +53,7 @@ export default async function SubscriptionPage({ searchParams }: PageProps) {
                             <CreditCard className='h-5 w-5 text-muted-foreground' />
                             <div>
                                 <h1 className='text-xl font-semibold text-gray-900'>Suscripción</h1>
-                                <p className='text-sm text-muted-foreground'>Gestioná tu plan de TurnosApp</p>
+                                <p className='text-sm text-muted-foreground'>Gestioná tu plan de Aggendia</p>
                             </div>
                         </div>
                     </div>

@@ -22,7 +22,7 @@ export function renderTrialExpiredEmail(data: TrialExpiredEmailData): string {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Tu prueba de TurnosApp terminó</title>
+    <title>Tu prueba de Aggendia terminó</title>
 </head>
 <body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background-color: #f5f5f5;">
     <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background-color: #f5f5f5;">
@@ -37,7 +37,7 @@ export function renderTrialExpiredEmail(data: TrialExpiredEmailData): string {
                                 🔒 Tu período de prueba terminó
                             </h1>
                             <p style="margin: 0; font-size: 16px; color: #666666;">
-                                ${greeting}, la prueba gratuita de <strong>${escapeHtml(data.businessName)}</strong> en TurnosApp ha expirado.
+                                ${greeting}, la prueba gratuita de <strong>${escapeHtml(data.businessName)}</strong> en Aggendia ha expirado.
                             </p>
                         </td>
                     </tr>
@@ -76,7 +76,7 @@ export function renderTrialExpiredEmail(data: TrialExpiredEmailData): string {
                     <tr>
                         <td style="padding: 16px 32px; text-align: center; border-top: 1px solid #eaeaea;">
                             <p style="margin: 0; font-size: 12px; color: #999999;">
-                                TurnosApp — Gestioná tus turnos sin complicaciones
+                                Aggendia — Gestioná tus turnos sin complicaciones
                             </p>
                         </td>
                     </tr>

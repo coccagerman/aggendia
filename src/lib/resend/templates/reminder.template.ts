@@ -135,7 +135,7 @@ export function renderReminderEmail(data: ReminderEmailData): string {
                             `
                             }
                             <p style="margin: 0; font-size: 12px; color: #999999;">
-                                Este email fue enviado por TurnosApp
+                                Este email fue enviado por Aggendia
                             </p>
                         </td>
                     </tr>
@@ -180,7 +180,7 @@ export function renderReminderEmailText(data: ReminderEmailData): string {
             ? `¿Necesitás cancelar o reprogramar? Ingresá aquí: ${data.manageUrl}`
             : `Si necesitás cancelar o reprogramar, contactá al negocio.`,
         ``,
-        `Este email fue enviado por TurnosApp`
+        `Este email fue enviado por Aggendia`
     )
 
     return lines.join('\n')

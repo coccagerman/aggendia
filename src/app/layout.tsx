@@ -16,9 +16,13 @@ const geistMono = Geist_Mono({
 })
 
 export const metadata: Metadata = {
-    title: 'TurnosApp - Gestioná tus turnos sin complicaciones',
+    title: 'Aggendia – Gestioná tus turnos sin complicaciones',
     description:
-        'Sistema simple y económico para gestionar turnos. Reducí el caos de WhatsApp, evitá doble reservas y enviá recordatorios automáticos. Ideal para peluquerías, canchas, consultorios y talleres.'
+        'Sistema simple y económico para gestionar turnos. Reducí el caos de WhatsApp, evitá doble reservas y enviá recordatorios automáticos. Ideal para peluquerías, canchas, consultorios y talleres.',
+    icons: {
+        icon: [{ url: '/favicon.svg', type: 'image/svg+xml' }],
+        apple: '/aggendia_icon.png'
+    }
 }
 
 export default function RootLayout({

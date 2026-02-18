@@ -28,7 +28,7 @@ export default async function SubscriptionExpiredPage() {
     const isTrialExpired = subscription?.trialType && subscription.status === 'EXPIRED'
     const title = isTrialExpired ? 'Tu período de prueba terminó' : 'Tu suscripción expiró'
     const description = isTrialExpired
-        ? 'Elegí un plan para seguir usando TurnosApp y gestionar tus turnos sin interrupciones.'
+        ? 'Elegí un plan para seguir usando Aggendia y gestionar tus turnos sin interrupciones.'
         : 'Reactivá tu suscripción para seguir accediendo a tu agenda, turnos y configuración.'
 
     return (

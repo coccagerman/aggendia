@@ -159,8 +159,8 @@ export async function GET(request: NextRequest) {
                             to: ownerEmail,
                             subject:
                                 daysRemaining === 0
-                                    ? '⏰ Tu prueba de TurnosApp termina hoy'
-                                    : `⏰ Tu prueba de TurnosApp termina en ${daysRemaining} día${daysRemaining > 1 ? 's' : ''}`,
+                                    ? '⏰ Tu prueba de Aggendia termina hoy'
+                                    : `⏰ Tu prueba de Aggendia termina en ${daysRemaining} día${daysRemaining > 1 ? 's' : ''}`,
                             html
                         })
 
@@ -284,7 +284,7 @@ async function sendTrialExpiredEmails(now: Date): Promise<number> {
                 const { error: sendError } = await resend!.emails.send({
                     from: defaultFromEmail,
                     to: ownerEmail,
-                    subject: '🔒 Tu período de prueba de TurnosApp terminó',
+                    subject: '🔒 Tu período de prueba de Aggendia terminó',
                     html
                 })
 

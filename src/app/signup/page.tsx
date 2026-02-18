@@ -97,7 +97,7 @@ function SignupPageContent() {
             <Card className='w-full max-w-md'>
                 <CardHeader>
                     <CardTitle className='text-2xl'>Crear cuenta</CardTitle>
-                    <CardDescription>Completá los datos para crear tu cuenta de TurnosApp</CardDescription>
+                    <CardDescription>Completá los datos para crear tu cuenta de Aggendia</CardDescription>
                 </CardHeader>
                 <CardContent className='space-y-4'>
                     <GoogleSignInButton />

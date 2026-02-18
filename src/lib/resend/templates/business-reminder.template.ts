@@ -99,7 +99,7 @@ export function renderBusinessReminderEmail(data: BusinessReminderEmailData): st
                     <tr>
                         <td style="padding: 24px 32px 32px 32px; text-align: center; border-top: 1px solid #eaeaea;">
                             <p style="margin: 0; font-size: 12px; color: #999999;">
-                                Este email fue enviado por TurnosApp
+                                Este email fue enviado por Aggendia
                             </p>
                         </td>
                     </tr>
@@ -132,7 +132,7 @@ export function renderBusinessReminderEmailText(data: BusinessReminderEmailData)
         `Zona horaria: ${data.timezone}`
     )
     if (data.address) lines.push(`Dirección: ${data.address}`)
-    lines.push(``, `─────────────────────────`, `Este email fue enviado por TurnosApp`)
+    lines.push(``, `─────────────────────────`, `Este email fue enviado por Aggendia`)
     return lines.join('\n')
 }
 

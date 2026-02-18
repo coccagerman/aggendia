@@ -116,7 +116,7 @@ export function renderRescheduledEmail(data: RescheduledEmailData): string {
                                 Si necesitás cancelar o reprogramar nuevamente, contactá al negocio.
                             </p>
                             <p style="margin: 0; font-size: 12px; color: #999999;">
-                                Este email fue enviado por TurnosApp
+                                Este email fue enviado por Aggendia
                             </p>
                         </td>
                     </tr>
@@ -158,7 +158,7 @@ export function renderRescheduledEmailText(data: RescheduledEmailData): string {
         `─────────────────────────`,
         `Si necesitás cancelar o reprogramar nuevamente, contactá al negocio.`,
         ``,
-        `Este email fue enviado por TurnosApp`
+        `Este email fue enviado por Aggendia`
     )
 
     return lines.join('\n')

@@ -13,14 +13,14 @@ export default function TermsPage() {
                     <section>
                         <h2 className='text-lg font-semibold text-zinc-900 dark:text-zinc-50'>1. Aceptación</h2>
                         <p className='mt-2'>
-                            Al usar TurnosApp aceptás estos términos. Si no estás de acuerdo, no utilices la plataforma.
+                            Al usar Aggendia aceptás estos términos. Si no estás de acuerdo, no utilices la plataforma.
                         </p>
                     </section>
 
                     <section>
                         <h2 className='text-lg font-semibold text-zinc-900 dark:text-zinc-50'>2. Servicio</h2>
                         <p className='mt-2'>
-                            TurnosApp permite gestionar turnos, negocios o sedes, servicios, recursos, agenda y
+                            Aggendia permite gestionar turnos, negocios o sedes, servicios, recursos, agenda y
                             notificaciones asociadas.
                         </p>
                     </section>
@@ -48,7 +48,7 @@ export default function TermsPage() {
                     <section>
                         <h2 className='text-lg font-semibold text-zinc-900 dark:text-zinc-50'>5. Uso permitido</h2>
                         <p className='mt-2'>
-                            No está permitido usar TurnosApp para actividades ilegales, fraudulentas o que vulneren
+                            No está permitido usar Aggendia para actividades ilegales, fraudulentas o que vulneren
                             derechos de terceros.
                         </p>
                     </section>
@@ -68,7 +68,7 @@ export default function TermsPage() {
                             7. Limitación de responsabilidad
                         </h2>
                         <p className='mt-2'>
-                            En la medida permitida por la ley, TurnosApp no será responsable por daños indirectos,
+                            En la medida permitida por la ley, Aggendia no será responsable por daños indirectos,
                             incidentales o pérdida de beneficios derivados del uso de la plataforma.
                         </p>
                     </section>
@@ -76,7 +76,7 @@ export default function TermsPage() {
                     <section>
                         <h2 className='text-lg font-semibold text-zinc-900 dark:text-zinc-50'>8. Contacto</h2>
                         <p className='mt-2'>
-                            Para consultas contractuales, escribinos por los canales oficiales de soporte de TurnosApp.
+                            Para consultas contractuales, escribinos por los canales oficiales de soporte de Aggendia.
                         </p>
                     </section>
                 </div>

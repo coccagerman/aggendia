@@ -278,7 +278,7 @@ export function SubscriptionSettingsClient({
                         <p className='text-sm text-green-700'>
                             {syncingCheckout
                                 ? 'Estamos confirmando tu suscripción. Esto puede demorar unos segundos.'
-                                : 'Tu suscripción está activa. Ya podés usar todas las funciones de TurnosApp.'}
+                                : 'Tu suscripción está activa. Ya podés usar todas las funciones de Aggendia.'}
                         </p>
                     </div>
                 </div>

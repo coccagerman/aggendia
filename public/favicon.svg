@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <defs>
+    <clipPath id="c">
+      <circle cx="50" cy="50" r="50"/>
+    </clipPath>
+  </defs>
+  <!-- Brand orange circle background -->
+  <circle cx="50" cy="50" r="50" fill="#E84B2A"/>
+  <!-- Calendar icon body -->
+  <rect x="18" y="28" width="52" height="42" rx="5" fill="white" opacity="0.95"/>
+  <!-- Calendar header band -->
+  <rect x="18" y="28" width="52" height="14" rx="5" fill="white" opacity="0.95"/>
+  <rect x="18" y="35" width="52" height="7" fill="white" opacity="0.95"/>
+  <!-- Calendar rings -->
+  <rect x="32" y="22" width="5" height="13" rx="2.5" fill="white"/>
+  <rect x="51" y="22" width="5" height="13" rx="2.5" fill="white"/>
+  <!-- Grid dots -->
+  <rect x="26" y="50" width="6" height="5" rx="1.5" fill="#E84B2A"/>
+  <rect x="36" y="50" width="6" height="5" rx="1.5" fill="#E84B2A"/>
+  <rect x="46" y="50" width="6" height="5" rx="1.5" fill="#E84B2A"/>
+  <rect x="26" y="59" width="6" height="5" rx="1.5" fill="#E84B2A"/>
+  <rect x="36" y="59" width="6" height="5" rx="1.5" fill="#E84B2A"/>
+  <!-- Gear circle (bottom-right) -->
+  <circle cx="68" cy="68" r="16" fill="#E84B2A"/>
+  <circle cx="68" cy="68" r="8" fill="white"/>
+  <circle cx="68" cy="68" r="4" fill="#E84B2A"/>
+  <!-- Gear teeth -->
+  <rect x="65.5" y="50" width="5" height="7" rx="2" fill="white"/>
+  <rect x="65.5" y="79" width="5" height="7" rx="2" fill="white"/>
+  <rect x="50" y="65.5" width="7" height="5" rx="2" fill="white"/>
+  <rect x="79" y="65.5" width="7" height="5" rx="2" fill="white"/>
+  <rect x="54.5" y="54.5" width="5" height="7" rx="2" fill="white" transform="rotate(45 57 58)"/>
+  <rect x="76.5" y="54.5" width="5" height="7" rx="2" fill="white" transform="rotate(-45 79 58)"/>
+  <rect x="54.5" y="72.5" width="5" height="7" rx="2" fill="white" transform="rotate(-45 57 76)"/>
+  <rect x="76.5" y="72.5" width="5" height="7" rx="2" fill="white" transform="rotate(45 79 76)"/>
+</svg>

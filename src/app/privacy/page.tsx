@@ -37,7 +37,7 @@ export default function PrivacyPage() {
                         </h2>
                         <p className='mt-2'>
                             El tratamiento se realiza para ejecutar la relación contractual con los usuarios de
-                            TurnosApp y, cuando corresponde, sobre la base del consentimiento del titular de los datos.
+                            Aggendia y, cuando corresponde, sobre la base del consentimiento del titular de los datos.
                         </p>
                     </section>
 
@@ -77,7 +77,7 @@ export default function PrivacyPage() {
                         <h2 className='text-lg font-semibold text-zinc-900 dark:text-zinc-50'>7. Contacto</h2>
                         <p className='mt-2'>
                             Para consultas sobre privacidad, escribinos desde los canales oficiales de soporte de
-                            TurnosApp.
+                            Aggendia.
                         </p>
                     </section>
                 </div>
