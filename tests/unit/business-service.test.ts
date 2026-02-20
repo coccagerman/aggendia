@@ -16,8 +16,7 @@ describe('Business Service', () => {
     describe('validateCreateBusinessInput', () => {
         it('accepts valid business data', () => {
             const validInput = {
-                name: 'Mi Negocio',
-                timezone: 'America/Argentina/Buenos_Aires'
+                name: 'Mi Negocio'
             }
 
             expect(() => validateCreateBusinessInput(validInput)).not.toThrow()
@@ -25,8 +24,7 @@ describe('Business Service', () => {
 
         it('throws error if name is empty', () => {
             const invalidInput = {
-                name: '',
-                timezone: 'America/Argentina/Buenos_Aires'
+                name: ''
             }
 
             expect(() => validateCreateBusinessInput(invalidInput)).toThrow(AppError)
@@ -35,27 +33,15 @@ describe('Business Service', () => {
 
         it('throws error if name is only whitespace', () => {
             const invalidInput = {
-                name: '   ',
-                timezone: 'America/Argentina/Buenos_Aires'
+                name: '   '
             }
 
             expect(() => validateCreateBusinessInput(invalidInput)).toThrow(AppError)
-        })
-
-        it('throws error if timezone is empty', () => {
-            const invalidInput = {
-                name: 'Mi Negocio',
-                timezone: ''
-            }
-
-            expect(() => validateCreateBusinessInput(invalidInput)).toThrow(AppError)
-            expect(() => validateCreateBusinessInput(invalidInput)).toThrow(/timezone es requerido/i)
         })
 
         it('accepts optional address and area fields', () => {
             const validInput = {
                 name: 'Mi Negocio',
-                timezone: 'America/Argentina/Buenos_Aires',
                 address: 'Calle Falsa 123',
                 area: 'CABA'
             }
@@ -95,10 +81,6 @@ describe('Business Service', () => {
             expect(() => validateUpdateBusinessInput({ name: 'Nuevo Nombre' })).not.toThrow()
         })
 
-        it('accepts valid update with timezone only', () => {
-            expect(() => validateUpdateBusinessInput({ timezone: 'America/Lima' })).not.toThrow()
-        })
-
         it('accepts valid update with address and area', () => {
             expect(() => validateUpdateBusinessInput({ address: 'Calle 123', area: 'CABA' })).not.toThrow()
         })
@@ -124,11 +106,6 @@ describe('Business Service', () => {
             const longName = 'a'.repeat(101)
             expect(() => validateUpdateBusinessInput({ name: longName })).toThrow(AppError)
             expect(() => validateUpdateBusinessInput({ name: longName })).toThrow(/exceder 100 caracteres/i)
-        })
-
-        it('throws error if timezone is empty', () => {
-            expect(() => validateUpdateBusinessInput({ timezone: '' })).toThrow(AppError)
-            expect(() => validateUpdateBusinessInput({ timezone: '' })).toThrow(/timezone es requerido/i)
         })
 
         it('throws error if status is DELETED', () => {

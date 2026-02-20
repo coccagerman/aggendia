@@ -53,6 +53,25 @@ Configuración global del negocio (tenant).
 - `email_notifications_enabled` (bool, default true)
 - `whatsapp_notifications_enabled` (bool, default false)
 
+Reglas:
+
+- La `timezone` del negocio se deriva desde la configuración de cuenta del usuario (país + timezone) al momento de creación.
+- La `timezone` del negocio no se puede modificar luego de creado.
+
+---
+
+### `subscriptions` (configuración de cuenta)
+
+- `id` (uuid, PK)
+- `user_id` (uuid, unique)
+- `country_iso2` (text, nullable)
+- `account_timezone` (text, nullable)
+
+Reglas:
+
+- Para `AR`, `UY`, `PE`, `CO` la `account_timezone` se resuelve automáticamente según país.
+- Para `CL`, `MX` y `OT` la `account_timezone` debe ser seleccionada explícitamente en onboarding.
+
 ---
 
 ### `business_members`

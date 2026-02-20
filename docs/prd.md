@@ -118,7 +118,7 @@ Regla: un servicio solo se ofrece públicamente si está activo **y** tiene al m
 ### A) Cuenta y negocio
 
 - Registro / login.
-- Crear negocio: nombre, timezone, etiqueta de recurso.
+- Crear negocio: nombre, etiqueta de recurso. La timezone se hereda desde onboarding de cuenta (país + zona horaria) y no se edita por negocio.
 - Configuración básica:
     - anticipación mínima para reservas
     - recordatorios (on/off y offsets)

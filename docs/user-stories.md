@@ -31,7 +31,8 @@
 
 **Aceptación**
 
-- Campos: nombre (req), timezone (req), dirección (opt), ciudad/zona (opt).
+- Campos: nombre (req), dirección (opt), ciudad/zona (opt).
+- Timezone del negocio se hereda desde onboarding de cuenta (país + timezone) y no se puede modificar luego.
 - Crea negocio asociado al usuario y lo muestra en dashboard.
 
 ### US-1.3 Configurar etiqueta visible de “Recurso”

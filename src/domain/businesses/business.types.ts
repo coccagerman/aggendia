@@ -52,7 +52,6 @@ export interface CreateBusinessResult {
 
 export interface UpdateBusinessInput {
     name?: string
-    timezone?: string
     address?: string | null
     area?: string | null
     status?: BusinessStatus

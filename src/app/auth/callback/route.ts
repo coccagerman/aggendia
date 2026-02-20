@@ -5,6 +5,7 @@ import { prisma } from '@/data/prisma/prisma'
 import { getSubscriptionByUserId } from '@/data/repositories/subscription.repo'
 import { startTrial } from '@/domain/subscriptions/subscription.service'
 import { SUBSCRIPTION_DEFAULTS } from '@/domain/subscriptions/subscription.types'
+import { countryRequiresTimezoneSelection } from '@/lib/country'
 
 /**
  * GET /auth/callback
@@ -80,7 +81,13 @@ export async function GET(request: NextRequest) {
             }
 
             const currentSubscription = await getSubscriptionByUserId(prisma, data.user.id)
-            if (currentSubscription && !currentSubscription.countryIso2) {
+            const needsCountry = currentSubscription && !currentSubscription.countryIso2
+            const needsTimezoneSelection =
+                currentSubscription &&
+                countryRequiresTimezoneSelection(currentSubscription.countryIso2) &&
+                !currentSubscription.accountTimezone
+
+            if (needsCountry || needsTimezoneSelection) {
                 supabaseResponse.headers.set('Location', new URL('/onboarding/country', origin).toString())
             }
         } catch (subError) {

@@ -243,7 +243,7 @@ export async function updateBusinessSettings(
 }
 
 /**
- * Actualiza los campos core de un negocio (name, timezone, address, area, status).
+ * Actualiza los campos core editables de un negocio (name, address, area, status).
  */
 export async function updateBusiness(
     prisma: PrismaClient,
@@ -263,7 +263,6 @@ export async function updateBusiness(
 
     const data: Record<string, unknown> = {}
     if (input.name !== undefined) data.name = input.name.trim()
-    if (input.timezone !== undefined) data.timezone = input.timezone.trim()
     if (input.address !== undefined) data.address = input.address
     if (input.area !== undefined) data.area = input.area
     if (input.status !== undefined) data.status = input.status

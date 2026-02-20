@@ -6,14 +6,15 @@ import { getSubscriptionByUserId, updateSubscriptionCountry } from '@/data/repos
 import { startTrial } from '@/domain/subscriptions/subscription.service'
 import { SUBSCRIPTION_DEFAULTS } from '@/domain/subscriptions/subscription.types'
 import { AppError, ValidationErrorCodes } from '@/domain/common/errors'
-import { isSupportedCountryIso2 } from '@/lib/country'
+import { isSupportedCountryIso2, resolveTimezoneForCountry } from '@/lib/country'
 
 const updateCountrySchema = z.object({
     countryIso2: z
         .string()
         .trim()
         .toUpperCase()
-        .regex(/^[A-Z]{2}$/, 'País inválido')
+        .regex(/^[A-Z]{2}$/, 'País inválido'),
+    timezone: z.string().trim().optional().nullable()
 })
 
 /**
@@ -41,7 +42,7 @@ export async function POST(request: NextRequest) {
             )
         }
 
-        const { countryIso2 } = parsed.data
+        const { countryIso2, timezone } = parsed.data
 
         if (!isSupportedCountryIso2(countryIso2)) {
             return NextResponse.json(
@@ -49,6 +50,21 @@ export async function POST(request: NextRequest) {
                     error: {
                         code: ValidationErrorCodes.VALIDATION_ERROR,
                         message: 'Seleccioná un país válido.'
+                    }
+                },
+                { status: 400 }
+            )
+        }
+
+        const timezoneResolution = resolveTimezoneForCountry(countryIso2, timezone)
+        if (!timezoneResolution.timezone) {
+            return NextResponse.json(
+                {
+                    error: {
+                        code: ValidationErrorCodes.VALIDATION_ERROR,
+                        message: timezoneResolution.requiresManualSelection
+                            ? 'Debés seleccionar una zona horaria válida para tu país.'
+                            : 'No se pudo resolver la zona horaria para el país seleccionado.'
                     }
                 },
                 { status: 400 }
@@ -64,15 +80,20 @@ export async function POST(request: NextRequest) {
                 SUBSCRIPTION_DEFAULTS.DEFAULT_TRIAL_DAYS,
                 'STANDARD',
                 undefined,
-                countryIso2
+                countryIso2,
+                timezoneResolution.timezone
             )
         } else {
-            await updateSubscriptionCountry(prisma, existingSubscription.id, countryIso2)
+            await updateSubscriptionCountry(prisma, existingSubscription.id, {
+                countryIso2,
+                accountTimezone: timezoneResolution.timezone
+            })
         }
 
         return NextResponse.json({
             data: {
                 countryIso2,
+                timezone: timezoneResolution.timezone,
                 message: 'País actualizado correctamente.'
             }
         })

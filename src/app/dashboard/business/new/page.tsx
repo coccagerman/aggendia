@@ -7,16 +7,6 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-
-const TIMEZONES = [
-    { value: 'America/Argentina/Buenos_Aires', label: 'Buenos Aires (GMT-3)' },
-    { value: 'America/Sao_Paulo', label: 'São Paulo (GMT-3)' },
-    { value: 'America/Santiago', label: 'Santiago (GMT-3/GMT-4)' },
-    { value: 'America/Lima', label: 'Lima (GMT-5)' },
-    { value: 'America/Mexico_City', label: 'Ciudad de México (GMT-6)' },
-    { value: 'UTC', label: 'UTC (GMT+0)' }
-]
 
 export default function NewBusinessPage() {
     const router = useRouter()
@@ -25,7 +15,6 @@ export default function NewBusinessPage() {
 
     const [formData, setFormData] = useState({
         name: '',
-        timezone: '',
         address: '',
         area: ''
     })
@@ -37,11 +26,6 @@ export default function NewBusinessPage() {
         // Validación client-side
         if (!formData.name.trim()) {
             setError('El nombre del negocio / sede es requerido.')
-            return
-        }
-
-        if (!formData.timezone) {
-            setError('Debés seleccionar una zona horaria.')
             return
         }
 
@@ -63,7 +47,6 @@ export default function NewBusinessPage() {
                 },
                 body: JSON.stringify({
                     name: formData.name,
-                    timezone: formData.timezone,
                     address: formData.address || null,
                     area: formData.area || null,
                     ...(trialCode ? { trialCode } : {})
@@ -140,32 +123,6 @@ export default function NewBusinessPage() {
                                         />
                                         <p className='text-xs text-zinc-600 dark:text-zinc-400'>
                                             El nombre tal como querés que lo vean tus clientes
-                                        </p>
-                                    </div>
-
-                                    {/* Timezone */}
-                                    <div className='space-y-2'>
-                                        <Label htmlFor='timezone'>
-                                            Zona horaria <span className='text-red-500'>*</span>
-                                        </Label>
-                                        <Select
-                                            value={formData.timezone}
-                                            onValueChange={value => setFormData({ ...formData, timezone: value })}
-                                            disabled={loading}
-                                        >
-                                            <SelectTrigger id='timezone'>
-                                                <SelectValue placeholder='Seleccioná tu zona horaria' />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                                {TIMEZONES.map(tz => (
-                                                    <SelectItem key={tz.value} value={tz.value}>
-                                                        {tz.label}
-                                                    </SelectItem>
-                                                ))}
-                                            </SelectContent>
-                                        </Select>
-                                        <p className='text-xs text-zinc-600 dark:text-zinc-400'>
-                                            Los horarios se mostrarán según esta zona horaria
                                         </p>
                                     </div>
 

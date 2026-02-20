@@ -76,6 +76,8 @@ describe('Business plan limits API - Integration', () => {
         await prisma.subscription.upsert({
             where: { userId: baseUserId },
             update: {
+                countryIso2: 'AR',
+                accountTimezone: 'America/Argentina/Buenos_Aires',
                 status: 'ACTIVE',
                 planId: basePlanId,
                 trialStartsAt: new Date(),
@@ -83,6 +85,8 @@ describe('Business plan limits API - Integration', () => {
             },
             create: {
                 userId: baseUserId,
+                countryIso2: 'AR',
+                accountTimezone: 'America/Argentina/Buenos_Aires',
                 status: 'ACTIVE',
                 planId: basePlanId,
                 trialStartsAt: new Date(),
@@ -94,6 +98,8 @@ describe('Business plan limits API - Integration', () => {
         await prisma.subscription.upsert({
             where: { userId: premiumUserId },
             update: {
+                countryIso2: 'AR',
+                accountTimezone: 'America/Argentina/Buenos_Aires',
                 status: 'ACTIVE',
                 planId: premiumPlanId,
                 trialStartsAt: new Date(),
@@ -101,6 +107,8 @@ describe('Business plan limits API - Integration', () => {
             },
             create: {
                 userId: premiumUserId,
+                countryIso2: 'AR',
+                accountTimezone: 'America/Argentina/Buenos_Aires',
                 status: 'ACTIVE',
                 planId: premiumPlanId,
                 trialStartsAt: new Date(),
@@ -112,6 +120,8 @@ describe('Business plan limits API - Integration', () => {
         await prisma.subscription.upsert({
             where: { userId: trialUserId },
             update: {
+                countryIso2: 'AR',
+                accountTimezone: 'America/Argentina/Buenos_Aires',
                 status: 'TRIALING',
                 planId: null,
                 trialStartsAt: new Date(),
@@ -119,6 +129,8 @@ describe('Business plan limits API - Integration', () => {
             },
             create: {
                 userId: trialUserId,
+                countryIso2: 'AR',
+                accountTimezone: 'America/Argentina/Buenos_Aires',
                 status: 'TRIALING',
                 planId: null,
                 trialStartsAt: new Date(),
@@ -177,8 +189,7 @@ describe('Business plan limits API - Integration', () => {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-                name: 'Extra Trial Biz',
-                timezone: 'UTC'
+                name: 'Extra Trial Biz'
             })
         })
 
@@ -220,8 +231,7 @@ describe('Business plan limits API - Integration', () => {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-                name: 'Extra Base Biz',
-                timezone: 'UTC'
+                name: 'Extra Base Biz'
             })
         })
 
@@ -270,8 +280,7 @@ describe('Business plan limits API - Integration', () => {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-                name: 'Extra Premium Biz',
-                timezone: 'UTC'
+                name: 'Extra Premium Biz'
             })
         })
 

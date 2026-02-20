@@ -77,16 +77,10 @@ export function validateTimezone(timezone: string): void {
 /**
  * Valida los datos de entrada para crear un negocio.
  */
-export function validateCreateBusinessInput(input: { name?: string; timezone?: string }): void {
+export function validateCreateBusinessInput(input: { name?: string }): void {
     if (!input.name || input.name.trim().length === 0) {
         throw new AppError(ValidationErrorCodes.VALIDATION_ERROR, 'El nombre del negocio es requerido.', 400)
     }
-
-    if (!input.timezone) {
-        throw new AppError(ValidationErrorCodes.VALIDATION_ERROR, 'El timezone es requerido.', 400)
-    }
-
-    validateTimezone(input.timezone)
 }
 
 /**
@@ -105,10 +99,6 @@ export function validateUpdateBusinessInput(input: UpdateBusinessInput): void {
                 400
             )
         }
-    }
-
-    if (input.timezone !== undefined) {
-        validateTimezone(input.timezone)
     }
 
     if (input.status === 'DELETED') {

@@ -4,6 +4,8 @@ export interface CountryOption {
     flag: string
 }
 
+export type SupportedCountryIso2 = 'AR' | 'UY' | 'CL' | 'PE' | 'CO' | 'MX' | 'OT'
+
 export const COUNTRY_OPTIONS: CountryOption[] = [
     { code: 'AR', name: 'Argentina', flag: '🇦🇷' },
     { code: 'UY', name: 'Uruguay', flag: '🇺🇾' },
@@ -14,7 +16,137 @@ export const COUNTRY_OPTIONS: CountryOption[] = [
     { code: 'OT', name: 'Otros', flag: '🌎' }
 ]
 
+export const COUNTRY_FIXED_TIMEZONE: Record<Exclude<SupportedCountryIso2, 'CL' | 'MX' | 'OT'>, string> = {
+    AR: 'America/Argentina/Buenos_Aires',
+    UY: 'America/Montevideo',
+    PE: 'America/Lima',
+    CO: 'America/Bogota'
+}
+
+const COUNTRY_MANUAL_TIMEZONE_OPTIONS: Record<'CL' | 'MX', string[]> = {
+    CL: ['America/Santiago', 'Pacific/Easter'],
+    MX: ['America/Mexico_City', 'America/Mazatlan', 'America/Hermosillo', 'America/Tijuana']
+}
+
+const COUNTRIES_REQUIRING_TIMEZONE_SELECTION = new Set<SupportedCountryIso2>(['CL', 'MX', 'OT'])
+
 const COUNTRY_CODES = new Set(COUNTRY_OPTIONS.map(country => country.code))
+
+export function countryRequiresTimezoneSelection(countryIso2: string | null | undefined): boolean {
+    const normalized = normalizeCountryIso2(countryIso2)
+    if (!normalized) {
+        return false
+    }
+
+    return COUNTRIES_REQUIRING_TIMEZONE_SELECTION.has(normalized as SupportedCountryIso2)
+}
+
+export function inferTimezoneFromBrowser(): string | null {
+    if (typeof window === 'undefined') {
+        return null
+    }
+
+    const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone
+    if (!timezone || !isValidIanaTimezone(timezone)) {
+        return null
+    }
+
+    return timezone
+}
+
+export function getAllIanaTimezones(): string[] {
+    const supportedValuesOf = Intl?.supportedValuesOf
+    if (typeof supportedValuesOf !== 'function') {
+        return ['UTC']
+    }
+
+    return supportedValuesOf('timeZone')
+}
+
+export function isValidIanaTimezone(value: string | null | undefined): boolean {
+    if (!value) {
+        return false
+    }
+
+    const allTimezones = getAllIanaTimezones()
+    return allTimezones.includes(value)
+}
+
+export function getSelectableTimezonesForCountry(countryIso2: string | null | undefined): string[] {
+    const normalized = normalizeCountryIso2(countryIso2)
+    if (!normalized) {
+        return []
+    }
+
+    if (normalized === 'OT') {
+        return getAllIanaTimezones()
+    }
+
+    if (normalized === 'CL' || normalized === 'MX') {
+        return COUNTRY_MANUAL_TIMEZONE_OPTIONS[normalized]
+    }
+
+    return []
+}
+
+export function inferCountryFromTimezoneSelection(timezone: string | null | undefined): SupportedCountryIso2 | null {
+    if (!timezone) {
+        return null
+    }
+
+    if (timezone.startsWith('America/Argentina') || timezone === 'America/Buenos_Aires') {
+        return 'AR'
+    }
+
+    if (timezone === 'America/Montevideo') {
+        return 'UY'
+    }
+
+    if (timezone === 'America/Lima') {
+        return 'PE'
+    }
+
+    if (timezone === 'America/Bogota') {
+        return 'CO'
+    }
+
+    if (timezone === 'America/Santiago' || timezone === 'Pacific/Easter') {
+        return 'CL'
+    }
+
+    if (COUNTRY_MANUAL_TIMEZONE_OPTIONS.MX.includes(timezone)) {
+        return 'MX'
+    }
+
+    return null
+}
+
+export function resolveTimezoneForCountry(
+    countryIso2: string,
+    selectedTimezone?: string | null
+): { timezone: string | null; requiresManualSelection: boolean } {
+    const normalized = normalizeCountryIso2(countryIso2)
+    if (!normalized || !isSupportedCountryIso2(normalized)) {
+        return { timezone: null, requiresManualSelection: false }
+    }
+
+    if (!countryRequiresTimezoneSelection(normalized)) {
+        return {
+            timezone: COUNTRY_FIXED_TIMEZONE[normalized as keyof typeof COUNTRY_FIXED_TIMEZONE],
+            requiresManualSelection: false
+        }
+    }
+
+    if (!selectedTimezone) {
+        return { timezone: null, requiresManualSelection: true }
+    }
+
+    const allowedTimezones = getSelectableTimezonesForCountry(normalized)
+    return {
+        timezone: allowedTimezones.includes(selectedTimezone) ? selectedTimezone : null,
+        requiresManualSelection: true
+    }
+}
 
 export function normalizeCountryIso2(value: string | null | undefined): string | null {
     if (!value) {
@@ -88,7 +220,7 @@ function inferCountryFromTimeZone(timezone: string | null | undefined): string |
         return null
     }
 
-    if (timezone.startsWith('America/Argentina')) {
+    if (timezone.startsWith('America/Argentina') || timezone === 'America/Buenos_Aires') {
         return 'AR'
     }
 
@@ -98,10 +230,6 @@ function inferCountryFromTimeZone(timezone: string | null | undefined): string |
 
     if (timezone === 'America/Santiago') {
         return 'CL'
-    }
-
-    if (timezone === 'America/Sao_Paulo') {
-        return 'BR'
     }
 
     if (timezone === 'America/Lima') {

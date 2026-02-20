@@ -111,7 +111,7 @@ export async function GET(request: NextRequest, context: RouteContext) {
 
 /**
  * PATCH /api/v1/businesses/:businessId
- * Actualiza datos del negocio: campos core (name, timezone, address, area, status)
+ * Actualiza datos del negocio: campos core (name, address, area, status)
  * o configuración (resourceLabel, reminders, notifications).
  */
 export async function PATCH(request: NextRequest, context: RouteContext) {
@@ -122,8 +122,20 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
 
         const body = await request.json()
 
+        if ('timezone' in body) {
+            return NextResponse.json(
+                {
+                    error: {
+                        code: ValidationErrorCodes.VALIDATION_ERROR,
+                        message: 'La zona horaria no se puede modificar.'
+                    }
+                },
+                { status: 400 }
+            )
+        }
+
         // Detectar si es update de campos core o settings
-        const coreFields = ['name', 'timezone', 'address', 'area', 'status']
+        const coreFields = ['name', 'address', 'area', 'status']
         const hasCoreFields = coreFields.some(f => f in body)
 
         if (hasCoreFields) {

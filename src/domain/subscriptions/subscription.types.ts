@@ -28,6 +28,7 @@ export interface Subscription {
     id: string
     userId: string
     countryIso2: string | null
+    accountTimezone: string | null
     planId: string | null
     scheduledPlanId: string | null
     status: SubscriptionStatus

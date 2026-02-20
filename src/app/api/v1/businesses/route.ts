@@ -13,6 +13,8 @@ import { createBusinessRequestSchema } from './dto'
 import { AppError, ValidationErrorCodes, BusinessErrorCodes } from '@/domain/common/errors'
 import { getSubscriptionStatus } from '@/domain/subscriptions/subscription.service'
 import { getPlanById } from '@/data/repositories/subscription-plan.repo'
+import { getSubscriptionByUserId } from '@/data/repositories/subscription.repo'
+import { resolveTimezoneForCountry } from '@/lib/country'
 
 const BASE_ACTIVE_BUSINESSES_LIMIT = 3
 
@@ -65,6 +67,29 @@ export async function POST(request: NextRequest) {
         // Validación adicional del domain
         validateCreateBusinessInput(input)
 
+        const subscription = await getSubscriptionByUserId(prisma, userId)
+        if (!subscription?.countryIso2) {
+            throw new AppError(
+                ValidationErrorCodes.VALIDATION_ERROR,
+                'Debés completar país y zona horaria antes de crear un negocio.',
+                400
+            )
+        }
+
+        const resolvedTimezone = resolveTimezoneForCountry(subscription.countryIso2, subscription.accountTimezone)
+        if (!resolvedTimezone.timezone) {
+            throw new AppError(
+                ValidationErrorCodes.VALIDATION_ERROR,
+                'Debés completar una zona horaria válida para tu cuenta antes de crear un negocio.',
+                400
+            )
+        }
+
+        const createBusinessInput = {
+            ...input,
+            timezone: resolvedTimezone.timezone
+        }
+
         const trialOrBaseUser = await isTrialOrBaseUser(userId)
         if (trialOrBaseUser) {
             const activeBusinesses = await countActiveBusinessesByUserId(prisma, userId)
@@ -88,7 +113,7 @@ export async function POST(request: NextRequest) {
 
         // Crear business + member en transacción
         // Note: subscription is per-user (created at signup), not per-business
-        const result = await createBusinessWithOwner(prisma, input, slug, userId, email)
+        const result = await createBusinessWithOwner(prisma, createBusinessInput, slug, userId, email)
 
         return NextResponse.json(
             {

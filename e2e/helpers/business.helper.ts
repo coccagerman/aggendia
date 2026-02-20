@@ -18,16 +18,6 @@ export async function createBusiness(page: Page, businessName: string) {
 
     await page.getByLabel(/nombre/i).fill(businessName)
 
-    const timezoneTrigger = page.getByRole('combobox', { name: /zona horaria/i }).first()
-    await timezoneTrigger.click()
-
-    await page
-        .getByRole('option', { name: /buenos aires/i })
-        .first()
-        .click()
-
-    await expect(timezoneTrigger).toContainText(/buenos aires/i)
-
     const createResponsePromise = page.waitForResponse(
         resp => resp.url().includes('/api/v1/businesses') && resp.request().method() === 'POST',
         { timeout: 15000 }

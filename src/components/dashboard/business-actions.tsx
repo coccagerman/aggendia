@@ -31,17 +31,7 @@ import {
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Loader2, MoreHorizontal, Pencil, Power, PowerOff, Trash2 } from 'lucide-react'
-
-const TIMEZONES = [
-    { value: 'America/Argentina/Buenos_Aires', label: 'Buenos Aires (GMT-3)' },
-    { value: 'America/Sao_Paulo', label: 'São Paulo (GMT-3)' },
-    { value: 'America/Santiago', label: 'Santiago (GMT-3/GMT-4)' },
-    { value: 'America/Lima', label: 'Lima (GMT-5)' },
-    { value: 'America/Mexico_City', label: 'Ciudad de México (GMT-6)' },
-    { value: 'UTC', label: 'UTC (GMT+0)' }
-]
 
 interface Business {
     id: string
@@ -63,7 +53,6 @@ export function BusinessActions({ business }: BusinessActionsProps) {
     const [isDeleteOpen, setIsDeleteOpen] = useState(false)
     const [isSubmitting, setIsSubmitting] = useState(false)
     const [editName, setEditName] = useState(business.name)
-    const [editTimezone, setEditTimezone] = useState(business.timezone)
     const [editAddress, setEditAddress] = useState(business.address ?? '')
     const [editArea, setEditArea] = useState(business.area ?? '')
     const [error, setError] = useState<string | null>(null)
@@ -85,7 +74,6 @@ export function BusinessActions({ business }: BusinessActionsProps) {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     name: editName,
-                    timezone: editTimezone,
                     address: editAddress || null,
                     area: editArea || null
                 })
@@ -139,7 +127,6 @@ export function BusinessActions({ business }: BusinessActionsProps) {
 
     const handleOpenEdit = () => {
         setEditName(business.name)
-        setEditTimezone(business.timezone)
         setEditAddress(business.address ?? '')
         setEditArea(business.area ?? '')
         setError(null)
@@ -270,18 +257,10 @@ export function BusinessActions({ business }: BusinessActionsProps) {
 
                         <div className='space-y-2'>
                             <Label htmlFor='edit-business-timezone'>Zona horaria</Label>
-                            <Select value={editTimezone} onValueChange={setEditTimezone} disabled={isSubmitting}>
-                                <SelectTrigger id='edit-business-timezone'>
-                                    <SelectValue placeholder='Seleccioná tu zona horaria' />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    {TIMEZONES.map(tz => (
-                                        <SelectItem key={tz.value} value={tz.value}>
-                                            {tz.label}
-                                        </SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
+                            <Input id='edit-business-timezone' value={business.timezone} disabled readOnly />
+                            <p className='text-xs text-zinc-600 dark:text-zinc-400'>
+                                La zona horaria se define al crear la cuenta y no se puede modificar.
+                            </p>
                         </div>
 
                         <div className='space-y-2'>

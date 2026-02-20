@@ -9,19 +9,20 @@ Este documento describe los flujos funcionales clave del producto, cubriendo tan
 **Admin**
 
 1. Registrarse / Login (Supabase Auth)
-2. Crear negocio (nombre, timezone, resource_label)
-3. Configurar parámetros iniciales del negocio:
+2. Seleccionar país de cuenta y, cuando aplique, zona horaria de cuenta (irreversible)
+3. Crear negocio (nombre, resource_label). La timezone se hereda de la cuenta.
+4. Configurar parámetros iniciales del negocio:
     - anticipación mínima para reservas
     - recordatorios (on/off y offsets)
     - canales de notificación (email / WhatsApp)
 
-4. El dashboard muestra un checklist inicial:
+5. El dashboard muestra un checklist inicial:
     - recursos
     - servicios
     - asignar servicios ↔ recursos
     - disponibilidad
 
-5. Completar el checklist
+6. Completar el checklist
 
 **Resultado:** negocio listo para publicar y gestionar turnos.
 

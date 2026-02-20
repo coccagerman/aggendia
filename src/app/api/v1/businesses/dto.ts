@@ -4,21 +4,8 @@ import { z } from 'zod'
  * DTOs para endpoints de businesses
  */
 
-// Lista de timezones válidos para el MVP
-export const VALID_TIMEZONES = [
-    'America/Argentina/Buenos_Aires',
-    'America/Sao_Paulo',
-    'America/Santiago',
-    'America/Lima',
-    'America/Mexico_City',
-    'UTC'
-] as const
-
 export const createBusinessRequestSchema = z.object({
     name: z.string().min(1, 'El nombre es requerido').max(100, 'El nombre es demasiado largo'),
-    timezone: z.enum(VALID_TIMEZONES, {
-        message: 'Timezone inválido. Seleccioná una opción válida.'
-    }),
     address: z.string().max(200, 'La dirección es demasiado larga').optional().nullable(),
     area: z.string().max(100, 'La ciudad/zona es demasiado larga').optional().nullable(),
     /** Optional trial link code — extends trial duration if valid */

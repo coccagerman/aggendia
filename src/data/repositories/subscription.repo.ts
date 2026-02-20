@@ -116,6 +116,7 @@ export async function createSubscription(
     input: {
         userId: string
         countryIso2?: string | null
+        accountTimezone?: string | null
         trialStartsAt: Date
         trialEndsAt: Date
         trialType: TrialType
@@ -126,6 +127,7 @@ export async function createSubscription(
         data: {
             userId: input.userId,
             countryIso2: input.countryIso2 ?? null,
+            accountTimezone: input.accountTimezone ?? null,
             status: 'TRIALING',
             trialStartsAt: input.trialStartsAt,
             trialEndsAt: input.trialEndsAt,
@@ -215,6 +217,7 @@ export async function createSubscriptionInTransaction(
     input: {
         userId: string
         countryIso2?: string | null
+        accountTimezone?: string | null
         trialStartsAt: Date
         trialEndsAt: Date
         trialType: TrialType
@@ -225,6 +228,7 @@ export async function createSubscriptionInTransaction(
         data: {
             userId: input.userId,
             countryIso2: input.countryIso2 ?? null,
+            accountTimezone: input.accountTimezone ?? null,
             status: 'TRIALING',
             trialStartsAt: input.trialStartsAt,
             trialEndsAt: input.trialEndsAt,
@@ -237,12 +241,16 @@ export async function createSubscriptionInTransaction(
 export async function updateSubscriptionCountry(
     prisma: PrismaClient,
     subscriptionId: string,
-    countryIso2: string
+    input: {
+        countryIso2: string
+        accountTimezone: string | null
+    }
 ): Promise<Subscription> {
     return prisma.subscription.update({
         where: { id: subscriptionId },
         data: {
-            countryIso2
+            countryIso2: input.countryIso2,
+            accountTimezone: input.accountTimezone
         }
     })
 }

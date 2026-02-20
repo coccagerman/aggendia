@@ -361,6 +361,7 @@ model Subscription {
   id                       String             @id @default(uuid())
   userId                   String             @unique // Supabase Auth user UUID
   countryIso2              String?
+  accountTimezone          String?
   planId                   String?
   scheduledPlanId          String?
   status                   SubscriptionStatus @default(TRIALING)
@@ -388,6 +389,7 @@ model Subscription {
 
   @@index([status])
   @@index([countryIso2])
+  @@index([accountTimezone])
   @@index([trialEndsAt])
   @@index([currentPeriodEnd])
   @@index([scheduledPlanId])

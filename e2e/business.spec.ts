@@ -26,13 +26,6 @@ test.describe('Business Creation E2E', () => {
         // Fill the form
         await page.getByLabel(/nombre/i).fill(businessName)
 
-        // Select timezone
-        await page.getByLabel(/zona horaria/i).click()
-        await page
-            .getByRole('option', { name: /buenos aires/i })
-            .first()
-            .click()
-
         // Optional fields
         await page.getByLabel(/dirección/i).fill('Calle Test 123')
         await page.getByLabel(/ciudad/i).fill('CABA')
