@@ -1,7 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/data/prisma/prisma'
 import { MercadoPagoProvider } from '@/lib/payments/mercadopago/mercadopago.provider'
-import { isMercadoPagoEnabled } from '@/lib/payments/mercadopago/mercadopago.client'
+import {
+    getMercadoPagoPayment,
+    getMercadoPagoPreapproval,
+    isMercadoPagoEnabled
+} from '@/lib/payments/mercadopago/mercadopago.client'
 import { paymentEventExists } from '@/data/repositories/payment-transaction.repo'
 import {
     handlePaymentSucceeded,
@@ -11,53 +15,116 @@ import {
 
 const mercadopagoProvider = new MercadoPagoProvider()
 
+interface MercadoPagoWebhookPayload {
+    id?: string | number
+    type?: string
+    topic?: string
+    action?: string
+    data?: {
+        id?: string | number
+    }
+}
+
+interface MercadoPagoConstructedWebhook {
+    payload: MercadoPagoWebhookPayload
+    topic: string
+    action: string
+    resourceId: string | null
+    preapprovalDetails: Awaited<ReturnType<typeof getMercadoPagoPreapproval>> | null
+    paymentDetails: Awaited<ReturnType<typeof getMercadoPagoPayment>> | null
+}
+
+function ack(data: Record<string, unknown> = {}) {
+    return NextResponse.json(
+        {
+            data: {
+                received: true,
+                ...data
+            }
+        },
+        { status: 200 }
+    )
+}
+
+async function constructWebhookEventWithoutSignature(rawBody: Buffer): Promise<MercadoPagoConstructedWebhook> {
+    const payload = JSON.parse(rawBody.toString('utf-8')) as MercadoPagoWebhookPayload
+    const topic = (payload.type ?? payload.topic ?? '').toLowerCase()
+    const action = (payload.action ?? '').toLowerCase()
+    const resourceIdValue = payload.data?.id ?? payload.id
+    const resourceId = resourceIdValue ? String(resourceIdValue) : null
+
+    let preapprovalDetails: Awaited<ReturnType<typeof getMercadoPagoPreapproval>> | null = null
+    let paymentDetails: Awaited<ReturnType<typeof getMercadoPagoPayment>> | null = null
+
+    if (topic === 'preapproval' && resourceId) {
+        preapprovalDetails = await getMercadoPagoPreapproval(resourceId)
+    }
+
+    if (topic === 'payment' && resourceId) {
+        paymentDetails = await getMercadoPagoPayment(resourceId)
+    }
+
+    return {
+        payload,
+        topic,
+        action,
+        resourceId,
+        preapprovalDetails,
+        paymentDetails
+    }
+}
+
 /**
  * POST /api/webhooks/mercadopago
  */
 export async function POST(request: NextRequest) {
-    console.log('[Webhook:MercadoPago] Headers:', Object.fromEntries(request.headers.entries()))
-
-    if (!isMercadoPagoEnabled()) {
-        return NextResponse.json(
-            { error: { code: 'CONFIG_ERROR', message: 'Mercado Pago no está configurado.' } },
-            { status: 500 }
-        )
-    }
-
-    const rawBody = Buffer.from(await request.arrayBuffer())
-    const signature = request.headers.get('x-signature')
-
-    if (!signature) {
-        return NextResponse.json(
-            { error: { code: 'INVALID_REQUEST', message: 'Missing x-signature header' } },
-            { status: 400 }
-        )
-    }
-
-    let rawEvent: unknown
+    console.log('NODE_ENV:', process.env.NODE_ENV)
+    console.log('VERCEL_ENV:', process.env.VERCEL_ENV)
 
     try {
-        rawEvent = await mercadopagoProvider.constructWebhookEvent(rawBody, signature)
-    } catch (error) {
-        console.error('[Webhook:MercadoPago] Signature verification failed:', error)
-        return NextResponse.json(
-            { error: { code: 'INVALID_SIGNATURE', message: 'Webhook signature verification failed' } },
-            { status: 400 }
-        )
-    }
+        if (!isMercadoPagoEnabled()) {
+            console.error('[Webhook:MercadoPago] Mercado Pago no está configurado.')
+            return ack({ processed: false })
+        }
 
-    const event = mercadopagoProvider.normalizeEvent(rawEvent)
+        const isProduction = process.env.NODE_ENV === 'production'
+        const rawBody = Buffer.from(await request.arrayBuffer())
+        const signature = request.headers.get('x-signature')
 
-    if (!event) {
-        return NextResponse.json({ data: { received: true, processed: false } })
-    }
+        let rawEvent: unknown
 
-    const alreadyProcessed = await paymentEventExists(prisma, event.providerEventId)
-    if (alreadyProcessed) {
-        return NextResponse.json({ data: { received: true, duplicate: true } })
-    }
+        if (isProduction) {
+            if (!signature) {
+                console.error('[Webhook:MercadoPago] Missing x-signature header in production.')
+                return ack({ processed: false })
+            }
 
-    try {
+            try {
+                rawEvent = await mercadopagoProvider.constructWebhookEvent(rawBody, signature)
+            } catch (error) {
+                console.error('[Webhook:MercadoPago] Signature verification failed in production:', error)
+                return ack({ processed: false })
+            }
+        } else {
+            try {
+                rawEvent = await constructWebhookEventWithoutSignature(rawBody)
+            } catch (error) {
+                console.error('[Webhook:MercadoPago] Non-production webhook parse failed:', error)
+                return ack({ processed: false })
+            }
+        }
+
+        const event = mercadopagoProvider.normalizeEvent(rawEvent)
+
+        if (!event) {
+            return ack({ processed: false })
+        }
+
+        const alreadyProcessed = await paymentEventExists(prisma, event.providerEventId)
+        if (alreadyProcessed) {
+            return ack({ processed: false, duplicate: true })
+        }
+
         switch (event.type) {
             case 'payment_succeeded':
                 await handlePaymentSucceeded(prisma, event)
@@ -74,18 +141,12 @@ export async function POST(request: NextRequest) {
             default:
                 break
         }
+
+        return ack({ processed: true })
     } catch (error) {
-        console.error('[Webhook:MercadoPago] Error processing event:', {
-            type: event.type,
-            providerEventId: event.providerEventId,
+        console.error('[Webhook:MercadoPago] Unexpected error:', {
             error: error instanceof Error ? error.message : 'UNKNOWN'
         })
-
-        return NextResponse.json(
-            { error: { code: 'PROCESSING_ERROR', message: 'Error processing webhook event' } },
-            { status: 500 }
-        )
+        return ack({ processed: false })
     }
-
-    return NextResponse.json({ data: { received: true, processed: true } })
 }
