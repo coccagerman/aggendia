@@ -64,6 +64,8 @@ export interface MercadoPagoPreapprovalPlan {
     id: string
     reason?: string
     auto_recurring?: {
+        frequency?: number
+        frequency_type?: string
         transaction_amount?: number
         currency_id?: string
     }
@@ -91,17 +93,52 @@ export async function createMercadoPagoPreapproval(input: {
     backUrl: string
     payerEmail?: string
 }): Promise<MercadoPagoPreapproval> {
-    return mercadopagoRequest<MercadoPagoPreapproval>('/preapproval', {
-        method: 'POST',
-        body: JSON.stringify({
-            preapproval_plan_id: input.preapprovalPlanId,
-            external_reference: input.externalReference,
-            reason: input.reason,
-            back_url: input.backUrl,
-            payer_email: input.payerEmail,
-            status: 'pending'
+    const payloadWithPlan = {
+        preapproval_plan_id: input.preapprovalPlanId,
+        external_reference: input.externalReference,
+        reason: input.reason,
+        back_url: input.backUrl,
+        payer_email: input.payerEmail,
+        status: 'pending' as const
+    }
+
+    try {
+        return await mercadopagoRequest<MercadoPagoPreapproval>('/preapproval', {
+            method: 'POST',
+            body: JSON.stringify(payloadWithPlan)
         })
-    })
+    } catch (error) {
+        const errorMessage = error instanceof Error ? error.message.toLowerCase() : ''
+        const isCardTokenRequiredError = errorMessage.includes('card_token_id is required')
+
+        if (!isCardTokenRequiredError) {
+            throw error
+        }
+
+        const preapprovalPlan = await getMercadoPagoPreapprovalPlan(input.preapprovalPlanId)
+        const autoRecurring = preapprovalPlan.auto_recurring
+
+        if (!autoRecurring?.frequency || !autoRecurring.frequency_type) {
+            throw error
+        }
+
+        return mercadopagoRequest<MercadoPagoPreapproval>('/preapproval', {
+            method: 'POST',
+            body: JSON.stringify({
+                external_reference: input.externalReference,
+                reason: input.reason,
+                back_url: input.backUrl,
+                payer_email: input.payerEmail,
+                auto_recurring: {
+                    frequency: autoRecurring.frequency,
+                    frequency_type: autoRecurring.frequency_type,
+                    transaction_amount: autoRecurring.transaction_amount,
+                    currency_id: autoRecurring.currency_id
+                },
+                status: 'pending'
+            })
+        })
+    }
 }
 
 export async function updateMercadoPagoPreapproval(
