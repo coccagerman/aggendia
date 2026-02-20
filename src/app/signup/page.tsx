@@ -135,7 +135,6 @@ function SignupPageContent() {
                                     onChange={e => setPassword(e.target.value)}
                                     required
                                     disabled={loading}
-                                    minLength={6}
                                     className='pr-10'
                                 />
                                 <button
@@ -160,7 +159,6 @@ function SignupPageContent() {
                                     onChange={e => setConfirmPassword(e.target.value)}
                                     required
                                     disabled={loading}
-                                    minLength={6}
                                     className='pr-10'
                                 />
                                 <button

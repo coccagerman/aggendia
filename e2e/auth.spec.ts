@@ -60,4 +60,15 @@ test.describe('Auth Flow E2E', () => {
         // Should be redirected to login
         await expect(page).toHaveURL('/login')
     })
+
+    test('shows spanish validation message for short signup password', async ({ page, testUser }) => {
+        await page.goto('/signup')
+
+        await page.getByLabel(/email/i).fill(testUser.email)
+        await page.getByLabel(/^contraseña$/i).fill('1234')
+        await page.getByLabel(/confirmar contraseña/i).fill('1234')
+        await page.getByRole('button', { name: /crear cuenta/i }).click()
+
+        await expect(page.getByText('La contraseña debe tener al menos 6 caracteres.')).toBeVisible()
+    })
 })

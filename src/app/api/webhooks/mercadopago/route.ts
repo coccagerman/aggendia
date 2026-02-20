@@ -78,9 +78,6 @@ async function constructWebhookEventWithoutSignature(rawBody: Buffer): Promise<M
  * POST /api/webhooks/mercadopago
  */
 export async function POST(request: NextRequest) {
-    console.log('NODE_ENV:', process.env.NODE_ENV)
-    console.log('VERCEL_ENV:', process.env.VERCEL_ENV)
-
     try {
         if (!isMercadoPagoEnabled()) {
             console.error('[Webhook:MercadoPago] Mercado Pago no está configurado.')
