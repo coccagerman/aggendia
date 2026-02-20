@@ -15,6 +15,8 @@ const mercadopagoProvider = new MercadoPagoProvider()
  * POST /api/webhooks/mercadopago
  */
 export async function POST(request: NextRequest) {
+    console.log('[Webhook:MercadoPago] Headers:', Object.fromEntries(request.headers.entries()))
+
     if (!isMercadoPagoEnabled()) {
         return NextResponse.json(
             { error: { code: 'CONFIG_ERROR', message: 'Mercado Pago no está configurado.' } },
