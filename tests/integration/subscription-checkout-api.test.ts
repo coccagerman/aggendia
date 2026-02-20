@@ -188,7 +188,10 @@ describe('Subscription Checkout API - Integration', () => {
         expect(response.status).toBe(200)
         expect(getPaymentProvider).toHaveBeenCalledWith('MERCADOPAGO')
         expect(providerMock.createCheckoutSession).toHaveBeenCalledWith(
-            expect.objectContaining({ planPriceId: 'mp_plan_base_ars_test_123' })
+            expect.objectContaining({
+                planPriceId: 'mp_plan_base_ars_test_123',
+                customerEmail: email
+            })
         )
 
         const subscription = await prisma.subscription.findUnique({ where: { userId } })

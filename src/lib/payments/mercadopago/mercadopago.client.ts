@@ -60,6 +60,15 @@ export interface MercadoPagoPreapproval {
     }
 }
 
+export interface MercadoPagoPreapprovalPlan {
+    id: string
+    reason?: string
+    auto_recurring?: {
+        transaction_amount?: number
+        currency_id?: string
+    }
+}
+
 export interface MercadoPagoPayment {
     id: string | number
     status?: string
@@ -113,6 +122,12 @@ export async function updateMercadoPagoPreapproval(
 
 export async function getMercadoPagoPreapproval(preapprovalId: string): Promise<MercadoPagoPreapproval> {
     return mercadopagoRequest<MercadoPagoPreapproval>(`/preapproval/${preapprovalId}`, {
+        method: 'GET'
+    })
+}
+
+export async function getMercadoPagoPreapprovalPlan(preapprovalPlanId: string): Promise<MercadoPagoPreapprovalPlan> {
+    return mercadopagoRequest<MercadoPagoPreapprovalPlan>(`/preapproval_plan/${preapprovalPlanId}`, {
         method: 'GET'
     })
 }
