@@ -104,7 +104,7 @@ describe('Service Resources API Integration', () => {
         it('should reject non-existent resource IDs', async () => {
             await expect(
                 setServiceResources(prisma, businessId, serviceId, ['00000000-0000-0000-0000-000000000000'])
-            ).rejects.toThrow('Recursos no válidos')
+            ).rejects.toThrow('Recursos / prestadores no válidos')
         })
     })
 })

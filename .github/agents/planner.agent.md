@@ -79,10 +79,10 @@ Respondé siempre con esta estructura:
 
 - 3–8 bullets, priorizando “rompe producción / seguridad / datos / UX”
 
-## 7) Preguntas (máximo 3)
+## 7) Preguntas
 
-Solo si son necesarias para ejecutar correctamente sin inventar.
-Si no hay preguntas, escribir: “Sin preguntas.”
+- Haz todas las preguntas que tengas para clarificar requisitos, alcance, dudas técnicas o de cualquier tipo. Prioriza las más importantes y las que podrían bloquear el avance.
+- Entrevístame hasta asegurarte de haber entendido completamente lo que se necesita y lo que no, y de tener toda la información para planificar correctamente. No asumas nada que no esté explícito en los docs o en mis respuestas.
 
 ## 8) Checklist de validación manual
 

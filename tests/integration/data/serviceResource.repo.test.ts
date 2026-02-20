@@ -80,7 +80,7 @@ describe('ServiceResource Repository - Integration Tests', () => {
         it('lanza error si el recurso ya está asociado', async () => {
             // Intentar agregar el mismo recurso otra vez
             await expect(addResourceToService(prisma, businessId, serviceId1, resourceId1)).rejects.toThrow(
-                'El recurso ya está asociado a este servicio'
+                'El recurso / prestador ya está asociado a este servicio'
             )
         })
 
@@ -169,7 +169,7 @@ describe('ServiceResource Repository - Integration Tests', () => {
 
         it('lanza error si la asociación no existe', async () => {
             await expect(removeResourceFromService(prisma, businessId, serviceId1, resourceId2)).rejects.toThrow(
-                'El recurso no está asociado a este servicio'
+                'El recurso / prestador no está asociado a este servicio'
             )
         })
     })
@@ -205,7 +205,7 @@ describe('ServiceResource Repository - Integration Tests', () => {
                     resourceId1,
                     '00000000-0000-0000-0000-000000000000'
                 ])
-            ).rejects.toThrow('Recursos no válidos')
+            ).rejects.toThrow('Recursos / prestadores no válidos')
         })
 
         it('lanza error si el servicio no existe', async () => {

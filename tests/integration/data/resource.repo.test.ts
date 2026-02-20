@@ -408,7 +408,7 @@ describe('Resource Repository - Integration Tests', () => {
                 createResource(prisma, businessId1, {
                     name: resourceName
                 })
-            ).rejects.toThrow('Ya existe un recurso activo o inactivo con ese nombre')
+            ).rejects.toThrow('Ya existe un recurso / prestador activo o inactivo con ese nombre')
         })
 
         it('rechaza crear recurso con nombre duplicado si existe uno inactivo', async () => {
@@ -425,7 +425,7 @@ describe('Resource Repository - Integration Tests', () => {
                 createResource(prisma, businessId1, {
                     name: resourceName
                 })
-            ).rejects.toThrow('Ya existe un recurso activo o inactivo con ese nombre')
+            ).rejects.toThrow('Ya existe un recurso / prestador activo o inactivo con ese nombre')
         })
 
         it('permite actualizar nombre a uno de recurso eliminado (índice parcial único)', async () => {
@@ -469,7 +469,7 @@ describe('Resource Repository - Integration Tests', () => {
                 updateResource(prisma, businessId1, otherResource.id, {
                     name: existingName
                 })
-            ).rejects.toThrow('Ya existe un recurso activo o inactivo con ese nombre')
+            ).rejects.toThrow('Ya existe un recurso / prestador activo o inactivo con ese nombre')
         })
     })
 
