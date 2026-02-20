@@ -107,7 +107,7 @@ describe('Resource Services Repository - Integration Tests', () => {
         it('lanza error si el recurso no existe', async () => {
             await expect(
                 setResourceServices(prisma, businessId, 'non-existent-resource-id', [serviceId1])
-            ).rejects.toThrow('Recurso no encontrado')
+            ).rejects.toThrow('Recurso / prestador no encontrado')
         })
 
         it('lanza error si algún servicio no existe', async () => {
@@ -130,7 +130,7 @@ describe('Resource Services Repository - Integration Tests', () => {
 
             // Intentar asignar servicios de otro negocio
             await expect(setResourceServices(prisma, otherBiz.business.id, resourceId, [serviceId1])).rejects.toThrow(
-                'Recurso no encontrado'
+                'Recurso / prestador no encontrado'
             )
 
             // Cleanup

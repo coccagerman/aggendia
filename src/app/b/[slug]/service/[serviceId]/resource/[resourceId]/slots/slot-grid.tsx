@@ -102,7 +102,7 @@ export function SlotGrid({ slug, serviceId, resourceId, fromDate, toDate }: Slot
                 <p className='text-zinc-600 dark:text-zinc-400'>
                     No hay horarios disponibles en este momento.
                     <br />
-                    <span className='text-sm'>Probá seleccionando otro recurso o contactá al negocio.</span>
+                    <span className='text-sm'>Probá seleccionando otro recurso / prestador o contactá al negocio.</span>
                 </p>
             </div>
         )

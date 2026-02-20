@@ -15,7 +15,7 @@ type RouteContext = {
 
 /**
  * GET /api/v1/businesses/:businessId/resources/:resourceId/availability
- * Obtiene la disponibilidad semanal de un recurso.
+ * Obtiene la disponibilidad semanal de un recurso / prestador.
  */
 export async function GET(_request: NextRequest, context: RouteContext) {
     let businessId: string | undefined
@@ -27,14 +27,14 @@ export async function GET(_request: NextRequest, context: RouteContext) {
         const { userId } = await requireAuth()
         await requireBusinessAccess(userId, businessId)
 
-        // Verificar que el recurso existe y pertenece al negocio
+        // Verificar que el recurso / prestador existe y pertenece al negocio
         const resource = await getResourceById(prisma, businessId, resourceId)
         if (!resource) {
             return NextResponse.json(
                 {
                     error: {
                         code: ResourceErrorCodes.RESOURCE_NOT_FOUND,
-                        message: 'Recurso no encontrado.'
+                        message: 'Recurso / prestador no encontrado.'
                     }
                 },
                 { status: 404 }
@@ -79,7 +79,7 @@ export async function GET(_request: NextRequest, context: RouteContext) {
 
 /**
  * PUT /api/v1/businesses/:businessId/resources/:resourceId/availability
- * Reemplaza la disponibilidad semanal de un recurso.
+ * Reemplaza la disponibilidad semanal de un recurso / prestador.
  */
 export async function PUT(request: NextRequest, context: RouteContext) {
     let businessId: string | undefined
@@ -91,14 +91,14 @@ export async function PUT(request: NextRequest, context: RouteContext) {
         const { userId } = await requireAuth()
         await requireBusinessAccess(userId, businessId)
 
-        // Verificar que el recurso existe y pertenece al negocio
+        // Verificar que el recurso / prestador existe y pertenece al negocio
         const resource = await getResourceById(prisma, businessId, resourceId)
         if (!resource) {
             return NextResponse.json(
                 {
                     error: {
                         code: ResourceErrorCodes.RESOURCE_NOT_FOUND,
-                        message: 'Recurso no encontrado.'
+                        message: 'Recurso / prestador no encontrado.'
                     }
                 },
                 { status: 404 }

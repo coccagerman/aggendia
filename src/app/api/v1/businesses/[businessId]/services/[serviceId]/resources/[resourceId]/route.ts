@@ -11,7 +11,7 @@ type RouteContext = {
 
 /**
  * DELETE /api/v1/businesses/:businessId/services/:serviceId/resources/:resourceId
- * Elimina la asociación de un recurso con el servicio
+ * Elimina la asociación de un recurso / prestador con el servicio
  */
 export async function DELETE(request: NextRequest, context: RouteContext) {
     let businessId: string | undefined
@@ -30,7 +30,7 @@ export async function DELETE(request: NextRequest, context: RouteContext) {
         return new NextResponse(null, { status: 204 })
     } catch (error) {
         console.error(
-            `Error al eliminar recurso del servicio [businessId=${businessId}, serviceId=${serviceId}, resourceId=${resourceId}]:`,
+            `Error al eliminar recurso / prestador del servicio [businessId=${businessId}, serviceId=${serviceId}, resourceId=${resourceId}]:`,
             error instanceof Error ? error.message : 'UNKNOWN'
         )
 
@@ -42,7 +42,7 @@ export async function DELETE(request: NextRequest, context: RouteContext) {
             {
                 error: {
                     code: 'INTERNAL_ERROR',
-                    message: 'Error al eliminar recurso del servicio.'
+                    message: 'Error al eliminar recurso / prestador del servicio.'
                 }
             },
             { status: 500 }

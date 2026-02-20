@@ -66,7 +66,7 @@ export const BusinessErrorCodes = {
 } as const
 
 /**
- * Códigos de error estándar para recursos
+ * Códigos de error estándar para recursos / prestadores
  */
 export const ResourceErrorCodes = {
     RESOURCE_NOT_FOUND: 'RESOURCE_NOT_FOUND',
@@ -106,7 +106,7 @@ export const AvailabilityErrorCodes = {
 } as const
 
 /**
- * Códigos de error estándar para bloqueos de recursos
+ * Códigos de error estándar para bloqueos de recursos / prestadores
  */
 export const BlockErrorCodes = {
     BLOCK_NOT_FOUND: 'BLOCK_NOT_FOUND',
@@ -116,7 +116,7 @@ export const BlockErrorCodes = {
 } as const
 
 /**
- * Códigos de error estándar para asociación servicio-recurso
+ * Códigos de error estándar para asociación servicio-recurso / prestador
  */
 export const ServiceResourceErrorCodes = {
     SERVICE_RESOURCE_NOT_FOUND: 'SERVICE_RESOURCE_NOT_FOUND',

@@ -57,9 +57,7 @@ export default async function NewResourcePage({ params }: PageProps) {
                     <Button asChild variant='ghost' size='sm' className='mr-4'>
                         <Link href='/dashboard'>← Volver</Link>
                     </Button>
-                    <h1 className='text-xl font-semibold text-zinc-900 dark:text-zinc-50'>
-                        Crear {business.resourceLabel}
-                    </h1>
+                    <h1 className='text-xl font-semibold text-zinc-900 dark:text-zinc-50'>Crear recurso / prestador</h1>
                 </div>
             </header>
 
@@ -69,10 +67,10 @@ export default async function NewResourcePage({ params }: PageProps) {
                     <div className='mx-auto max-w-2xl'>
                         <Card>
                             <CardHeader>
-                                <CardTitle>Nuevo {business.resourceLabel}</CardTitle>
+                                <CardTitle>Nuevo recurso / prestador</CardTitle>
                                 <CardDescription>
-                                    Agregá un nuevo {business.resourceLabel.toLowerCase()} a {business.name} para
-                                    comenzar a recibir reservas.
+                                    Agregá un nuevo recurso / prestador a {business.name} para comenzar a recibir
+                                    reservas.
                                 </CardDescription>
                             </CardHeader>
                             <CardContent>

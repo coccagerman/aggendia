@@ -17,7 +17,7 @@ type RouteContext = {
 
 /**
  * GET /api/v1/businesses/:businessId/services/:serviceId/resources
- * Lista los recursos asociados a un servicio (incluye todos los estados)
+ * Lista los recursos / prestadores asociados a un servicio (incluye todos los estados)
  */
 export async function GET(request: NextRequest, context: RouteContext) {
     let businessId: string | undefined
@@ -43,10 +43,10 @@ export async function GET(request: NextRequest, context: RouteContext) {
             )
         }
 
-        // Obtener recursos asociados
+        // Obtener recursos / prestadores asociados
         const serviceResources = await getResourcesByServiceId(prisma, businessId, serviceId)
 
-        // Mapear a formato de respuesta (incluir datos del recurso)
+        // Mapear a formato de respuesta (incluir datos del recurso / prestador)
         const resources = serviceResources.map(sr => ({
             id: sr.id,
             resourceId: sr.resource.id,
@@ -61,7 +61,7 @@ export async function GET(request: NextRequest, context: RouteContext) {
         })
     } catch (error) {
         console.error(
-            `Error al obtener recursos del servicio [businessId=${businessId}, serviceId=${serviceId}]:`,
+            `Error al obtener recursos / prestadores del servicio [businessId=${businessId}, serviceId=${serviceId}]:`,
             error instanceof Error ? error.message : 'UNKNOWN'
         )
 
@@ -73,7 +73,7 @@ export async function GET(request: NextRequest, context: RouteContext) {
             {
                 error: {
                     code: 'INTERNAL_ERROR',
-                    message: 'Error al obtener recursos del servicio.'
+                    message: 'Error al obtener recursos / prestadores del servicio.'
                 }
             },
             { status: 500 }
@@ -83,7 +83,7 @@ export async function GET(request: NextRequest, context: RouteContext) {
 
 /**
  * PUT /api/v1/businesses/:businessId/services/:serviceId/resources
- * Reemplaza todos los recursos asociados al servicio (bulk update)
+ * Reemplaza todos los recursos / prestadores asociados al servicio (bulk update)
  */
 export async function PUT(request: NextRequest, context: RouteContext) {
     let businessId: string | undefined
@@ -128,7 +128,7 @@ export async function PUT(request: NextRequest, context: RouteContext) {
 
         const { resourceIds } = validationResult.data
 
-        // Actualizar recursos
+        // Actualizar recursos / prestadores
         await setServiceResources(prisma, businessId, serviceId, resourceIds)
 
         // Obtener los datos completos para la respuesta
@@ -151,7 +151,7 @@ export async function PUT(request: NextRequest, context: RouteContext) {
         })
     } catch (error) {
         console.error(
-            `Error al actualizar recursos del servicio [businessId=${businessId}, serviceId=${serviceId}]:`,
+            `Error al actualizar recursos / prestadores del servicio [businessId=${businessId}, serviceId=${serviceId}]:`,
             error instanceof Error ? error.message : 'UNKNOWN'
         )
 
@@ -163,7 +163,7 @@ export async function PUT(request: NextRequest, context: RouteContext) {
             {
                 error: {
                     code: 'INTERNAL_ERROR',
-                    message: 'Error al actualizar recursos del servicio.'
+                    message: 'Error al actualizar recursos / prestadores del servicio.'
                 }
             },
             { status: 500 }
@@ -173,7 +173,7 @@ export async function PUT(request: NextRequest, context: RouteContext) {
 
 /**
  * POST /api/v1/businesses/:businessId/services/:serviceId/resources
- * Agrega un recurso al servicio
+ * Agrega un recurso / prestador al servicio
  */
 export async function POST(request: NextRequest, context: RouteContext) {
     let businessId: string | undefined
@@ -204,7 +204,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
 
         const { resourceId } = validationResult.data
 
-        // Agregar recurso
+        // Agregar recurso / prestador
         const serviceResource = await addResourceToService(prisma, businessId, serviceId, resourceId)
 
         return NextResponse.json(
@@ -215,7 +215,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
         )
     } catch (error) {
         console.error(
-            `Error al agregar recurso al servicio [businessId=${businessId}, serviceId=${serviceId}]:`,
+            `Error al agregar recurso / prestador al servicio [businessId=${businessId}, serviceId=${serviceId}]:`,
             error instanceof Error ? error.message : 'UNKNOWN'
         )
 
@@ -227,7 +227,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
             {
                 error: {
                     code: 'INTERNAL_ERROR',
-                    message: 'Error al agregar recurso al servicio.'
+                    message: 'Error al agregar recurso / prestador al servicio.'
                 }
             },
             { status: 500 }

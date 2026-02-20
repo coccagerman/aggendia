@@ -45,7 +45,7 @@ export default async function PublicBusinessPage({ params }: PageProps) {
     // Obtener servicios activos
     const services = await getActiveServicesByBusinessId(prisma, business.id)
 
-    // Filtrar servicios que tienen al menos un recurso ACTIVE asignado
+    // Filtrar servicios que tienen al menos un recurso / prestador ACTIVE asignado
     let bookableServices: Service[] = []
     if (services.length > 0) {
         const serviceIdsWithResources = await getServiceIdsWithActiveResources(

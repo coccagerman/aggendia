@@ -10,7 +10,7 @@ const ALLOWED_REMINDER_OFFSETS = [1440, 120] as const
  * Schema para actualizar configuración del negocio (PATCH)
  *
  * Campos soportados:
- * - resourceLabel: etiqueta visible para recursos
+ * - resourceLabel: etiqueta visible para recursos / prestadores
  * - remindersEnabled: habilita/deshabilita recordatorios automáticos
  * - reminderOffsetsMinutes: cuándo enviar recordatorios (24h y/o 2h antes)
  * - emailNotificationsEnabled: habilita/deshabilita canal de email (US-10.1)
@@ -24,8 +24,8 @@ export const updateBusinessSettingsSchema = z
         resourceLabel: z
             .string()
             .trim()
-            .min(1, 'La etiqueta de recurso no puede estar vacía')
-            .max(50, 'La etiqueta de recurso no puede exceder 50 caracteres')
+            .min(1, 'La etiqueta de recurso / prestador no puede estar vacía')
+            .max(50, 'La etiqueta de recurso / prestador no puede exceder 50 caracteres')
             .optional(),
         remindersEnabled: z.boolean().optional(),
         reminderOffsetsMinutes: z

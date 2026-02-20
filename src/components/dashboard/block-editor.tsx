@@ -211,7 +211,7 @@ export function BlockEditor({ businessId, resourceId, initialBlocks, timezone }:
                         <DialogHeader>
                             <DialogTitle>Nuevo bloqueo</DialogTitle>
                             <DialogDescription>
-                                Definí el período en que este recurso no estará disponible.
+                                Definí el período en que este recurso / prestador no estará disponible.
                             </DialogDescription>
                         </DialogHeader>
 

@@ -79,17 +79,17 @@ export function AssignResourcesDialog({
 
             if (!response.ok) {
                 const data = await response.json()
-                toast.error(data.error?.message || 'Ocurrió un error al asignar recursos.')
+                toast.error(data.error?.message || 'Ocurrió un error al asignar recursos / prestadores.')
                 setIsSubmitting(false)
                 return
             }
 
             setOpen(false)
             setIsSubmitting(false)
-            toast.success('Recursos actualizados correctamente')
+            toast.success('Recursos / prestadores actualizados correctamente')
             router.refresh()
         } catch (error) {
-            console.error('Error al asignar recursos:', error)
+            console.error('Error al asignar recursos / prestadores:', error)
             toast.error('Error de conexión. Intentá nuevamente.')
             setIsSubmitting(false)
         }
@@ -100,7 +100,7 @@ export function AssignResourcesDialog({
         return !assignedResourceIds.every(id => selectedIds.has(id))
     })()
 
-    // Separar recursos activos e inactivos
+    // Separar recursos / prestadores activos e inactivos
     const activeResources = allResources.filter(r => r.status === 'ACTIVE')
     const inactiveResources = allResources.filter(r => r.status === 'INACTIVE')
 
@@ -121,22 +121,22 @@ export function AssignResourcesDialog({
                     <Users className='h-3 w-3' />
                     {typeof resourceCount === 'number'
                         ? resourceCount > 0
-                            ? `${resourceCount} recurso${resourceCount !== 1 ? 's' : ''}`
-                            : 'Sin recursos'
-                        : 'Asignar recursos'}
+                            ? `${resourceCount} recurso / prestador${resourceCount !== 1 ? 's' : ''}`
+                            : 'Sin recursos / prestadores'
+                        : 'Asignar recursos / prestadores'}
                 </button>
             </DialogTrigger>
             <DialogContent className='sm:max-w-md'>
                 <DialogHeader>
-                    <DialogTitle>Asignar recursos al servicio</DialogTitle>
-                    <DialogDescription>Seleccioná los recursos que pueden ofrecer este servicio.</DialogDescription>
+                    <DialogTitle>Asignar recursos / prestadores al servicio</DialogTitle>
+                    <DialogDescription>Seleccioná los recursos / prestadores que pueden ofrecer este servicio.</DialogDescription>
                 </DialogHeader>
 
                 <div className='space-y-4 py-4'>
                     {allResources.length === 0 ? (
                         <div className='text-center py-6'>
                             <p className='text-sm text-zinc-500 dark:text-zinc-400'>
-                                No hay recursos disponibles. Creá recursos primero para poder asignarlos a servicios.
+                                No hay recursos / prestadores disponibles. Creá recursos / prestadores primero para poder asignarlos a servicios.
                             </p>
                         </div>
                     ) : (
@@ -159,11 +159,11 @@ export function AssignResourcesDialog({
                                 </Button>
                             </div>
 
-                            {/* Lista de recursos activos */}
+                            {/* Lista de recursos / prestadores activos */}
                             {activeResources.length > 0 && (
                                 <div className='space-y-3'>
                                     <h4 className='text-xs font-semibold uppercase text-zinc-500 dark:text-zinc-400'>
-                                        Recursos activos
+                                        Recursos / prestadores activos
                                     </h4>
                                     <div className='space-y-2 max-h-48 overflow-y-auto'>
                                         {activeResources.map(resource => (
@@ -189,11 +189,11 @@ export function AssignResourcesDialog({
                                 </div>
                             )}
 
-                            {/* Lista de recursos inactivos */}
+                            {/* Lista de recursos / prestadores inactivos */}
                             {inactiveResources.length > 0 && (
                                 <div className='space-y-3'>
                                     <h4 className='text-xs font-semibold uppercase text-zinc-500 dark:text-zinc-400'>
-                                        Recursos inactivos
+                                        Recursos / prestadores inactivos
                                     </h4>
                                     <div className='space-y-2 max-h-32 overflow-y-auto'>
                                         {inactiveResources.map(resource => (

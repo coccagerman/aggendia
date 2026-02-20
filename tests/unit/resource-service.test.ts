@@ -24,7 +24,9 @@ describe('Resource Service', () => {
             }
 
             expect(() => validateCreateResourceInput(invalidInput)).toThrow(AppError)
-            expect(() => validateCreateResourceInput(invalidInput)).toThrow(/nombre del recurso es requerido/i)
+            expect(() => validateCreateResourceInput(invalidInput)).toThrow(
+                /nombre del recurso \/ prestador es requerido/i
+            )
         })
 
         it('throws error if name is only whitespace', () => {

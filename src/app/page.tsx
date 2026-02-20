@@ -96,7 +96,7 @@ export default function Home() {
                         <Card className='transition-shadow hover:shadow-md'>
                             <CardHeader>
                                 <Calendar className='mb-2 h-10 w-10 text-primary' />
-                                <CardTitle>Agenda ordenada por recurso o prestador</CardTitle>
+                                <CardTitle>Agenda ordenada por recurso / prestador</CardTitle>
                             </CardHeader>
                             <CardContent>
                                 <p className='text-zinc-600 dark:text-zinc-400'>
@@ -188,11 +188,11 @@ export default function Home() {
                                 1
                             </div>
                             <h3 className='mt-6 text-xl font-semibold text-zinc-900 dark:text-zinc-50'>
-                                Configurá tu negocio o sede
+                                Configurá tu negocio / sede
                             </h3>
                             <p className='mt-4 text-zinc-600 dark:text-zinc-400'>
-                                Agregá tus servicios, profesionales (o recursos) y horarios de atención. Todo en un solo
-                                lugar.
+                                Agregá tus servicios, profesionales (o recursos / prestadores) y horarios de atención.
+                                Todo en un solo lugar.
                             </p>
                         </div>
 
@@ -315,54 +315,40 @@ export default function Home() {
 
                     <div className='mx-auto mt-12 grid max-w-5xl gap-6 md:grid-cols-2'>
                         <Card>
-                            <CardContent className='flex flex-col gap-4 p-4 md:flex-row md:items-start md:justify-between'>
-                                <div className='space-y-2 md:max-w-[70%]'>
+                            <CardContent className='p-4'>
+                                <div className='space-y-2'>
                                     <h3 className='font-semibold leading-none'>Base</h3>
                                     <p className='text-base font-medium text-zinc-900 dark:text-zinc-100'>US$9 / mes</p>
                                     <p className='text-sm text-zinc-600 dark:text-zinc-400'>
-                                        Turnos ilimitados y hasta 3 negocios o sedes activas.
+                                        Turnos ilimitados y hasta 3 negocios / sedes activas.
                                     </p>
-                                </div>
-                                <div className='md:shrink-0 md:self-center'>
-                                    <Button asChild>
-                                        <Link href='/signup'>
-                                            Iniciar prueba gratis
-                                            <ArrowRight className='ml-2 h-4 w-4' />
-                                        </Link>
-                                    </Button>
                                 </div>
                             </CardContent>
                         </Card>
 
                         <Card>
-                            <CardContent className='flex flex-col gap-4 p-4 md:flex-row md:items-start md:justify-between'>
-                                <div className='space-y-2 md:max-w-[70%]'>
+                            <CardContent className='p-4'>
+                                <div className='space-y-2'>
                                     <h3 className='font-semibold leading-none'>Premium</h3>
                                     <p className='text-base font-medium text-zinc-900 dark:text-zinc-100'>
                                         US$14 / mes
                                     </p>
                                     <p className='text-sm text-zinc-600 dark:text-zinc-400'>
-                                        Turnos ilimitados y negocios o sedes activas ilimitadas.
+                                        Turnos ilimitados y negocios / sedes activas ilimitadas.
                                     </p>
-                                </div>
-                                <div className='md:shrink-0 md:self-center'>
-                                    <Button asChild variant='outline'>
-                                        <Link href='/subscription'>
-                                            Suscribirme ahora
-                                            <ArrowRight className='ml-2 h-4 w-4' />
-                                        </Link>
-                                    </Button>
                                 </div>
                             </CardContent>
                         </Card>
                     </div>
 
-                    <div className='mt-8 text-center'>
-                        <div className='inline-flex flex-col gap-3 sm:flex-row'>
-                            <Button asChild size='lg'>
+                    <div className='mx-auto mt-12 grid max-w-5xl gap-3 md:grid-cols-2 md:gap-6 sm:mt-14'>
+                        <div className='flex justify-center'>
+                            <Button asChild size='lg' className='w-full max-w-[260px]'>
                                 <Link href='/signup'>Empezar prueba gratis</Link>
                             </Button>
-                            <Button asChild size='lg' variant='outline'>
+                        </div>
+                        <div className='flex justify-center'>
+                            <Button asChild size='lg' variant='outline' className='w-full max-w-[260px]'>
                                 <Link href='/subscription'>Suscribirme</Link>
                             </Button>
                         </div>

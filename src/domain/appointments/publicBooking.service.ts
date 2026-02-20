@@ -71,10 +71,10 @@ export async function createPublicAppointment(
     // 3. Validate resource exists and is ACTIVE
     const resource = await getResourceById(prisma, business.id, input.resourceId)
     if (!resource || resource.businessId !== business.id) {
-        throw new AppError(ResourceErrorCodes.RESOURCE_NOT_FOUND, 'Recurso no encontrado', 404)
+        throw new AppError(ResourceErrorCodes.RESOURCE_NOT_FOUND, 'Recurso / prestador no encontrado', 404)
     }
     if (resource.status !== 'ACTIVE') {
-        throw new AppError(ResourceErrorCodes.RESOURCE_INACTIVE, 'Recurso no disponible', 409)
+        throw new AppError(ResourceErrorCodes.RESOURCE_INACTIVE, 'Recurso / prestador no disponible', 409)
     }
 
     // 4. Validate service-resource mapping exists
@@ -86,7 +86,7 @@ export async function createPublicAppointment(
         }
     })
     if (!mapping) {
-        throw new AppError(SERVICE_RESOURCE_NOT_LINKED, 'Este recurso no ofrece el servicio seleccionado', 409)
+        throw new AppError(SERVICE_RESOURCE_NOT_LINKED, 'Este recurso / prestador no ofrece el servicio seleccionado', 409)
     }
 
     // 5. Parse and validate startAt

@@ -14,7 +14,7 @@ type RouteContext = {
 
 /**
  * GET /api/v1/businesses/:businessId/resources/:resourceId
- * Obtiene un recurso específico del negocio.
+ * Obtiene un recurso / prestador específico del negocio.
  */
 export async function GET(request: NextRequest, context: RouteContext) {
     try {
@@ -24,7 +24,7 @@ export async function GET(request: NextRequest, context: RouteContext) {
         const { userId } = await requireAuth()
         await requireBusinessAccess(userId, businessId)
 
-        // Obtener recurso
+        // Obtener recurso / prestador
         const resource = await getResourceById(prisma, businessId, resourceId)
 
         if (!resource) {
@@ -32,7 +32,7 @@ export async function GET(request: NextRequest, context: RouteContext) {
                 {
                     error: {
                         code: 'RESOURCE_NOT_FOUND',
-                        message: 'Recurso no encontrado.'
+                        message: 'Recurso / prestador no encontrado.'
                     }
                 },
                 { status: 404 }
@@ -45,12 +45,12 @@ export async function GET(request: NextRequest, context: RouteContext) {
             return NextResponse.json(error.toJSON(), { status: error.httpStatus })
         }
 
-        console.error('Error al obtener recurso:', error instanceof Error ? error.message : 'UNKNOWN')
+        console.error('Error al obtener recurso / prestador:', error instanceof Error ? error.message : 'UNKNOWN')
         return NextResponse.json(
             {
                 error: {
                     code: 'INTERNAL_ERROR',
-                    message: 'Ocurrió un error al obtener el recurso.'
+                    message: 'Ocurrió un error al obtener el recurso / prestador.'
                 }
             },
             { status: 500 }
@@ -60,7 +60,7 @@ export async function GET(request: NextRequest, context: RouteContext) {
 
 /**
  * PATCH /api/v1/businesses/:businessId/resources/:resourceId
- * Actualiza un recurso del negocio.
+ * Actualiza un recurso / prestador del negocio.
  */
 export async function PATCH(request: NextRequest, context: RouteContext) {
     try {
@@ -92,7 +92,7 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
         // Validación adicional del domain
         validateUpdateResourceInput(input)
 
-        // Actualizar recurso
+        // Actualizar recurso / prestador
         const resource = await updateResource(prisma, businessId, resourceId, input)
 
         return NextResponse.json({ data: resource }, { status: 200 })
@@ -107,7 +107,7 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
                 {
                     error: {
                         code: 'RESOURCE_NAME_CONFLICT',
-                        message: 'Ya existe un recurso con ese nombre en este negocio.',
+                        message: 'Ya existe un recurso / prestador con ese nombre en este negocio.',
                         details: { field: 'name' }
                     }
                 },
@@ -115,12 +115,12 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
             )
         }
 
-        console.error('Error al actualizar recurso:', error instanceof Error ? error.message : 'UNKNOWN')
+        console.error('Error al actualizar recurso / prestador:', error instanceof Error ? error.message : 'UNKNOWN')
         return NextResponse.json(
             {
                 error: {
                     code: 'INTERNAL_ERROR',
-                    message: 'Ocurrió un error al actualizar el recurso.'
+                    message: 'Ocurrió un error al actualizar el recurso / prestador.'
                 }
             },
             { status: 500 }
@@ -130,9 +130,9 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
 
 /**
  * DELETE /api/v1/businesses/:businessId/resources/:resourceId
- * Elimina un recurso del negocio (soft delete).
+ * Elimina un recurso / prestador del negocio (soft delete).
  *
- * - Si el recurso tiene turnos futuros, retorna 409 con sugerencia de desactivar.
+ * - Si el recurso / prestador tiene turnos futuros, retorna 409 con sugerencia de desactivar.
  * - Si no tiene turnos futuros, cambia status a DELETED.
  */
 export async function DELETE(request: NextRequest, context: RouteContext) {
@@ -143,7 +143,7 @@ export async function DELETE(request: NextRequest, context: RouteContext) {
         const { userId } = await requireAuth()
         await requireBusinessAccess(userId, businessId)
 
-        // Verificar que el recurso existe y pertenece al negocio
+        // Verificar que el recurso / prestador existe y pertenece al negocio
         const resource = await getResourceById(prisma, businessId, resourceId)
 
         if (!resource) {
@@ -151,7 +151,7 @@ export async function DELETE(request: NextRequest, context: RouteContext) {
                 {
                     error: {
                         code: ResourceErrorCodes.RESOURCE_NOT_FOUND,
-                        message: 'Recurso no encontrado.'
+                        message: 'Recurso / prestador no encontrado.'
                     }
                 },
                 { status: 404 }
@@ -166,7 +166,7 @@ export async function DELETE(request: NextRequest, context: RouteContext) {
                 {
                     error: {
                         code: ResourceErrorCodes.RESOURCE_HAS_FUTURE_APPOINTMENTS,
-                        message: 'No se puede eliminar porque tiene turnos futuros. Desactivá el recurso en su lugar.',
+                        message: 'No se puede eliminar porque tiene turnos futuros. Desactivá el recurso / prestador en su lugar.',
                         details: { futureAppointmentsCount }
                     }
                 },
@@ -183,12 +183,12 @@ export async function DELETE(request: NextRequest, context: RouteContext) {
             return NextResponse.json(error.toJSON(), { status: error.httpStatus })
         }
 
-        console.error('Error al eliminar recurso:', error instanceof Error ? error.message : 'UNKNOWN')
+        console.error('Error al eliminar recurso / prestador:', error instanceof Error ? error.message : 'UNKNOWN')
         return NextResponse.json(
             {
                 error: {
                     code: 'INTERNAL_ERROR',
-                    message: 'Ocurrió un error al eliminar el recurso.'
+                    message: 'Ocurrió un error al eliminar el recurso / prestador.'
                 }
             },
             { status: 500 }

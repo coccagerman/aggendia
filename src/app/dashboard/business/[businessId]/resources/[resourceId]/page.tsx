@@ -20,10 +20,12 @@ import { ServiceAssignmentEditor } from '@/components/dashboard/service-assignme
 
 interface PageProps {
     params: Promise<{ businessId: string; resourceId: string }>
+    searchParams: Promise<{ tab?: string }>
 }
 
-export default async function ResourceDetailPage({ params }: PageProps) {
+export default async function ResourceDetailPage({ params, searchParams }: PageProps) {
     const { businessId, resourceId } = await params
+    const { tab } = await searchParams
 
     // Validar sesión
     const supabase = await createClient()
@@ -59,7 +61,7 @@ export default async function ResourceDetailPage({ params }: PageProps) {
         redirect('/dashboard')
     }
 
-    // Obtener recurso
+    // Obtener recurso / prestador
     let resource
     try {
         resource = await getResourceById(prisma, businessId, resourceId)
@@ -67,7 +69,7 @@ export default async function ResourceDetailPage({ params }: PageProps) {
             redirect(`/dashboard/business/${businessId}/resources`)
         }
     } catch (error) {
-        console.error('Error al obtener recurso:', error instanceof Error ? error.message : 'UNKNOWN')
+        console.error('Error al obtener recurso / prestador:', error instanceof Error ? error.message : 'UNKNOWN')
         redirect(`/dashboard/business/${businessId}/resources`)
     }
 
@@ -89,7 +91,7 @@ export default async function ResourceDetailPage({ params }: PageProps) {
         // Keep empty array on error
     }
 
-    // Obtener servicios del negocio y los asignados al recurso
+    // Obtener servicios del negocio y los asignados al recurso / prestador
     let allServices: Service[] = []
     let assignedServiceIds: string[] = []
     try {
@@ -116,6 +118,7 @@ export default async function ResourceDetailPage({ params }: PageProps) {
     }
 
     const statusInfo = statusLabels[resource.status] || statusLabels.ACTIVE
+    const initialTab = tab === 'availability' || tab === 'blocks' || tab === 'services' ? tab : 'general'
 
     return (
         <div className='flex min-h-screen flex-col bg-zinc-50 dark:bg-zinc-950'>
@@ -138,7 +141,7 @@ export default async function ResourceDetailPage({ params }: PageProps) {
             <main className='flex-1 py-8'>
                 <div className='container mx-auto px-4 sm:px-6 lg:px-8'>
                     <div className='mx-auto max-w-3xl'>
-                        <Tabs defaultValue='general' className='w-full'>
+                        <Tabs defaultValue={initialTab} className='w-full'>
                             <TabsList className='mb-6'>
                                 <TabsTrigger value='general' className='cursor-pointer'>
                                     General
@@ -158,7 +161,7 @@ export default async function ResourceDetailPage({ params }: PageProps) {
                                 <Card>
                                     <CardHeader>
                                         <CardTitle>Información del {business.resourceLabel}</CardTitle>
-                                        <CardDescription>Datos básicos del recurso</CardDescription>
+                                        <CardDescription>Datos básicos del recurso / prestador</CardDescription>
                                     </CardHeader>
                                     <CardContent className='space-y-4'>
                                         <div>
@@ -173,8 +176,8 @@ export default async function ResourceDetailPage({ params }: PageProps) {
                                                 {resource.type === 'PERSON'
                                                     ? 'Persona'
                                                     : resource.type === 'ASSET'
-                                                    ? 'Activo/Equipamiento'
-                                                    : 'No especificado'}
+                                                      ? 'Activo/Equipamiento'
+                                                      : 'No especificado'}
                                             </p>
                                         </div>
                                         <div>

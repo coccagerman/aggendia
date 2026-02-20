@@ -95,7 +95,7 @@ export default async function AgendaPage({ params, searchParams }: PageProps) {
         selectedDate = getMonthStartDate(selectedDate)
     }
 
-    // Obtener recursos para el filtro (ACTIVE e INACTIVE, excluyendo DELETED)
+    // Obtener recursos / prestadores para el filtro (ACTIVE e INACTIVE, excluyendo DELETED)
     let resources: { id: string; name: string; status: string }[] = []
     try {
         const allResources = await getResourcesByBusinessId(prisma, businessId)
@@ -103,7 +103,7 @@ export default async function AgendaPage({ params, searchParams }: PageProps) {
             .filter(r => r.status !== 'DELETED')
             .map(r => ({ id: r.id, name: r.name, status: r.status }))
     } catch (error) {
-        console.error('Error al obtener recursos:', error instanceof Error ? error.message : 'UNKNOWN')
+        console.error('Error al obtener recursos / prestadores:', error instanceof Error ? error.message : 'UNKNOWN')
     }
 
     // Validar resourceId si está presente

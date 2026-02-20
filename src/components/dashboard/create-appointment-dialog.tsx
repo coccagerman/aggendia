@@ -159,7 +159,7 @@ export function CreateAppointmentDialog({ businessId, timezone, resourceLabel }:
             })
             if (!response.ok) {
                 const errorData = await response.json()
-                throw new Error(errorData.error?.message || 'Error al cargar recursos')
+                throw new Error(errorData.error?.message || 'Error al cargar recursos / prestadores')
             }
 
             const data = await response.json()
@@ -171,7 +171,7 @@ export function CreateAppointmentDialog({ businessId, timezone, resourceLabel }:
             if (err instanceof Error && err.name === 'AbortError') {
                 return
             }
-            setError(err instanceof Error ? err.message : 'Error al cargar recursos')
+            setError(err instanceof Error ? err.message : 'Error al cargar recursos / prestadores')
             setResources([])
         } finally {
             // Only update loading state if this request wasn't aborted
@@ -415,7 +415,7 @@ export function CreateAppointmentDialog({ businessId, timezone, resourceLabel }:
                             onValueChange={setSelectedResourceId}
                             disabled={!selectedServiceId || isLoadingResources}
                         >
-                            <SelectTrigger id='resource' aria-label='Seleccionar recurso'>
+                            <SelectTrigger id='resource' aria-label='Seleccionar recurso / prestador'>
                                 <SelectValue placeholder={`Seleccionar ${resourceLabel.toLowerCase()}`} />
                             </SelectTrigger>
                             <SelectContent>

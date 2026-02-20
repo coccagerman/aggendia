@@ -252,7 +252,7 @@ export function ServiceActions({ service }: ServiceActionsProps) {
             if (!response.ok) {
                 if (response.status === 409) {
                     setErrors({
-                        name: 'Ya existe un servicio con ese nombre en este negocio o sede.'
+                        name: 'Ya existe un servicio con ese nombre en este negocio / sede.'
                     })
                 } else if (response.status === 400) {
                     if (data.error?.details?.fieldErrors) {

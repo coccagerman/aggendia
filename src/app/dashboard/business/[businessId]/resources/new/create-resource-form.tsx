@@ -72,7 +72,9 @@ export function CreateResourceForm({ businessId, resourceLabel }: CreateResource
                     }
                 } else {
                     setErrors({
-                        general: data.error?.message || 'Ocurrió un error al crear el recurso. Intentá nuevamente.'
+                        general:
+                            data.error?.message ||
+                            'Ocurrió un error al crear el recurso / prestador. Intentá nuevamente.'
                     })
                 }
                 return
@@ -103,14 +105,14 @@ export function CreateResourceForm({ businessId, resourceLabel }: CreateResource
             {/* Campo: Nombre */}
             <div className='space-y-2'>
                 <Label htmlFor='name'>
-                    Nombre del {resourceLabel} <span className='text-red-500'>*</span>
+                    Nombre del recurso / prestador <span className='text-red-500'>*</span>
                 </Label>
                 <Input
                     id='name'
                     type='text'
                     value={formData.name}
                     onChange={e => setFormData({ ...formData, name: e.target.value })}
-                    placeholder={`Ej: ${resourceLabel} 1`}
+                    placeholder='Ej: Prestador 1 o Sala 1'
                     required
                     disabled={isSubmitting}
                     aria-invalid={!!errors.name}
@@ -125,7 +127,7 @@ export function CreateResourceForm({ businessId, resourceLabel }: CreateResource
 
             {/* Campo: Tipo */}
             <div className='space-y-2'>
-                <Label htmlFor='type'>Tipo de recurso</Label>
+                <Label htmlFor='type'>Tipo de recurso / prestador</Label>
                 <select
                     id='type'
                     value={formData.type}
@@ -143,7 +145,7 @@ export function CreateResourceForm({ businessId, resourceLabel }: CreateResource
                     </p>
                 )}
                 <p className='text-sm text-zinc-500 dark:text-zinc-400'>
-                    Seleccioná si este recurso es una persona o un elemento físico.
+                    Seleccioná si este recurso / prestador es una persona o un elemento físico.
                 </p>
             </div>
 
@@ -153,7 +155,7 @@ export function CreateResourceForm({ businessId, resourceLabel }: CreateResource
                     Cancelar
                 </Button>
                 <Button type='submit' disabled={isSubmitting}>
-                    {isSubmitting ? 'Creando...' : `Crear ${resourceLabel}`}
+                    {isSubmitting ? 'Creando...' : 'Crear recurso / prestador'}
                 </Button>
             </div>
         </form>

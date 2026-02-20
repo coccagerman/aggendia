@@ -166,7 +166,7 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
                         if (activeBusinesses >= BASE_ACTIVE_BUSINESSES_LIMIT) {
                             throw new AppError(
                                 BusinessErrorCodes.BUSINESS_PLAN_LIMIT_REACHED,
-                                'Tu período de prueba o plan Base permite hasta 3 negocios o sedes activos. Suscribite al plan premium para crear más negocios.',
+                                'Tu período de prueba o plan Base permite hasta 3 negocios / sedes activos. Suscribite al plan premium para crear más negocios.',
                                 409,
                                 {
                                     limit: BASE_ACTIVE_BUSINESSES_LIMIT

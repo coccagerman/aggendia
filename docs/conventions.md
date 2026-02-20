@@ -388,3 +388,10 @@ PRs pequeños y coherentes.
 
 - Se implementan tests unitarios y e2e para testear cada feature y flujo en totalidad.
 - NO se hace skip de tests nunca. Si se necesita recrear una situación específica para testear un flujo, se hace dentro del test mismo.
+- Al terminar de implementar cada feature. Corre lint, tsc y tests unitarios. Corrige si ves que algo falla, y avísame a mí luego para correr batería de tests completa.
+
+## 16) Documentación continua
+
+- En cada iteración de una feature o fix, se actualiza documentación relacionada (user stories, data model, flows, ADRs).
+- Además se mantiene un archivo llamado continuous-docs.md donde se van dejando notas, decisiones, aprendizajes o cualquier cosa relevante que surja durante el desarrollo y que pueda ser útil para el futuro. Este archivo es un espacio de documentación viva que refleja el proceso real de construcción del producto.
+- Se consulta también el archivo continuous-docs.md antes de empezar a desarrollar una nueva feature, para aprovechar cualquier información o decisión previa que pueda ser relevante.

@@ -161,7 +161,7 @@ export function BookingForm({
                                 <span className='font-medium'>{serviceName}</span>
                             </div>
                             <div className='flex justify-between'>
-                                <span className='text-zinc-600 dark:text-zinc-400'>Recurso</span>
+                                <span className='text-zinc-600 dark:text-zinc-400'>Recurso / prestador</span>
                                 <span className='font-medium'>{resourceName}</span>
                             </div>
                             <div className='flex justify-between'>

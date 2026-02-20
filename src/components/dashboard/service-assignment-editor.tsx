@@ -98,7 +98,7 @@ export function ServiceAssignmentEditor({
         return (
             <div className='text-center py-8'>
                 <p className='text-sm text-zinc-500 dark:text-zinc-400'>
-                    No hay servicios disponibles. Creá servicios primero para poder asignarlos a este recurso.
+                    No hay servicios disponibles. Creá servicios primero para poder asignarlos a este recurso / prestador.
                 </p>
             </div>
         )

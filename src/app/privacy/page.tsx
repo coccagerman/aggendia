@@ -16,7 +16,7 @@ export default function PrivacyPage() {
                         </h2>
                         <p className='mt-2'>
                             Recopilamos los datos necesarios para prestar el servicio de gestión de turnos, incluyendo
-                            datos de cuenta, datos de negocios o sedes, y datos de clientes finales cargados por cada
+                            datos de cuenta, datos de negocios / sedes, y datos de clientes finales cargados por cada
                             usuario (por ejemplo, nombre, email o teléfono).
                         </p>
                     </section>
@@ -36,8 +36,8 @@ export default function PrivacyPage() {
                             3. Base legal y consentimiento
                         </h2>
                         <p className='mt-2'>
-                            El tratamiento se realiza para ejecutar la relación contractual con los usuarios de
-                            Aggendia y, cuando corresponde, sobre la base del consentimiento del titular de los datos.
+                            El tratamiento se realiza para ejecutar la relación contractual con los usuarios de Aggendia
+                            y, cuando corresponde, sobre la base del consentimiento del titular de los datos.
                         </p>
                     </section>
 

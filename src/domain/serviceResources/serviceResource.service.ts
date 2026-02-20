@@ -11,8 +11,8 @@ import { AppError, ValidationErrorCodes } from '@/domain/common/errors'
  */
 export const setServiceResourcesInputSchema = z.object({
     resourceIds: z
-        .array(z.string().uuid('ID de recurso inválido'))
-        .max(50, 'No se pueden asociar más de 50 recursos a un servicio')
+        .array(z.string().uuid('ID de recurso / prestador inválido'))
+        .max(50, 'No se pueden asociar más de 50 recursos / prestadores a un servicio')
 })
 
 /**
@@ -36,7 +36,7 @@ export function validateSetServiceResourcesInput(input: unknown): { resourceIds:
  * Zod schema for single resource ID (add/remove operations)
  */
 export const singleResourceIdSchema = z.object({
-    resourceId: z.string().uuid('ID de recurso inválido')
+    resourceId: z.string().uuid('ID de recurso / prestador inválido')
 })
 
 /**

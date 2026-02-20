@@ -36,7 +36,7 @@ export default function NewBusinessPage() {
 
         // Validación client-side
         if (!formData.name.trim()) {
-            setError('El nombre del negocio o sede es requerido.')
+            setError('El nombre del negocio / sede es requerido.')
             return
         }
 
@@ -117,7 +117,7 @@ export default function NewBusinessPage() {
                     <div className='mx-auto max-w-2xl'>
                         <Card>
                             <CardHeader>
-                                <CardTitle>Crear negocio o sede</CardTitle>
+                                <CardTitle>Crear negocio / sede</CardTitle>
                                 <CardDescription>
                                     Completá la información para comenzar a recibir turnos
                                 </CardDescription>
@@ -127,7 +127,7 @@ export default function NewBusinessPage() {
                                     {/* Nombre */}
                                     <div className='space-y-2'>
                                         <Label htmlFor='name'>
-                                            Nombre del negocio o sede <span className='text-red-500'>*</span>
+                                            Nombre del negocio / sede <span className='text-red-500'>*</span>
                                         </Label>
                                         <Input
                                             id='name'
@@ -210,7 +210,7 @@ export default function NewBusinessPage() {
                                         <Link href='/dashboard'>Cancelar</Link>
                                     </Button>
                                     <Button type='submit' disabled={loading} className='flex-1'>
-                                        {loading ? 'Creando...' : 'Crear negocio o sede'}
+                                        {loading ? 'Creando...' : 'Crear negocio / sede'}
                                     </Button>
                                 </CardFooter>
                             </form>

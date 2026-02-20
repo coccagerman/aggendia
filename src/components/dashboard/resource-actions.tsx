@@ -110,7 +110,7 @@ export function ResourceActions({ resource, resourceLabel }: ResourceActionsProp
 
             if (!response.ok) {
                 const data = await response.json()
-                toast.error(data.error?.message || 'Error al cambiar el estado del recurso.')
+                toast.error(data.error?.message || 'Error al cambiar el estado del recurso / prestador.')
                 return
             }
 

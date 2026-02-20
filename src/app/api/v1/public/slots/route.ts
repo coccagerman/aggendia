@@ -111,10 +111,10 @@ export async function GET(request: NextRequest) {
         // 3. Get resource (validate businessId + active)
         const resource = await getResourceById(prisma, business.id, validatedQuery.resourceId)
         if (!resource || resource.businessId !== business.id) {
-            throw new AppError(ResourceErrorCodes.RESOURCE_NOT_FOUND, 'Recurso no encontrado', 404)
+            throw new AppError(ResourceErrorCodes.RESOURCE_NOT_FOUND, 'Recurso / prestador no encontrado', 404)
         }
         if (resource.status !== 'ACTIVE') {
-            throw new AppError(ResourceErrorCodes.RESOURCE_INACTIVE, 'Recurso no disponible', 409)
+            throw new AppError(ResourceErrorCodes.RESOURCE_INACTIVE, 'Recurso / prestador no disponible', 409)
         }
 
         // 4. Validate service-resource mapping
@@ -128,7 +128,7 @@ export async function GET(request: NextRequest) {
         if (!mapping) {
             throw new AppError(
                 ServiceResourceErrorCodes.SERVICE_RESOURCE_NOT_LINKED,
-                'Este recurso no ofrece el servicio seleccionado',
+                'Este recurso / prestador no ofrece el servicio seleccionado',
                 409
             )
         }

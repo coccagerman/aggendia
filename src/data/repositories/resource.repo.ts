@@ -8,7 +8,7 @@ function ensureResourceClient(prisma: PrismaClient): PrismaClient {
 }
 
 /**
- * Crea un recurso asociado a un negocio.
+ * Crea un recurso / prestador asociado a un negocio.
  */
 export async function createResource(
     prisma: PrismaClient,
@@ -17,7 +17,7 @@ export async function createResource(
 ): Promise<Resource> {
     const client = ensureResourceClient(prisma)
 
-    // Verificar que no exista un recurso activo/inactivo con el mismo nombre
+    // Verificar que no exista un recurso / prestador activo/inactivo con el mismo nombre
     const existingWithSameName = await client.resource.findFirst({
         where: {
             businessId,
@@ -28,7 +28,7 @@ export async function createResource(
     if (existingWithSameName) {
         throw new AppError(
             ResourceErrorCodes.RESOURCE_NAME_CONFLICT,
-            'Ya existe un recurso activo o inactivo con ese nombre en este negocio.',
+            'Ya existe un recurso / prestador activo o inactivo con ese nombre en este negocio.',
             409
         )
     }
@@ -44,7 +44,7 @@ export async function createResource(
 }
 
 /**
- * Obtiene todos los recursos activos e inactivos de un negocio (excluye DELETED).
+ * Obtiene todos los recursos / prestadores activos e inactivos de un negocio (excluye DELETED).
  */
 export async function getResourcesByBusinessId(prisma: PrismaClient, businessId: string): Promise<Resource[]> {
     const client = ensureResourceClient(prisma)
@@ -62,7 +62,7 @@ export async function getResourcesByBusinessId(prisma: PrismaClient, businessId:
 }
 
 /**
- * Obtiene todos los recursos para un conjunto de negocios (excluye DELETED).
+ * Obtiene todos los recursos / prestadores para un conjunto de negocios (excluye DELETED).
  */
 export async function getResourcesByBusinessIds(prisma: PrismaClient, businessIds: string[]): Promise<Resource[]> {
     if (businessIds.length === 0) return []
@@ -85,7 +85,7 @@ export async function getResourcesByBusinessIds(prisma: PrismaClient, businessId
 }
 
 /**
- * Obtiene los recursos agrupados por negocio (excluye DELETED).
+ * Obtiene los recursos / prestadores agrupados por negocio (excluye DELETED).
  */
 export async function getResourcesByBusinessIdsMap(
     prisma: PrismaClient,
@@ -100,8 +100,8 @@ export async function getResourcesByBusinessIdsMap(
 }
 
 /**
- * Obtiene un recurso por ID (verifica que pertenezca al negocio).
- * Excluye recursos con status DELETED.
+ * Obtiene un recurso / prestador por ID (verifica que pertenezca al negocio).
+ * Excluye recursos / prestadores con status DELETED.
  */
 export async function getResourceById(
     prisma: PrismaClient,
@@ -121,7 +121,7 @@ export async function getResourceById(
 }
 
 /**
- * Actualiza un recurso.
+ * Actualiza un recurso / prestador.
  */
 export async function updateResource(
     prisma: PrismaClient,
@@ -139,10 +139,10 @@ export async function updateResource(
     })
 
     if (!existing) {
-        throw new AppError(ResourceErrorCodes.RESOURCE_NOT_FOUND, 'Recurso no encontrado.', 404)
+        throw new AppError(ResourceErrorCodes.RESOURCE_NOT_FOUND, 'Recurso / prestador no encontrado.', 404)
     }
 
-    // Si se cambia el nombre, verificar que no exista otro recurso activo/inactivo con ese nombre
+    // Si se cambia el nombre, verificar que no exista otro recurso / prestador activo/inactivo con ese nombre
     if (input.name && input.name.trim() !== existing.name) {
         const existingWithSameName = await client.resource.findFirst({
             where: {
@@ -155,7 +155,7 @@ export async function updateResource(
         if (existingWithSameName) {
             throw new AppError(
                 ResourceErrorCodes.RESOURCE_NAME_CONFLICT,
-                'Ya existe un recurso activo o inactivo con ese nombre en este negocio.',
+                'Ya existe un recurso / prestador activo o inactivo con ese nombre en este negocio.',
                 409
             )
         }
@@ -180,25 +180,25 @@ export async function updateResource(
     })
 
     if (result.count === 0) {
-        throw new AppError(ResourceErrorCodes.RESOURCE_NOT_FOUND, 'Recurso no encontrado.', 404)
+        throw new AppError(ResourceErrorCodes.RESOURCE_NOT_FOUND, 'Recurso / prestador no encontrado.', 404)
     }
 
     const updated = await client.resource.findUnique({ where: { id: resourceId } })
     if (!updated) {
-        throw new AppError(ResourceErrorCodes.RESOURCE_NOT_FOUND, 'Recurso no encontrado.', 404)
+        throw new AppError(ResourceErrorCodes.RESOURCE_NOT_FOUND, 'Recurso / prestador no encontrado.', 404)
     }
 
     return updated
 }
 
 /**
- * Elimina un recurso (soft delete: cambia status a DELETED).
- * También elimina todas las asociaciones ServiceResource del recurso.
+ * Elimina un recurso / prestador (soft delete: cambia status a DELETED).
+ * También elimina todas las asociaciones ServiceResource del recurso / prestador.
  */
 export async function deleteResource(prisma: PrismaClient, businessId: string, resourceId: string): Promise<void> {
     const client = ensureResourceClient(prisma)
 
-    // Verificar que el recurso existe antes de proceder
+    // Verificar que el recurso / prestador existe antes de proceder
     const existing = await client.resource.findFirst({
         where: {
             id: resourceId,
@@ -208,13 +208,13 @@ export async function deleteResource(prisma: PrismaClient, businessId: string, r
     })
 
     if (!existing) {
-        throw new AppError(ResourceErrorCodes.RESOURCE_NOT_FOUND, 'Recurso no encontrado.', 404)
+        throw new AppError(ResourceErrorCodes.RESOURCE_NOT_FOUND, 'Recurso / prestador no encontrado.', 404)
     }
 
-    // Eliminar todas las asociaciones Service-Resource del recurso
+    // Eliminar todas las asociaciones Service-Resource del recurso / prestador
     await removeAllServiceLinksForResource(client, businessId, resourceId)
 
-    // Hacer soft delete del recurso
+    // Hacer soft delete del recurso / prestador
     await client.resource.update({
         where: { id: resourceId },
         data: { status: 'DELETED' }

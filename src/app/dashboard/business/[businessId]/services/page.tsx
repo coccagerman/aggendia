@@ -67,14 +67,14 @@ export default async function ServicesPage({ params }: PageProps) {
         console.error('Error al obtener servicios:', error instanceof Error ? error.message : 'UNKNOWN')
     }
 
-    // Obtener recursos del negocio
+    // Obtener recursos / prestadores del negocio
     try {
         allResources = await getResourcesByBusinessId(prisma, businessId)
     } catch (error) {
-        console.error('Error al obtener recursos:', error instanceof Error ? error.message : 'UNKNOWN')
+        console.error('Error al obtener recursos / prestadores:', error instanceof Error ? error.message : 'UNKNOWN')
     }
 
-    // Obtener conteo de recursos por servicio
+    // Obtener conteo de recursos / prestadores por servicio
     if (services.length > 0) {
         try {
             const serviceIds = services.map(s => s.id)
@@ -92,7 +92,7 @@ export default async function ServicesPage({ params }: PageProps) {
                 assignedResourceIdsByService.set(serviceId, resourceIds)
             }
         } catch (error) {
-            console.error('Error al obtener recursos asignados:', error instanceof Error ? error.message : 'UNKNOWN')
+            console.error('Error al obtener recursos / prestadores asignados:', error instanceof Error ? error.message : 'UNKNOWN')
         }
     }
 
@@ -222,7 +222,7 @@ export default async function ServicesPage({ params }: PageProps) {
                                                                     </span>
                                                                 )}
                                                             </div>
-                                                            {/* Badge de recursos */}
+                                                            {/* Badge de recursos / prestadores */}
                                                             <div className='mt-3 flex items-center gap-2'>
                                                                 <AssignResourcesDialog
                                                                     service={service}

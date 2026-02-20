@@ -69,7 +69,7 @@ export function rangesOverlap(start1: Date, end1: Date, start2: Date, end2: Date
 
 /**
  * Valida que un nuevo bloqueo no se solape con bloqueos existentes
- * @param existingBlocks - Bloqueos existentes para el recurso
+ * @param existingBlocks - Bloqueos existentes para el recurso / prestador
  * @param startAt - Inicio del nuevo bloqueo
  * @param endAt - Fin del nuevo bloqueo
  * @param excludeBlockId - ID del bloqueo a excluir (para edición futura)

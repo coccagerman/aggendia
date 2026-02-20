@@ -1,7 +1,7 @@
 import { z } from 'zod'
 
 /**
- * Schema para crear un recurso (POST)
+ * Schema para crear un recurso / prestador (POST)
  */
 export const createResourceSchema = z.object({
     name: z.string().trim().min(1, 'El nombre es requerido').max(100, 'El nombre no puede exceder 100 caracteres'),
@@ -10,7 +10,7 @@ export const createResourceSchema = z.object({
 })
 
 /**
- * Schema para actualizar un recurso (PATCH)
+ * Schema para actualizar un recurso / prestador (PATCH)
  */
 export const updateResourceSchema = z.object({
     name: z.string().trim().min(1).max(100).optional(),
@@ -19,7 +19,7 @@ export const updateResourceSchema = z.object({
 })
 
 /**
- * Schema para actualizar un recurso vía colección (PATCH /resources)
+ * Schema para actualizar un recurso / prestador vía colección (PATCH /resources)
  */
 export const patchResourceByIdSchema = z.object({
     resourceId: z.string().uuid('resourceId inválido'),
@@ -29,7 +29,7 @@ export const patchResourceByIdSchema = z.object({
 })
 
 /**
- * Schema para eliminar un recurso vía colección (DELETE /resources)
+ * Schema para eliminar un recurso / prestador vía colección (DELETE /resources)
  */
 export const deleteResourceByIdSchema = z.object({
     resourceId: z.string().uuid('resourceId inválido')

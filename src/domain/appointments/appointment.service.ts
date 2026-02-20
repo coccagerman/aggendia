@@ -294,7 +294,7 @@ export async function rescheduleAppointment(
     if (appointment.resource.status !== 'ACTIVE') {
         throw new AppError(
             AppointmentErrorCodes.APPOINTMENT_INVALID_STATUS,
-            'No se puede reprogramar: el recurso ya no está disponible',
+            'No se puede reprogramar: el recurso / prestador ya no está disponible',
             400
         )
     }
@@ -309,7 +309,7 @@ export async function rescheduleAppointment(
     if (!isWithinAvailability(availabilityRules, newStartAtDate, newEndAt, appointment.businessTimezone)) {
         throw new AppError(
             AppointmentErrorCodes.APPOINTMENT_OUTSIDE_AVAILABILITY,
-            'El horario seleccionado está fuera del horario disponible del recurso',
+            'El horario seleccionado está fuera del horario disponible del recurso / prestador',
             409
         )
     }

@@ -20,7 +20,7 @@ export default function TermsPage() {
                     <section>
                         <h2 className='text-lg font-semibold text-zinc-900 dark:text-zinc-50'>2. Servicio</h2>
                         <p className='mt-2'>
-                            Aggendia permite gestionar turnos, negocios o sedes, servicios, recursos, agenda y
+                            Aggendia permite gestionar turnos, negocios / sedes, servicios, recursos / prestadores, agenda y
                             notificaciones asociadas.
                         </p>
                     </section>

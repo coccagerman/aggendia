@@ -13,7 +13,7 @@ type RouteContext = {
 
 /**
  * GET /api/v1/businesses/:businessId/resources/:resourceId/services
- * Lista los IDs de servicios asociados a un recurso
+ * Lista los IDs de servicios asociados a un recurso / prestador
  */
 export async function GET(request: NextRequest, context: RouteContext) {
     let businessId: string | undefined
@@ -25,14 +25,14 @@ export async function GET(request: NextRequest, context: RouteContext) {
         const { userId } = await requireAuth()
         await requireBusinessAccess(userId, businessId)
 
-        // Verificar que el recurso existe
+        // Verificar que el recurso / prestador existe
         const resource = await getResourceById(prisma, businessId, resourceId)
         if (!resource) {
             return NextResponse.json(
                 {
                     error: {
                         code: ResourceErrorCodes.RESOURCE_NOT_FOUND,
-                        message: 'Recurso no encontrado.'
+                        message: 'Recurso / prestador no encontrado.'
                     }
                 },
                 { status: 404 }
@@ -47,7 +47,7 @@ export async function GET(request: NextRequest, context: RouteContext) {
         })
     } catch (error) {
         console.error(
-            `Error al obtener servicios del recurso [businessId=${businessId}, resourceId=${resourceId}]:`,
+            `Error al obtener servicios del recurso / prestador [businessId=${businessId}, resourceId=${resourceId}]:`,
             error instanceof Error ? error.message : 'UNKNOWN'
         )
 
@@ -59,7 +59,7 @@ export async function GET(request: NextRequest, context: RouteContext) {
             {
                 error: {
                     code: 'INTERNAL_ERROR',
-                    message: 'Error al obtener servicios del recurso.'
+                    message: 'Error al obtener servicios del recurso / prestador.'
                 }
             },
             { status: 500 }
@@ -69,7 +69,7 @@ export async function GET(request: NextRequest, context: RouteContext) {
 
 /**
  * PUT /api/v1/businesses/:businessId/resources/:resourceId/services
- * Reemplaza todos los servicios asociados al recurso (bulk update)
+ * Reemplaza todos los servicios asociados al recurso / prestador (bulk update)
  */
 export async function PUT(request: NextRequest, context: RouteContext) {
     let businessId: string | undefined
@@ -81,14 +81,14 @@ export async function PUT(request: NextRequest, context: RouteContext) {
         const { userId } = await requireAuth()
         await requireBusinessAccess(userId, businessId)
 
-        // Verificar que el recurso existe
+        // Verificar que el recurso / prestador existe
         const resource = await getResourceById(prisma, businessId, resourceId)
         if (!resource) {
             return NextResponse.json(
                 {
                     error: {
                         code: ResourceErrorCodes.RESOURCE_NOT_FOUND,
-                        message: 'Recurso no encontrado.'
+                        message: 'Recurso / prestador no encontrado.'
                     }
                 },
                 { status: 404 }
@@ -128,7 +128,7 @@ export async function PUT(request: NextRequest, context: RouteContext) {
         })
     } catch (error) {
         console.error(
-            `Error al actualizar servicios del recurso [businessId=${businessId}, resourceId=${resourceId}]:`,
+            `Error al actualizar servicios del recurso / prestador [businessId=${businessId}, resourceId=${resourceId}]:`,
             error instanceof Error ? error.message : 'UNKNOWN'
         )
 
@@ -140,7 +140,7 @@ export async function PUT(request: NextRequest, context: RouteContext) {
             {
                 error: {
                     code: 'INTERNAL_ERROR',
-                    message: 'Error al actualizar servicios del recurso.'
+                    message: 'Error al actualizar servicios del recurso / prestador.'
                 }
             },
             { status: 500 }

@@ -12,11 +12,11 @@ import type {
 import { AppError, ServiceResourceErrorCodes, ServiceErrorCodes, ResourceErrorCodes } from '@/domain/common/errors'
 
 /**
- * Obtiene todos los recursos asociados a un servicio con sus datos
+ * Obtiene todos los recursos / prestadores asociados a un servicio con sus datos
  * @param prisma - Prisma client
  * @param businessId - ID del negocio (para validación de tenant)
  * @param serviceId - ID del servicio
- * @returns Lista de ServiceResourceWithResource ordenada por nombre del recurso
+ * @returns Lista de ServiceResourceWithResource ordenada por nombre del recurso / prestador
  */
 export async function getResourcesByServiceId(
     prisma: PrismaClient,
@@ -40,7 +40,7 @@ export async function getResourcesByServiceId(
 }
 
 /**
- * Obtiene resumen de recursos asociados a un servicio (para listados)
+ * Obtiene resumen de recursos / prestadores asociados a un servicio (para listados)
  * @param prisma - Prisma client
  * @param businessId - ID del negocio
  * @param serviceId - ID del servicio
@@ -80,10 +80,10 @@ export async function getLinkedResourceSummaries(
 }
 
 /**
- * Obtiene los IDs de servicios que tienen al menos un recurso asociado
+ * Obtiene los IDs de servicios que tienen al menos un recurso / prestador asociado
  * @param prisma - Prisma client
  * @param businessId - ID del negocio
- * @returns Set de serviceIds con recursos
+ * @returns Set de serviceIds con recursos / prestadores
  */
 export async function getServiceIdsWithResources(prisma: PrismaClient, businessId: string): Promise<Set<string>> {
     const links = await prisma.serviceResource.findMany({
@@ -95,11 +95,11 @@ export async function getServiceIdsWithResources(prisma: PrismaClient, businessI
 }
 
 /**
- * Cuenta la cantidad de recursos asociados a cada servicio
+ * Cuenta la cantidad de recursos / prestadores asociados a cada servicio
  * @param prisma - Prisma client
  * @param businessId - ID del negocio
  * @param serviceIds - Lista de IDs de servicios a consultar
- * @returns Map de serviceId -> cantidad de recursos
+ * @returns Map de serviceId -> cantidad de recursos / prestadores
  */
 export async function countResourcesByServiceIds(
     prisma: PrismaClient,
@@ -125,13 +125,13 @@ export async function countResourcesByServiceIds(
 }
 
 /**
- * Asocia un recurso a un servicio
+ * Asocia un recurso / prestador a un servicio
  * @param prisma - Prisma client
  * @param businessId - ID del negocio
  * @param serviceId - ID del servicio
- * @param resourceId - ID del recurso a asociar
+ * @param resourceId - ID del recurso / prestador a asociar
  * @returns ServiceResource creado
- * @throws AppError si el servicio o recurso no existe o ya está asociado
+ * @throws AppError si el servicio o recurso / prestador no existe o ya está asociado
  */
 export async function addResourceToService(
     prisma: PrismaClient,
@@ -147,12 +147,12 @@ export async function addResourceToService(
         throw new AppError(ServiceErrorCodes.SERVICE_NOT_FOUND, 'Servicio no encontrado', 404)
     }
 
-    // Verificar que el recurso existe, pertenece al negocio y no está eliminado
+    // Verificar que el recurso / prestador existe, pertenece al negocio y no está eliminado
     const resource = await prisma.resource.findFirst({
         where: { id: resourceId, businessId, status: { not: 'DELETED' } }
     })
     if (!resource) {
-        throw new AppError(ResourceErrorCodes.RESOURCE_NOT_FOUND, 'Recurso no encontrado', 404)
+        throw new AppError(ResourceErrorCodes.RESOURCE_NOT_FOUND, 'Recurso / prestador no encontrado', 404)
     }
 
     // Verificar que no exista ya la asociación
@@ -162,7 +162,7 @@ export async function addResourceToService(
     if (existing) {
         throw new AppError(
             ServiceResourceErrorCodes.SERVICE_RESOURCE_ALREADY_EXISTS,
-            'El recurso ya está asociado a este servicio',
+            'El recurso / prestador ya está asociado a este servicio',
             409
         )
     }
@@ -177,11 +177,11 @@ export async function addResourceToService(
 }
 
 /**
- * Elimina la asociación de un recurso con un servicio
+ * Elimina la asociación de un recurso / prestador con un servicio
  * @param prisma - Prisma client
  * @param businessId - ID del negocio
  * @param serviceId - ID del servicio
- * @param resourceId - ID del recurso a desasociar
+ * @param resourceId - ID del recurso / prestador a desasociar
  * @returns ServiceResource eliminado
  * @throws AppError si la asociación no existe
  */
@@ -197,7 +197,7 @@ export async function removeResourceFromService(
     if (!link) {
         throw new AppError(
             ServiceResourceErrorCodes.SERVICE_RESOURCE_NOT_FOUND,
-            'El recurso no está asociado a este servicio',
+            'El recurso / prestador no está asociado a este servicio',
             404
         )
     }
@@ -208,13 +208,13 @@ export async function removeResourceFromService(
 }
 
 /**
- * Reemplaza todos los recursos asociados a un servicio (bulk update)
+ * Reemplaza todos los recursos / prestadores asociados a un servicio (bulk update)
  * @param prisma - Prisma client
  * @param businessId - ID del negocio
  * @param serviceId - ID del servicio
- * @param resourceIds - Lista de IDs de recursos a asociar (reemplaza los existentes)
+ * @param resourceIds - Lista de IDs de recursos / prestadores a asociar (reemplaza los existentes)
  * @returns Lista de ServiceResource creados
- * @throws AppError si el servicio no existe o algún recurso no es válido
+ * @throws AppError si el servicio no existe o algún recurso / prestador no es válido
  */
 export async function setServiceResources(
     prisma: PrismaClient,
@@ -230,7 +230,7 @@ export async function setServiceResources(
         throw new AppError(ServiceErrorCodes.SERVICE_NOT_FOUND, 'Servicio no encontrado', 404)
     }
 
-    // Verificar que todos los recursos existen, pertenecen al negocio y no están eliminados
+    // Verificar que todos los recursos / prestadores existen, pertenecen al negocio y no están eliminados
     if (resourceIds.length > 0) {
         const validResources = await prisma.resource.findMany({
             where: {
@@ -247,7 +247,7 @@ export async function setServiceResources(
         if (invalidIds.length > 0) {
             throw new AppError(
                 ServiceResourceErrorCodes.SERVICE_RESOURCE_INVALID_RESOURCE,
-                `Recursos no válidos: ${invalidIds.join(', ')}`,
+                `Recursos / prestadores no válidos: ${invalidIds.join(', ')}`,
                 400,
                 { invalidResourceIds: invalidIds }
             )
@@ -261,7 +261,7 @@ export async function setServiceResources(
             where: { businessId, serviceId }
         })
 
-        // Si no hay recursos a asociar, retornar vacío
+        // Si no hay recursos / prestadores a asociar, retornar vacío
         if (resourceIds.length === 0) {
             return []
         }
@@ -283,7 +283,7 @@ export async function setServiceResources(
 }
 
 /**
- * Obtiene los IDs de recursos asociados a un servicio
+ * Obtiene los IDs de recursos / prestadores asociados a un servicio
  * @param prisma - Prisma client
  * @param businessId - ID del negocio
  * @param serviceId - ID del servicio
@@ -302,7 +302,7 @@ export async function getResourceIdsByServiceId(
 }
 
 /**
- * Obtiene los IDs de recursos asociados a múltiples servicios (batch)
+ * Obtiene los IDs de recursos / prestadores asociados a múltiples servicios (batch)
  * Evita N+1 queries al hacer una sola consulta para todos los servicios
  * @param prisma - Prisma client
  * @param businessId - ID del negocio
@@ -339,10 +339,10 @@ export async function getResourceIdsByServiceIds(
 }
 
 /**
- * Obtiene los IDs de servicios asociados a un recurso
+ * Obtiene los IDs de servicios asociados a un recurso / prestador
  * @param prisma - Prisma client
  * @param businessId - ID del negocio
- * @param resourceId - ID del recurso
+ * @param resourceId - ID del recurso / prestador
  * @returns Array de serviceIds
  */
 export async function getServiceIdsByResourceId(
@@ -358,13 +358,13 @@ export async function getServiceIdsByResourceId(
 }
 
 /**
- * Reemplaza todos los servicios asociados a un recurso (bulk update)
+ * Reemplaza todos los servicios asociados a un recurso / prestador (bulk update)
  * @param prisma - Prisma client
  * @param businessId - ID del negocio
- * @param resourceId - ID del recurso
+ * @param resourceId - ID del recurso / prestador
  * @param serviceIds - Lista de IDs de servicios a asociar (reemplaza los existentes)
  * @returns Lista de ServiceResource creados
- * @throws AppError si el recurso no existe o algún servicio no es válido
+ * @throws AppError si el recurso / prestador no existe o algún servicio no es válido
  */
 export async function setResourceServices(
     prisma: PrismaClient,
@@ -372,12 +372,12 @@ export async function setResourceServices(
     resourceId: string,
     serviceIds: string[]
 ): Promise<ServiceResource[]> {
-    // Verificar que el recurso existe, pertenece al negocio y no está eliminado
+    // Verificar que el recurso / prestador existe, pertenece al negocio y no está eliminado
     const resource = await prisma.resource.findFirst({
         where: { id: resourceId, businessId, status: { not: 'DELETED' } }
     })
     if (!resource) {
-        throw new AppError(ResourceErrorCodes.RESOURCE_NOT_FOUND, 'Recurso no encontrado', 404)
+        throw new AppError(ResourceErrorCodes.RESOURCE_NOT_FOUND, 'Recurso / prestador no encontrado', 404)
     }
 
     // Verificar que todos los servicios existen, pertenecen al negocio y no están eliminados
@@ -433,8 +433,8 @@ export async function setResourceServices(
 }
 
 /**
- * Obtiene recursos ACTIVE asignados a un servicio (para UI pública)
- * Solo devuelve recursos con status ACTIVE (no INACTIVE ni DELETED)
+ * Obtiene recursos / prestadores ACTIVE asignados a un servicio (para UI pública)
+ * Solo devuelve recursos / prestadores con status ACTIVE (no INACTIVE ni DELETED)
  * @param prisma - Prisma client
  * @param businessId - ID del negocio
  * @param serviceId - ID del servicio
@@ -477,12 +477,12 @@ export async function getActiveResourcesByServiceId(
 }
 
 /**
- * Cuenta servicios que tienen al menos un recurso ACTIVE asignado
+ * Cuenta servicios que tienen al menos un recurso / prestador ACTIVE asignado
  * Útil para filtrar servicios "reservables" en la UI pública
  * @param prisma - Prisma client
  * @param businessId - ID del negocio
  * @param serviceIds - Lista de IDs de servicios a verificar
- * @returns Set de serviceIds que tienen recursos activos
+ * @returns Set de serviceIds que tienen recursos / prestadores activos
  */
 export async function getServiceIdsWithActiveResources(
     prisma: PrismaClient,
@@ -509,11 +509,11 @@ export async function getServiceIdsWithActiveResources(
 }
 
 /**
- * Elimina todas las asociaciones Service-Resource de un recurso.
- * Se usa cuando se elimina un recurso (soft delete) para limpiar las relaciones.
+ * Elimina todas las asociaciones Service-Resource de un recurso / prestador.
+ * Se usa cuando se elimina un recurso / prestador (soft delete) para limpiar las relaciones.
  * @param prisma - Prisma client
  * @param businessId - ID del negocio
- * @param resourceId - ID del recurso
+ * @param resourceId - ID del recurso / prestador
  * @returns Cantidad de asociaciones eliminadas
  */
 export async function removeAllServiceLinksForResource(

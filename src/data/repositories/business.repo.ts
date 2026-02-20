@@ -50,7 +50,7 @@ export async function createBusinessWithOwner(
                 name: input.name,
                 slug,
                 timezone: input.timezone,
-                resourceLabel: input.resourceLabel ?? 'Recurso',
+                resourceLabel: input.resourceLabel ?? 'Recurso / prestador',
                 address: input.address ?? null,
                 area: input.area ?? null,
                 ownerEmail: ownerEmail ?? null

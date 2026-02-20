@@ -423,12 +423,12 @@ export function SubscriptionSettingsClient({
                                         </p>
                                         {plan.slug === 'base' ? (
                                             <p className='text-sm text-muted-foreground'>
-                                                Turnos ilimitados y hasta 3 negocios o sedes activas.
+                                                Turnos ilimitados y hasta 3 negocios / sedes activas.
                                             </p>
                                         ) : plan.slug === 'premium' ? (
                                             <>
                                                 <p className='text-sm text-muted-foreground'>
-                                                    Turnos ilimitados y negocios o sedes activas ilimitadas.
+                                                    Turnos ilimitados y negocios / sedes activas ilimitadas.
                                                 </p>
                                                 {showPremiumDowngradeWarning && (
                                                     <p className='text-sm text-muted-foreground'>

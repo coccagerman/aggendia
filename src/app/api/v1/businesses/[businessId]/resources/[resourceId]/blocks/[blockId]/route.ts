@@ -24,7 +24,7 @@ export async function DELETE(_request: NextRequest, context: RouteContext) {
         const { userId } = await requireAuth()
         await requireBusinessAccess(userId, businessId)
 
-        // Verificar que el bloqueo existe y pertenece al recurso/negocio
+        // Verificar que el bloqueo existe y pertenece al recurso / prestador/negocio
         const block = await getBlockWithResource(prisma, blockId)
         if (!block) {
             return NextResponse.json(
@@ -38,7 +38,7 @@ export async function DELETE(_request: NextRequest, context: RouteContext) {
             )
         }
 
-        // Verificar que el bloqueo pertenece al recurso indicado
+        // Verificar que el bloqueo pertenece al recurso / prestador indicado
         if (block.resourceId !== resourceId) {
             return NextResponse.json(
                 {
@@ -51,7 +51,7 @@ export async function DELETE(_request: NextRequest, context: RouteContext) {
             )
         }
 
-        // Verificar que el recurso pertenece al negocio indicado
+        // Verificar que el recurso / prestador pertenece al negocio indicado
         if (block.resource.businessId !== businessId) {
             return NextResponse.json(
                 {
