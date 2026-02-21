@@ -123,7 +123,6 @@ export async function POST(request: NextRequest) {
 
         const session = await provider.createCheckoutSession({
             providerCustomerId,
-            customerEmail: email,
             planPriceId,
             businessId: userId,
             successUrl,
