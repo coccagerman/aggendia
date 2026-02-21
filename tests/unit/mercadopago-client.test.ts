@@ -40,7 +40,8 @@ describe('MercadoPago client - Unit', () => {
             preapprovalPlanId: 'mp_plan_123',
             externalReference: 'user-1',
             reason: 'Suscripción user-1',
-            backUrl: 'https://app.test/subscription?checkout=success'
+            backUrl: 'https://app.test/subscription?checkout=success',
+            payerEmail: 'user@test.com'
         })
 
         expect(response.id).toBe('pre_123')
@@ -79,7 +80,8 @@ describe('MercadoPago client - Unit', () => {
                 preapprovalPlanId: 'mp_plan_123',
                 externalReference: 'user-1',
                 reason: 'Suscripción user-1',
-                backUrl: 'https://app.test/subscription?checkout=success'
+                backUrl: 'https://app.test/subscription?checkout=success',
+                payerEmail: 'user@test.com'
             })
         ).rejects.toBeInstanceOf(AppError)
 

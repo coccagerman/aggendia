@@ -48,6 +48,7 @@ export interface MercadoPagoPreapproval {
     status?: string
     init_point?: string
     external_reference?: string
+    payer_email?: string
     payer_id?: string | number
     reason?: string
     date_created?: string
@@ -90,16 +91,16 @@ export async function createMercadoPagoPreapproval(input: {
     externalReference: string
     reason: string
     backUrl: string
+    payerEmail?: string
 }): Promise<MercadoPagoPreapproval> {
     const payloadWithPlan = {
         preapproval_plan_id: input.preapprovalPlanId,
         external_reference: input.externalReference,
         reason: input.reason,
         back_url: input.backUrl,
+        payer_email: input.payerEmail,
         status: 'pending' as const
     }
-
-    console.log('Payload enviado a MP:', JSON.stringify(payloadWithPlan))
 
     try {
         return await mercadopagoRequest<MercadoPagoPreapproval>('/preapproval', {
@@ -127,6 +128,7 @@ export async function createMercadoPagoPreapproval(input: {
                 external_reference: input.externalReference,
                 reason: input.reason,
                 back_url: input.backUrl,
+                payer_email: input.payerEmail,
                 auto_recurring: {
                     frequency: autoRecurring.frequency,
                     frequency_type: autoRecurring.frequency_type,

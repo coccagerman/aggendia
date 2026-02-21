@@ -104,7 +104,8 @@ export class MercadoPagoProvider implements PaymentProvider {
             preapprovalPlanId: input.planPriceId,
             externalReference: input.providerCustomerId,
             reason: `Suscripción ${input.businessId}`,
-            backUrl: input.successUrl
+            backUrl: input.successUrl,
+            payerEmail: input.customerEmail
         })
 
         if (!preapproval.init_point) {
@@ -218,7 +219,8 @@ export class MercadoPagoProvider implements PaymentProvider {
                     providerEventId,
                     provider: 'MERCADOPAGO',
                     type: 'payment_succeeded',
-                    providerCustomerId: preapproval.external_reference ?? String(preapproval.payer_id ?? ''),
+                    providerCustomerId:
+                        preapproval.external_reference ?? preapproval.payer_email ?? String(preapproval.payer_id ?? ''),
                     providerSubscriptionId: preapproval.id,
                     amountCents: toCents(preapproval.auto_recurring?.transaction_amount),
                     currency: preapproval.auto_recurring?.currency_id?.toUpperCase(),
@@ -237,7 +239,8 @@ export class MercadoPagoProvider implements PaymentProvider {
                     providerEventId,
                     provider: 'MERCADOPAGO',
                     type: 'subscription_canceled',
-                    providerCustomerId: preapproval.external_reference ?? String(preapproval.payer_id ?? ''),
+                    providerCustomerId:
+                        preapproval.external_reference ?? preapproval.payer_email ?? String(preapproval.payer_id ?? ''),
                     providerSubscriptionId: preapproval.id,
                     metadata: {
                         topic: event.topic,

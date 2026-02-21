@@ -36,6 +36,7 @@ export interface ProviderCustomer {
  */
 export interface CreateCheckoutSessionInput {
     providerCustomerId: string
+    customerEmail?: string
     planPriceId: string
     businessId: string
     successUrl: string

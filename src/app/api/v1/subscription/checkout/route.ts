@@ -121,12 +121,9 @@ export async function POST(request: NextRequest) {
                 ? `${APP_URL}/subscription?checkout=success&session_id={CHECKOUT_SESSION_ID}`
                 : `${APP_URL}/subscription?checkout=success`
 
-        console.log('Provider seleccionado:', paymentRouting.provider)
-        console.log('PlanPriceId:', planPriceId)
-        console.log('CountryIso2:', countryIso2)
-
         const session = await provider.createCheckoutSession({
             providerCustomerId,
+            customerEmail: email,
             planPriceId,
             businessId: userId,
             successUrl,

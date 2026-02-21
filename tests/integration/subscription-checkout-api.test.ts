@@ -189,7 +189,8 @@ describe('Subscription Checkout API - Integration', () => {
         expect(getPaymentProvider).toHaveBeenCalledWith('MERCADOPAGO')
         expect(providerMock.createCheckoutSession).toHaveBeenCalledWith(
             expect.objectContaining({
-                planPriceId: 'mp_plan_base_ars_test_123'
+                planPriceId: 'mp_plan_base_ars_test_123',
+                customerEmail: email
             })
         )
 
