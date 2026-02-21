@@ -58,7 +58,7 @@ export default function Home() {
                             Prueba gratis 30 días — sin tarjeta de crédito
                         </div>
                         <h1 className='text-5xl font-extrabold tracking-tight text-zinc-900 dark:text-zinc-50 sm:text-6xl lg:text-7xl'>
-                            Gestioná tus turnos sin complicaciones
+                            Gestioná tus turnos sin complicaciones bb
                         </h1>
                         <p className='mt-6 text-lg leading-8 text-zinc-600 dark:text-zinc-400 sm:text-xl'>
                             Dejá atrás el caos de WhatsApp. Tu agenda ordenada, tus clientes reservan solos, vos te
@@ -452,7 +452,7 @@ export default function Home() {
                                 className='h-11 w-auto'
                             />
                             <p className='mt-2 text-sm text-zinc-600 dark:text-zinc-400'>
-                                Gestioná tus turnos sin complicaciones
+                                Gestioná tus turnos sin complicaciones bb
                             </p>
                         </div>
                         <div className='flex flex-wrap justify-center gap-6 text-sm'>
