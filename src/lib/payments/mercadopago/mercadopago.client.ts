@@ -99,6 +99,8 @@ export async function createMercadoPagoPreapproval(input: {
         status: 'pending' as const
     }
 
+    console.log('Payload enviado a MP:', JSON.stringify(payloadWithPlan))
+
     try {
         return await mercadopagoRequest<MercadoPagoPreapproval>('/preapproval', {
             method: 'POST',
