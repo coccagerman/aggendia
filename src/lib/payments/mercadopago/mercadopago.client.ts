@@ -91,14 +91,16 @@ export async function createMercadoPagoPreapproval(input: {
     externalReference: string
     reason: string
     backUrl: string
-    payerEmail?: string
+    email?: string
 }): Promise<MercadoPagoPreapproval> {
+    const payerEmail = process.env.APP_ENV === 'production' ? input.email : 'german.cocca@aggendia.com'
+
     const payloadWithPlan = {
         preapproval_plan_id: input.preapprovalPlanId,
         external_reference: input.externalReference,
         reason: input.reason,
         back_url: input.backUrl,
-        payer_email: input.payerEmail,
+        payer_email: payerEmail,
         status: 'pending' as const
     }
 
@@ -128,7 +130,7 @@ export async function createMercadoPagoPreapproval(input: {
                 external_reference: input.externalReference,
                 reason: input.reason,
                 back_url: input.backUrl,
-                payer_email: input.payerEmail,
+                payer_email: payerEmail,
                 auto_recurring: {
                     frequency: autoRecurring.frequency,
                     frequency_type: autoRecurring.frequency_type,

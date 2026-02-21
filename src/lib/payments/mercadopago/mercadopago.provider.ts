@@ -105,7 +105,7 @@ export class MercadoPagoProvider implements PaymentProvider {
             externalReference: input.providerCustomerId,
             reason: `Suscripción ${input.businessId}`,
             backUrl: input.successUrl,
-            payerEmail: input.customerEmail
+            email: input.customerEmail
         })
 
         if (!preapproval.init_point) {

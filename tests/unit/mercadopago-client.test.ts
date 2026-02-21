@@ -41,7 +41,7 @@ describe('MercadoPago client - Unit', () => {
             externalReference: 'user-1',
             reason: 'Suscripción user-1',
             backUrl: 'https://app.test/subscription?checkout=success',
-            payerEmail: 'user@test.com'
+            email: 'user@test.com'
         })
 
         expect(response.id).toBe('pre_123')
@@ -81,7 +81,7 @@ describe('MercadoPago client - Unit', () => {
                 externalReference: 'user-1',
                 reason: 'Suscripción user-1',
                 backUrl: 'https://app.test/subscription?checkout=success',
-                payerEmail: 'user@test.com'
+                email: 'user@test.com'
             })
         ).rejects.toBeInstanceOf(AppError)
 
