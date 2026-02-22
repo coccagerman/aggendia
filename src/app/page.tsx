@@ -61,7 +61,7 @@ export default function Home() {
                             Gestioná tus turnos sin complicaciones
                         </h1>
                         <p className='mt-6 text-lg leading-8 text-zinc-600 dark:text-zinc-400 sm:text-xl'>
-                            Dejá atrás el caos de WhatsApp33. Tu agenda ordenada, tus clientes reservan solos, vos te
+                            Dejá atrás el caos de WhatsApp. Tu agenda ordenada, tus clientes reservan solos, vos te
                             dedicás a tu negocio.
                         </p>
                         <div className='mt-10 flex flex-col items-center justify-center gap-4 sm:flex-row'>
