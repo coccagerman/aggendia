@@ -1,8 +1,9 @@
 /**
  * POST /api/v1/subscription/checkout
  *
- * Creates a Stripe Checkout Session for the authenticated user.
- * Returns a checkout URL that the client redirects to.
+ * Creates a provider checkout/session for the authenticated user.
+ * Stripe returns a checkout URL for redirect.
+ * Mercado Pago returns a preapproval id and is processed asynchronously via webhook.
  */
 
 import { NextRequest, NextResponse } from 'next/server'
@@ -41,7 +42,7 @@ export async function POST(request: NextRequest) {
             )
         }
 
-        const { planId } = parsed.data
+        const { planId, cardTokenId } = parsed.data
 
         // Validate plan exists
         const plan = await getPlanById(prisma, planId)
@@ -93,6 +94,14 @@ export async function POST(request: NextRequest) {
 
         const provider = getPaymentProvider(paymentRouting.provider)
 
+        if (paymentRouting.provider === 'MERCADOPAGO' && !cardTokenId) {
+            throw new AppError(
+                ValidationErrorCodes.VALIDATION_ERROR,
+                'cardTokenId es obligatorio para suscripciones con Mercado Pago.',
+                400
+            )
+        }
+
         // Create or reuse Stripe customer
         let providerCustomerId = subscription.providerCustomerId
         if (!providerCustomerId) {
@@ -124,11 +133,30 @@ export async function POST(request: NextRequest) {
         const session = await provider.createCheckoutSession({
             providerCustomerId,
             customerEmail: email,
+            cardTokenId,
             planPriceId,
             businessId: userId,
             successUrl,
             cancelUrl: `${APP_URL}/subscription?checkout=canceled`
         })
+
+        if (paymentRouting.provider === 'MERCADOPAGO') {
+            return NextResponse.json({
+                data: {
+                    sessionId: session.sessionId,
+                    status: 'processing',
+                    message: 'Procesando suscripción… esto puede demorar unos segundos.'
+                }
+            })
+        }
+
+        if (!session.checkoutUrl) {
+            throw new AppError(
+                SubscriptionErrorCodes.CHECKOUT_SESSION_FAILED,
+                'No se pudo obtener la URL de checkout.',
+                500
+            )
+        }
 
         return NextResponse.json({
             data: {

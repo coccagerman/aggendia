@@ -3,7 +3,7 @@
  */
 
 import crypto from 'crypto'
-import { AppError } from '@/domain/common/errors'
+import { AppError, ValidationErrorCodes } from '@/domain/common/errors'
 import { SubscriptionErrorCodes } from '@/domain/subscriptions/subscription.errors'
 
 import type {
@@ -18,7 +18,7 @@ import type {
 } from '@/domain/subscriptions/payment-provider'
 import type { PaymentEvent } from '@/domain/subscriptions/subscription.types'
 import {
-    createMercadoPagoPreapproval,
+    createMercadoPagoAuthorizedPreapproval,
     getMercadoPagoPayment,
     getMercadoPagoPreapproval,
     updateMercadoPagoPreapproval
@@ -100,25 +100,24 @@ export class MercadoPagoProvider implements PaymentProvider {
     }
 
     async createCheckoutSession(input: CreateCheckoutSessionInput): Promise<CheckoutSession> {
-        const preapproval = await createMercadoPagoPreapproval({
-            preapprovalPlanId: input.planPriceId,
-            externalReference: input.providerCustomerId,
-            reason: `Suscripción ${input.businessId}`,
-            backUrl: input.successUrl,
-            email: input.customerEmail
-        })
-
-        if (!preapproval.init_point) {
+        if (!input.cardTokenId) {
             throw new AppError(
-                SubscriptionErrorCodes.CHECKOUT_SESSION_FAILED,
-                'Mercado Pago no devolvió URL de checkout.',
-                500
+                ValidationErrorCodes.VALIDATION_ERROR,
+                'cardTokenId es obligatorio para suscripciones con Mercado Pago.',
+                400
             )
         }
 
+        const preapproval = await createMercadoPagoAuthorizedPreapproval({
+            preapprovalPlanId: input.planPriceId,
+            externalReference: input.providerCustomerId,
+            reason: `Suscripción ${input.businessId}`,
+            email: input.customerEmail ?? '',
+            cardTokenId: input.cardTokenId
+        })
+
         return {
-            sessionId: preapproval.id,
-            checkoutUrl: preapproval.init_point
+            sessionId: preapproval.id
         }
     }
 

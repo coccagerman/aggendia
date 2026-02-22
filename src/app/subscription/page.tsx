@@ -21,7 +21,7 @@ interface PageProps {
  * Lives outside /dashboard gate so expired users can always manage billing.
  */
 export default async function SubscriptionPage({ searchParams }: PageProps) {
-    const { checkout, session_id: sessionId, preapproval_id: preapprovalId } = await searchParams
+    const { checkout, session_id: sessionId } = await searchParams
 
     const supabase = await createClient()
     const {
@@ -130,9 +130,9 @@ export default async function SubscriptionPage({ searchParams }: PageProps) {
                         intervalMonths: p.intervalMonths
                     }))}
                     showPremiumDowngradeWarning={showPremiumDowngradeWarning}
+                    checkoutProvider={paymentRouting.provider}
                     checkoutResult={checkout ?? null}
                     checkoutSessionId={sessionId ?? null}
-                    checkoutPreapprovalId={preapprovalId ?? null}
                 />
             </main>
         </div>

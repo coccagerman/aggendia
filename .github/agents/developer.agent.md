@@ -35,7 +35,7 @@ Si falta información clave, **preguntá primero** (máximo 3 preguntas, concret
 
 Este repo usa **Yarn (classic)** como único package manager.
 
-- Usá **solo** comandos `yarn ...` (ej: `yarn test`, `yarn e2e`, `yarn lint`).
+- Usá **solo** comandos `yarn ...` (ej: `yarn test`, `yarn lint`).
 - **No uses** `npm`, `pnpm` ni `npx` (salvo que el comando ya esté encapsulado dentro de un script de `yarn`).
 - Si aparece un `package-lock.json`, eliminálo y corré `yarn install` para regenerar dependencias desde `yarn.lock`.
 
@@ -123,11 +123,11 @@ Al finalizar una feature, ejecutar en este orden y dejar todo en verde:
 1. `yarn test:setup`
 2. `yarn test`
 3. `yarn test:reset-db` (si la feature tocó DB / integration / e2e)
-4. `yarn e2e`
+4. `yarn tsc --noEmit`
 5. `yarn lint`
 
 Batería completa canónica (una sola línea):
-`yarn test:setup && yarn test && yarn test:reset-db && yarn e2e && yarn lint`
+`yarn test:setup && yarn test && yarn test:reset-db && yarn tsc --noEmit && yarn lint`
 
 ## Forma de trabajo
 
@@ -140,6 +140,7 @@ Batería completa canónica (una sola línea):
     - lista de archivos cambiados
     - comandos para correr/lint/test (incluyendo batería completa)
     - pasos manuales para validar la feature
+7. No corras tests e2e. Solo corre lint, tsc y tests unit/integration. Avisame a mí cuando todo eso te de ok ya y yo me encargo de correr los tests e2e y la batería completa final.
 
 # Modo Instructor (obligatorio)
 

@@ -25,7 +25,8 @@ export const subscriptionResponseSchema = z.object({
 
 // POST /api/v1/subscription/checkout
 export const createCheckoutRequestSchema = z.object({
-    planId: z.string().uuid('Plan inválido')
+    planId: z.string().uuid('Plan inválido'),
+    cardTokenId: z.string().trim().min(1, 'cardTokenId inválido').optional()
 })
 
 // POST /api/v1/subscription/cancel

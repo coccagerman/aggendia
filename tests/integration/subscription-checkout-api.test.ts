@@ -175,7 +175,7 @@ describe('Subscription Checkout API - Integration', () => {
 
         const request = new NextRequest('http://localhost/api/v1/subscription/checkout', {
             method: 'POST',
-            body: JSON.stringify({ planId: basePlanId }),
+            body: JSON.stringify({ planId: basePlanId, cardTokenId: 'card_token_test_123' }),
             headers: {
                 'Content-Type': 'application/json',
                 'x-vercel-ip-country': 'US',
@@ -190,12 +190,46 @@ describe('Subscription Checkout API - Integration', () => {
         expect(providerMock.createCheckoutSession).toHaveBeenCalledWith(
             expect.objectContaining({
                 planPriceId: 'mp_plan_base_ars_test_123',
-                customerEmail: email
+                customerEmail: email,
+                cardTokenId: 'card_token_test_123'
             })
         )
 
         const subscription = await prisma.subscription.findUnique({ where: { userId } })
         expect(subscription?.paymentProvider).toBe('MERCADOPAGO')
+    })
+
+    it('returns validation error when Mercado Pago checkout is requested without card token', async () => {
+        await prisma.subscription.update({
+            where: { userId },
+            data: {
+                countryIso2: 'AR',
+                status: 'TRIALING',
+                planId: null,
+                paymentProvider: null,
+                providerCustomerId: null,
+                providerSubscriptionId: null,
+                currentPeriodStart: null,
+                currentPeriodEnd: null,
+                scheduledPlanId: null,
+                scheduledPlanEffectiveAt: null,
+                cancelAt: null,
+                canceledAt: null,
+                gracePeriodEndsAt: null
+            }
+        })
+
+        const request = new NextRequest('http://localhost/api/v1/subscription/checkout', {
+            method: 'POST',
+            body: JSON.stringify({ planId: basePlanId }),
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        })
+
+        const response = await CHECKOUT_POST(request)
+        expect(response.status).toBe(400)
+        expect(providerMock.createCheckoutSession).not.toHaveBeenCalled()
     })
 
     it('creates checkout session using BASE plan mapping and stores plan/provider fields', async () => {

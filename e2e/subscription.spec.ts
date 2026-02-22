@@ -63,9 +63,36 @@ async function ensurePlans() {
 }
 
 test.describe('Subscription Payments E2E', () => {
-    test('trial user can start checkout from subscription page', async ({ authenticatedPage }) => {
+    test('trial user can start checkout from subscription page', async ({ authenticatedPage, testBusiness }) => {
         const page = authenticatedPage
         let checkoutRequestBody: string | null = null
+
+        const ownerUserId = await getOwnerUserIdByBusinessId(testBusiness.businessId)
+
+        await prisma.subscription.upsert({
+            where: { userId: ownerUserId },
+            update: {
+                countryIso2: 'US',
+                status: 'TRIALING',
+                paymentProvider: null,
+                providerCustomerId: null,
+                providerSubscriptionId: null,
+                currentPeriodStart: null,
+                currentPeriodEnd: null,
+                scheduledPlanId: null,
+                scheduledPlanEffectiveAt: null,
+                cancelAt: null,
+                canceledAt: null
+            },
+            create: {
+                userId: ownerUserId,
+                countryIso2: 'US',
+                status: 'TRIALING',
+                trialStartsAt: new Date(),
+                trialEndsAt: new Date(Date.now() + 10 * 24 * 60 * 60 * 1000),
+                trialType: 'STANDARD'
+            }
+        })
 
         await page.route('**/api/v1/subscription/checkout', async route => {
             checkoutRequestBody = route.request().postData() ?? null

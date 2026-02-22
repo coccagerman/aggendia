@@ -86,61 +86,40 @@ export interface MercadoPagoPayment {
     }
 }
 
+export async function createMercadoPagoAuthorizedPreapproval(input: {
+    preapprovalPlanId: string
+    externalReference: string
+    reason: string
+    email: string
+    cardTokenId: string
+}): Promise<MercadoPagoPreapproval> {
+    return mercadopagoRequest<MercadoPagoPreapproval>('/preapproval', {
+        method: 'POST',
+        body: JSON.stringify({
+            preapproval_plan_id: input.preapprovalPlanId,
+            external_reference: input.externalReference,
+            reason: input.reason,
+            payer_email: input.email,
+            card_token_id: input.cardTokenId,
+            status: 'authorized'
+        })
+    })
+}
+
 export async function createMercadoPagoPreapproval(input: {
     preapprovalPlanId: string
     externalReference: string
     reason: string
-    backUrl: string
-    email?: string
+    email: string
+    cardTokenId: string
 }): Promise<MercadoPagoPreapproval> {
-    const payerEmail = process.env.APP_ENV === 'production' ? input.email : 'german.cocca@aggendia.com'
-
-    const payloadWithPlan = {
-        preapproval_plan_id: input.preapprovalPlanId,
-        external_reference: input.externalReference,
+    return createMercadoPagoAuthorizedPreapproval({
+        preapprovalPlanId: input.preapprovalPlanId,
+        externalReference: input.externalReference,
         reason: input.reason,
-        back_url: input.backUrl,
-        payer_email: payerEmail,
-        status: 'pending' as const
-    }
-
-    try {
-        return await mercadopagoRequest<MercadoPagoPreapproval>('/preapproval', {
-            method: 'POST',
-            body: JSON.stringify(payloadWithPlan)
-        })
-    } catch (error) {
-        const errorMessage = error instanceof Error ? error.message.toLowerCase() : ''
-        const isCardTokenRequiredError = errorMessage.includes('card_token_id is required')
-
-        if (!isCardTokenRequiredError) {
-            throw error
-        }
-
-        const preapprovalPlan = await getMercadoPagoPreapprovalPlan(input.preapprovalPlanId)
-        const autoRecurring = preapprovalPlan.auto_recurring
-
-        if (!autoRecurring?.frequency || !autoRecurring.frequency_type) {
-            throw error
-        }
-
-        return mercadopagoRequest<MercadoPagoPreapproval>('/preapproval', {
-            method: 'POST',
-            body: JSON.stringify({
-                external_reference: input.externalReference,
-                reason: input.reason,
-                back_url: input.backUrl,
-                payer_email: payerEmail,
-                auto_recurring: {
-                    frequency: autoRecurring.frequency,
-                    frequency_type: autoRecurring.frequency_type,
-                    transaction_amount: autoRecurring.transaction_amount,
-                    currency_id: autoRecurring.currency_id
-                },
-                status: 'pending'
-            })
-        })
-    }
+        email: input.email,
+        cardTokenId: input.cardTokenId
+    })
 }
 
 export async function updateMercadoPagoPreapproval(
