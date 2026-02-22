@@ -127,6 +127,7 @@ export function SubscriptionSettingsClient({
     const [syncingCheckout, setSyncingCheckout] = useState(false)
     const [error, setError] = useState<string | null>(null)
     const [infoMessage, setInfoMessage] = useState<string | null>(null)
+    const [mercadoPagoModalError, setMercadoPagoModalError] = useState<string | null>(null)
     const [mercadoPagoModalOpen, setMercadoPagoModalOpen] = useState(false)
     const [mercadoPagoSdkReady, setMercadoPagoSdkReady] = useState(false)
     const [selectedCheckoutPlanId, setSelectedCheckoutPlanId] = useState<string | null>(null)
@@ -190,6 +191,7 @@ export function SubscriptionSettingsClient({
         setCardholderName('')
         setIdentificationType('DNI')
         setIdentificationNumber('')
+        setMercadoPagoModalError(null)
     }
 
     const buildCardToken = async (): Promise<string> => {
@@ -227,6 +229,7 @@ export function SubscriptionSettingsClient({
         setInfoMessage(null)
         setCheckoutLoading(selectedCheckoutPlanId)
         setError(null)
+        setMercadoPagoModalError(null)
 
         try {
             const cardTokenId = await buildCardToken()
@@ -243,7 +246,7 @@ export function SubscriptionSettingsClient({
             const data = await response.json()
 
             if (!response.ok) {
-                setError(data.error?.message || 'Error al iniciar el pago.')
+                setMercadoPagoModalError(data.error?.message || 'Error al iniciar el pago. Intentá nuevamente.')
                 return
             }
 
@@ -253,7 +256,7 @@ export function SubscriptionSettingsClient({
             router.refresh()
         } catch (checkoutError) {
             console.error('[SubscriptionSettings] Mercado Pago checkout error:', checkoutError)
-            setError('Error al iniciar el pago.')
+            setMercadoPagoModalError('Error al iniciar el pago. Intentá nuevamente.')
         } finally {
             setCheckoutLoading(null)
         }
@@ -263,9 +266,11 @@ export function SubscriptionSettingsClient({
         if (isMercadoPagoCheckout) {
             setError(null)
             setInfoMessage(null)
+            setMercadoPagoModalError(null)
 
             if (!mercadoPagoPublicKey) {
-                setError('Mercado Pago no está configurado para el frontend.')
+                setMercadoPagoModalError('Mercado Pago no está configurado para el frontend.')
+                setMercadoPagoModalOpen(true)
                 return
             }
 
@@ -518,6 +523,10 @@ export function SubscriptionSettingsClient({
                                 />
                             </div>
                         </div>
+
+                        {mercadoPagoModalError && (
+                            <div className='rounded-md bg-red-50 p-3 text-sm text-red-800'>{mercadoPagoModalError}</div>
+                        )}
                     </div>
 
                     <DialogFooter>
