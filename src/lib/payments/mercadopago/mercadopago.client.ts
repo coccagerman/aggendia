@@ -94,8 +94,9 @@ export async function createMercadoPagoAuthorizedPreapproval(input: {
     cardTokenId: string
 }): Promise<MercadoPagoPreapproval> {
     // In test/QA environments MP requires both payer and collector to be test users.
-    // Override payer_email with MERCADOPAGO_TEST_PAYER_EMAIL when configured.
-    const payerEmail = process.env.MERCADOPAGO_TEST_PAYER_EMAIL || input.email
+    // Override payer_email with MERCADOPAGO_TEST_PAYER_EMAIL only in local/dev.
+    const isDev = process.env.APP_ENV === 'local' || process.env.APP_ENV === 'dev'
+    const payerEmail = (isDev && process.env.MERCADOPAGO_TEST_PAYER_EMAIL) || input.email
 
     return mercadopagoRequest<MercadoPagoPreapproval>('/preapproval', {
         method: 'POST',
