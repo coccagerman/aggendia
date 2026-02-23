@@ -2,7 +2,6 @@
 
 import { useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { env } from '@/lib/env'
 import { Button } from '@/components/ui/button'
 
 /**
@@ -63,7 +62,7 @@ export function GoogleSignInButton({ countryIso2 = null, requireCountry = false 
             const { error: oauthError } = await supabase.auth.signInWithOAuth({
                 provider: 'google',
                 options: {
-                    redirectTo: `${env.NEXT_PUBLIC_APP_URL}/auth/callback`
+                    redirectTo: `${window.location.origin}/auth/callback`
                 }
             })
 
