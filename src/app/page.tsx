@@ -57,6 +57,7 @@ export default function Home() {
                             <Sparkles className='h-3.5 w-3.5' />
                             Prueba gratis 30 días — sin tarjeta de crédito
                         </div>
+
                         <h1 className='text-5xl font-extrabold tracking-tight text-zinc-900 dark:text-zinc-50 sm:text-6xl lg:text-7xl'>
                             Gestioná tus turnos sin complicaciones
                         </h1>
