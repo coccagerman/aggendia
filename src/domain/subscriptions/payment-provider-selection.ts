@@ -13,7 +13,7 @@ export interface PaymentRoutingDecision {
  * (e.g. MercadoPago for ARS) can be added later without refactoring
  * the checkout flow.
  */
-export function resolvePaymentRouting(_countryIso2?: string | null): PaymentRoutingDecision {
+export function resolvePaymentRouting(): PaymentRoutingDecision {
     return {
         provider: 'STRIPE',
         currency: 'USD'

@@ -84,7 +84,7 @@ export async function POST(request: NextRequest) {
             )
         }
 
-        const paymentRouting = resolvePaymentRouting(countryIso2)
+        const paymentRouting = resolvePaymentRouting()
         const planPriceId = resolvePlanPriceId({ planSlug: plan.slug })
         const provider = getPaymentProvider(paymentRouting.provider)
 
