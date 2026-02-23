@@ -2,19 +2,18 @@ import type { PaymentProviderType } from './subscription.types'
 
 export interface PaymentRoutingDecision {
     provider: PaymentProviderType
-    currency: 'ARS' | 'USD'
+    currency: 'USD'
 }
 
-export function resolvePaymentRouting(countryIso2: string | null | undefined): PaymentRoutingDecision {
-    const normalizedCountry = countryIso2?.trim().toUpperCase() ?? null
-
-    if (normalizedCountry === 'AR') {
-        return {
-            provider: 'MERCADOPAGO',
-            currency: 'ARS'
-        }
-    }
-
+/**
+ * Resolve which payment provider and currency to use.
+ *
+ * Currently always returns Stripe + USD regardless of country.
+ * The routing infrastructure is preserved so a second provider
+ * (e.g. MercadoPago for ARS) can be added later without refactoring
+ * the checkout flow.
+ */
+export function resolvePaymentRouting(_countryIso2?: string | null): PaymentRoutingDecision {
     return {
         provider: 'STRIPE',
         currency: 'USD'

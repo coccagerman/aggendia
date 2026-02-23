@@ -73,7 +73,6 @@ describe('SubscriptionSettingsClient - Unit', () => {
                 subscription={activePremiumSubscription}
                 plans={plans}
                 showPremiumDowngradeWarning
-                checkoutProvider='STRIPE'
                 checkoutResult={null}
                 checkoutSessionId={null}
             />
@@ -86,7 +85,6 @@ describe('SubscriptionSettingsClient - Unit', () => {
                 subscription={activePremiumSubscription}
                 plans={plans}
                 showPremiumDowngradeWarning={false}
-                checkoutProvider='STRIPE'
                 checkoutResult={null}
                 checkoutSessionId={null}
             />
@@ -108,7 +106,6 @@ describe('SubscriptionSettingsClient - Unit', () => {
                 subscription={activePremiumSubscription}
                 plans={plans}
                 showPremiumDowngradeWarning
-                checkoutProvider='STRIPE'
                 checkoutResult={null}
                 checkoutSessionId={null}
             />
@@ -140,7 +137,6 @@ describe('SubscriptionSettingsClient - Unit', () => {
                 subscription={trialSubscription}
                 plans={plans}
                 showPremiumDowngradeWarning={false}
-                checkoutProvider='STRIPE'
                 checkoutResult={null}
                 checkoutSessionId={null}
             />

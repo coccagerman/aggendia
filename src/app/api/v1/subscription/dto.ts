@@ -19,14 +19,13 @@ export const subscriptionResponseSchema = z.object({
     currentPeriodEnd: z.date().nullable(),
     cancelAt: z.date().nullable(),
     canceledAt: z.date().nullable(),
-    paymentProvider: z.enum(['STRIPE', 'MERCADOPAGO']).nullable(),
+    paymentProvider: z.enum(['STRIPE']).nullable(),
     createdAt: z.date()
 })
 
 // POST /api/v1/subscription/checkout
 export const createCheckoutRequestSchema = z.object({
-    planId: z.string().uuid('Plan inválido'),
-    cardTokenId: z.string().trim().min(1, 'cardTokenId inválido').optional()
+    planId: z.string().uuid('Plan inválido')
 })
 
 // POST /api/v1/subscription/cancel
@@ -36,8 +35,7 @@ export const cancelSubscriptionRequestSchema = z.object({
 
 // POST /api/v1/subscription/sync-checkout
 export const syncCheckoutRequestSchema = z.object({
-    sessionId: z.string().trim().min(1).optional(),
-    preapprovalId: z.string().trim().min(1).optional()
+    sessionId: z.string().trim().min(1).optional()
 })
 
 // POST /api/v1/subscription/change-plan

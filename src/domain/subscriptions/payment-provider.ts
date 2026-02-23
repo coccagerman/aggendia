@@ -2,7 +2,7 @@
  * Payment Provider interface (Strategy Pattern).
  *
  * This is the core abstraction that decouples the subscription domain
- * from specific payment providers (Stripe, MercadoPago, etc.).
+ * from specific payment providers (Stripe, etc.).
  *
  * Each provider implements this interface. The domain service
  * receives it via injection and never imports provider SDKs directly.
@@ -17,14 +17,10 @@ import { PaymentEvent, PaymentProviderType } from './subscription.types'
 
 /**
  * Optional metadata for webhook signature verification.
- * MercadoPago requires `dataId` and `requestId` to compute its HMAC manifest.
- * Stripe (and other providers) can ignore these fields.
+ * Each provider can define its own fields here.
  */
 export interface WebhookVerificationMeta {
-    /** `data.id` query param from the webhook URL */
-    dataId?: string
-    /** `x-request-id` header from the webhook request */
-    requestId?: string
+    [key: string]: string | undefined
 }
 
 /**
@@ -127,10 +123,6 @@ export interface PaymentProvider {
     /**
      * Verify and parse a webhook payload from the provider.
      * Each provider has its own signature verification mechanism.
-     *
-     * `meta` carries provider-specific context needed for verification.
-     * MercadoPago requires `dataId` (query param) and `requestId` (header)
-     * to build the HMAC manifest.  Stripe ignores it.
      */
     constructWebhookEvent(payload: Buffer, signature: string, meta?: WebhookVerificationMeta): Promise<unknown>
 

@@ -1,21 +1,10 @@
 'use client'
 
-import { useState, useEffect, useCallback, useRef } from 'react'
-import Script from 'next/script'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import {
-    Dialog,
-    DialogContent,
-    DialogDescription,
-    DialogFooter,
-    DialogHeader,
-    DialogTitle
-} from '@/components/ui/dialog'
 import {
     AlertDialog,
     AlertDialogAction,
@@ -27,28 +16,7 @@ import {
     AlertDialogTitle
 } from '@/components/ui/alert-dialog'
 import { Loader2, CheckCircle2, AlertTriangle, CreditCard, XCircle } from 'lucide-react'
-import type { PaymentProviderType, SubscriptionStatus } from '@/domain/subscriptions/subscription.types'
-
-type MercadoPagoConstructor = new (
-    publicKey: string,
-    options?: { locale?: string }
-) => {
-    createCardToken: (cardData: {
-        cardNumber: string
-        cardholderName: string
-        cardExpirationMonth: string
-        cardExpirationYear: string
-        securityCode: string
-        identificationType: string
-        identificationNumber: string
-    }) => Promise<{ id?: string }>
-}
-
-declare global {
-    interface Window {
-        MercadoPago?: MercadoPagoConstructor
-    }
-}
+import type { SubscriptionStatus } from '@/domain/subscriptions/subscription.types'
 
 interface SubscriptionData {
     id: string
@@ -78,7 +46,6 @@ interface SubscriptionSettingsClientProps {
     subscription: SubscriptionData | null
     plans: Plan[]
     showPremiumDowngradeWarning: boolean
-    checkoutProvider: PaymentProviderType
     checkoutResult: string | null
     checkoutSessionId: string | null
 }
@@ -115,7 +82,6 @@ export function SubscriptionSettingsClient({
     subscription,
     plans,
     showPremiumDowngradeWarning,
-    checkoutProvider,
     checkoutResult,
     checkoutSessionId
 }: SubscriptionSettingsClientProps) {
@@ -127,76 +93,10 @@ export function SubscriptionSettingsClient({
     const [syncingCheckout, setSyncingCheckout] = useState(false)
     const [error, setError] = useState<string | null>(null)
     const [infoMessage, setInfoMessage] = useState<string | null>(null)
-    const [mercadoPagoModalError, setMercadoPagoModalError] = useState<string | null>(null)
-    const [mercadoPagoModalOpen, setMercadoPagoModalOpen] = useState(false)
-    const [mercadoPagoSdkReady, setMercadoPagoSdkReady] = useState(false)
-    const [selectedCheckoutPlanId, setSelectedCheckoutPlanId] = useState<string | null>(null)
-    const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null)
-
-    // Polling: after MP checkout, periodically refresh to detect webhook-driven activation.
-    const startPolling = useCallback(() => {
-        // Clear any existing interval
-        if (pollingRef.current) {
-            clearInterval(pollingRef.current)
-        }
-
-        let attempts = 0
-        const MAX_ATTEMPTS = 10 // ~30s at 3s interval
-
-        pollingRef.current = setInterval(() => {
-            attempts++
-            router.refresh()
-
-            if (attempts >= MAX_ATTEMPTS) {
-                if (pollingRef.current) {
-                    clearInterval(pollingRef.current)
-                    pollingRef.current = null
-                }
-                setInfoMessage(
-                    'La suscripción se está procesando. Puede tardar unos minutos. Recargá la página más tarde.'
-                )
-            }
-        }, 3000)
-    }, [router])
-
-    // Cleanup polling on unmount
-    useEffect(() => {
-        return () => {
-            if (pollingRef.current) {
-                clearInterval(pollingRef.current)
-            }
-        }
-    }, [])
-
-    // Stop polling when subscription becomes ACTIVE
-    useEffect(() => {
-        if (subscription?.status === 'ACTIVE' && pollingRef.current) {
-            clearInterval(pollingRef.current)
-            pollingRef.current = null
-            setInfoMessage(null)
-        }
-    }, [subscription?.status])
-    const [cardNumber, setCardNumber] = useState('')
-    const [expirationMonth, setExpirationMonth] = useState('')
-    const [expirationYear, setExpirationYear] = useState('')
-    const [securityCode, setSecurityCode] = useState('')
-    const [cardholderName, setCardholderName] = useState('')
-    const [identificationNumber, setIdentificationNumber] = useState('')
-
-    const isMercadoPagoCheckout = checkoutProvider === 'MERCADOPAGO'
-    const mercadoPagoPublicKey = process.env.NEXT_PUBLIC_MERCADOPAGO_PUBLIC_KEY
-
-    useEffect(() => {
-        if (!isMercadoPagoCheckout) {
-            return
-        }
-
-        setMercadoPagoSdkReady(Boolean(window.MercadoPago))
-    }, [isMercadoPagoCheckout])
 
     // Show checkout result feedback
     useEffect(() => {
-        if (checkoutProvider !== 'STRIPE' || checkoutResult !== 'success') return
+        if (checkoutResult !== 'success') return
 
         let isCancelled = false
 
@@ -225,104 +125,9 @@ export function SubscriptionSettingsClient({
         return () => {
             isCancelled = true
         }
-    }, [checkoutProvider, checkoutResult, checkoutSessionId, router])
-
-    const resetMercadoPagoForm = () => {
-        setCardNumber('')
-        setExpirationMonth('')
-        setExpirationYear('')
-        setSecurityCode('')
-        setCardholderName('')
-        setIdentificationNumber('')
-        setMercadoPagoModalError(null)
-    }
-
-    const buildCardToken = async (): Promise<string> => {
-        if (!mercadoPagoPublicKey) {
-            throw new Error('Mercado Pago no está configurado para el frontend.')
-        }
-
-        if (!window.MercadoPago) {
-            throw new Error('No se pudo cargar el SDK de Mercado Pago.')
-        }
-
-        const mp = new window.MercadoPago(mercadoPagoPublicKey, { locale: 'es-AR' })
-        const token = await mp.createCardToken({
-            cardNumber: cardNumber.replace(/\s+/g, ''),
-            cardholderName: cardholderName.trim(),
-            cardExpirationMonth: expirationMonth.trim(),
-            cardExpirationYear: expirationYear.trim(),
-            securityCode: securityCode.trim(),
-            identificationType: 'DNI',
-            identificationNumber: identificationNumber.trim()
-        })
-
-        if (!token.id) {
-            throw new Error('No se pudo tokenizar la tarjeta.')
-        }
-
-        return token.id
-    }
-
-    const handleMercadoPagoCheckout = async () => {
-        if (!selectedCheckoutPlanId) {
-            return
-        }
-
-        setInfoMessage(null)
-        setCheckoutLoading(selectedCheckoutPlanId)
-        setError(null)
-        setMercadoPagoModalError(null)
-
-        try {
-            const cardTokenId = await buildCardToken()
-
-            const response = await fetch('/api/v1/subscription/checkout', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    planId: selectedCheckoutPlanId,
-                    cardTokenId
-                })
-            })
-
-            const data = await response.json()
-
-            if (!response.ok) {
-                setMercadoPagoModalError(data.error?.message || 'Error al iniciar el pago. Intentá nuevamente.')
-                return
-            }
-
-            setMercadoPagoModalOpen(false)
-            setInfoMessage(data.data?.message || 'Procesando suscripción… esto puede demorar unos segundos.')
-            resetMercadoPagoForm()
-            startPolling()
-        } catch (checkoutError) {
-            console.error('[SubscriptionSettings] Mercado Pago checkout error:', checkoutError)
-            setMercadoPagoModalError('Error al iniciar el pago. Intentá nuevamente.')
-        } finally {
-            setCheckoutLoading(null)
-        }
-    }
+    }, [checkoutResult, checkoutSessionId, router])
 
     const handleCheckout = async (planId: string) => {
-        if (isMercadoPagoCheckout) {
-            setError(null)
-            setInfoMessage(null)
-            setMercadoPagoModalError(null)
-
-            if (!mercadoPagoPublicKey) {
-                setMercadoPagoModalError('Mercado Pago no está configurado para el frontend.')
-                setMercadoPagoModalOpen(true)
-                return
-            }
-
-            setSelectedCheckoutPlanId(planId)
-            setMercadoPagoModalOpen(true)
-            return
-        }
-
-        setInfoMessage(null)
         setCheckoutLoading(planId)
         setError(null)
 
@@ -460,16 +265,8 @@ export function SubscriptionSettingsClient({
 
     return (
         <div className='space-y-6'>
-            {isMercadoPagoCheckout && (
-                <Script
-                    src='https://sdk.mercadopago.com/js/v2'
-                    strategy='afterInteractive'
-                    onLoad={() => setMercadoPagoSdkReady(Boolean(window.MercadoPago))}
-                />
-            )}
-
             {/* Checkout success message */}
-            {checkoutProvider === 'STRIPE' && checkoutResult === 'success' && (
+            {checkoutResult === 'success' && (
                 <div className='rounded-lg border border-green-200 bg-green-50 p-4 flex items-center gap-3'>
                     <CheckCircle2 className='h-5 w-5 text-green-600 shrink-0' />
                     <div>
@@ -488,113 +285,6 @@ export function SubscriptionSettingsClient({
                     {infoMessage}
                 </div>
             )}
-
-            <Dialog open={mercadoPagoModalOpen} onOpenChange={setMercadoPagoModalOpen}>
-                <DialogContent>
-                    <DialogHeader>
-                        <DialogTitle>Ingresá tu tarjeta</DialogTitle>
-                        <DialogDescription>
-                            Completá los datos para crear tu suscripción con Mercado Pago.
-                        </DialogDescription>
-                    </DialogHeader>
-
-                    <div className='space-y-3'>
-                        <div className='space-y-1.5'>
-                            <Label htmlFor='mp-card-number'>Número de tarjeta</Label>
-                            <Input
-                                id='mp-card-number'
-                                value={cardNumber}
-                                onChange={e => setCardNumber(e.target.value)}
-                                placeholder='4509 9535 6623 3704'
-                            />
-                        </div>
-                        <div className='grid grid-cols-2 gap-3'>
-                            <div className='space-y-1.5'>
-                                <Label htmlFor='mp-expiration-month'>Mes</Label>
-                                <Input
-                                    id='mp-expiration-month'
-                                    value={expirationMonth}
-                                    onChange={e => setExpirationMonth(e.target.value)}
-                                    placeholder='11'
-                                />
-                            </div>
-                            <div className='space-y-1.5'>
-                                <Label htmlFor='mp-expiration-year'>Año</Label>
-                                <Input
-                                    id='mp-expiration-year'
-                                    value={expirationYear}
-                                    onChange={e => setExpirationYear(e.target.value)}
-                                    placeholder='2030'
-                                />
-                            </div>
-                        </div>
-                        <div className='space-y-1.5'>
-                            <Label htmlFor='mp-security-code'>Código de seguridad</Label>
-                            <Input
-                                id='mp-security-code'
-                                value={securityCode}
-                                onChange={e => setSecurityCode(e.target.value)}
-                                placeholder='123'
-                            />
-                        </div>
-                        <div className='space-y-1.5'>
-                            <Label htmlFor='mp-cardholder-name'>Titular</Label>
-                            <Input
-                                id='mp-cardholder-name'
-                                value={cardholderName}
-                                onChange={e => setCardholderName(e.target.value)}
-                                placeholder='APRO'
-                            />
-                        </div>
-                        <div className='space-y-1.5'>
-                            <Label htmlFor='mp-identification-number'>Número de documento (DNI)</Label>
-                            <Input
-                                id='mp-identification-number'
-                                value={identificationNumber}
-                                onChange={e => setIdentificationNumber(e.target.value)}
-                                placeholder='12345678'
-                            />
-                        </div>
-
-                        {mercadoPagoModalError && (
-                            <div className='rounded-md bg-red-50 p-3 text-sm text-red-800'>{mercadoPagoModalError}</div>
-                        )}
-                    </div>
-
-                    <DialogFooter>
-                        <Button
-                            type='button'
-                            variant='outline'
-                            onClick={() => setMercadoPagoModalOpen(false)}
-                            disabled={checkoutLoading !== null}
-                        >
-                            Cancelar
-                        </Button>
-                        <Button
-                            type='button'
-                            onClick={() => void handleMercadoPagoCheckout()}
-                            disabled={
-                                checkoutLoading !== null ||
-                                !mercadoPagoSdkReady ||
-                                !selectedCheckoutPlanId ||
-                                !cardNumber ||
-                                !expirationMonth ||
-                                !expirationYear ||
-                                !securityCode ||
-                                !cardholderName ||
-                                !identificationNumber
-                            }
-                        >
-                            {checkoutLoading !== null ? (
-                                <Loader2 className='mr-2 h-4 w-4 animate-spin' />
-                            ) : (
-                                <CreditCard className='mr-2 h-4 w-4' />
-                            )}
-                            Confirmar suscripción
-                        </Button>
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
 
             {/* Current subscription status */}
             <Card>

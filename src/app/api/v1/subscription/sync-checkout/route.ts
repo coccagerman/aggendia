@@ -73,10 +73,6 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ data: { synced: false, reason: 'PROVIDER_NOT_READY' } })
         }
 
-        if (subscription.paymentProvider === 'MERCADOPAGO') {
-            return NextResponse.json({ data: { synced: false, reason: 'NOT_SUPPORTED_FOR_PROVIDER' } })
-        }
-
         if (!stripe) {
             throw new AppError(
                 SubscriptionErrorCodes.PAYMENT_PROVIDER_ERROR,

@@ -2,14 +2,12 @@ import { describe, expect, it } from 'vitest'
 import { resolvePaymentRouting } from '@/domain/subscriptions/payment-provider-selection'
 
 describe('resolvePaymentRouting', () => {
-    it('uses Mercado Pago + ARS for Argentina', () => {
+    it('uses Stripe + USD for all countries (single-provider mode)', () => {
         expect(resolvePaymentRouting('AR')).toEqual({
-            provider: 'MERCADOPAGO',
-            currency: 'ARS'
+            provider: 'STRIPE',
+            currency: 'USD'
         })
-    })
 
-    it('uses Stripe + USD for non-Argentina countries', () => {
         expect(resolvePaymentRouting('US')).toEqual({
             provider: 'STRIPE',
             currency: 'USD'

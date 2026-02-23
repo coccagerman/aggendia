@@ -8,7 +8,6 @@ import { reactivateSubscriptionRequestSchema } from '../dto'
 import { AppError, ValidationErrorCodes } from '@/domain/common/errors'
 import { SubscriptionErrorCodes } from '@/domain/subscriptions/subscription.errors'
 import { reactivateCanceledSubscription } from '@/domain/subscriptions/subscription.service'
-import { resolvePaymentRouting } from '@/domain/subscriptions/payment-provider-selection'
 import { resolvePlanPriceId } from '@/lib/payments/plan-price-id'
 
 /**
@@ -82,11 +81,8 @@ export async function POST(request: NextRequest) {
         const isUpgrade = targetPlan.priceCents > currentPlan.priceCents
 
         if (!isSamePlan) {
-            const paymentRouting = resolvePaymentRouting(subscription.countryIso2)
             const planPriceId = resolvePlanPriceId({
-                provider: subscription.paymentProvider,
-                planSlug: targetPlan.slug,
-                currency: paymentRouting.currency
+                planSlug: targetPlan.slug
             })
 
             await provider.changeSubscriptionPlan({

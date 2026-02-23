@@ -75,12 +75,6 @@ DIRECT_DATABASE_URL=${dbUrl}
 NEXT_PUBLIC_APP_URL=http://localhost:3000
 # Disable rate limits for automated tests
 DISABLE_RATE_LIMIT=true
-
-# Mercado Pago (placeholders)
-MERCADOPAGO_ACCESS_TOKEN=
-MERCADOPAGO_WEBHOOK_SECRET=
-MERCADOPAGO_PREAPPROVAL_PLAN_ID_BASE_ARS=
-MERCADOPAGO_PREAPPROVAL_PLAN_ID_PREMIUM_ARS=
 `
 
     const envTestPath = path.join(process.cwd(), '.env.test')

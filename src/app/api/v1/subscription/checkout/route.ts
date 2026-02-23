@@ -1,9 +1,8 @@
 /**
  * POST /api/v1/subscription/checkout
  *
- * Creates a provider checkout/session for the authenticated user.
- * Stripe returns a checkout URL for redirect.
- * Mercado Pago returns a preapproval id and is processed asynchronously via webhook.
+ * Creates a Stripe checkout session for the authenticated user.
+ * Returns a checkout URL for redirect.
  */
 
 import { NextRequest, NextResponse } from 'next/server'
@@ -42,7 +41,7 @@ export async function POST(request: NextRequest) {
             )
         }
 
-        const { planId, cardTokenId } = parsed.data
+        const { planId } = parsed.data
 
         // Validate plan exists
         const plan = await getPlanById(prisma, planId)
@@ -86,21 +85,8 @@ export async function POST(request: NextRequest) {
         }
 
         const paymentRouting = resolvePaymentRouting(countryIso2)
-        const planPriceId = resolvePlanPriceId({
-            provider: paymentRouting.provider,
-            planSlug: plan.slug,
-            currency: paymentRouting.currency
-        })
-
+        const planPriceId = resolvePlanPriceId({ planSlug: plan.slug })
         const provider = getPaymentProvider(paymentRouting.provider)
-
-        if (paymentRouting.provider === 'MERCADOPAGO' && !cardTokenId) {
-            throw new AppError(
-                ValidationErrorCodes.VALIDATION_ERROR,
-                'cardTokenId es obligatorio para suscripciones con Mercado Pago.',
-                400
-            )
-        }
 
         // Create or reuse Stripe customer
         let providerCustomerId = subscription.providerCustomerId
@@ -125,30 +111,14 @@ export async function POST(request: NextRequest) {
             }
         })
 
-        const successUrl =
-            paymentRouting.provider === 'STRIPE'
-                ? `${APP_URL}/subscription?checkout=success&session_id={CHECKOUT_SESSION_ID}`
-                : `${APP_URL}/subscription?checkout=success`
-
         const session = await provider.createCheckoutSession({
             providerCustomerId,
             customerEmail: email,
-            cardTokenId,
             planPriceId,
             businessId: userId,
-            successUrl,
+            successUrl: `${APP_URL}/subscription?checkout=success&session_id={CHECKOUT_SESSION_ID}`,
             cancelUrl: `${APP_URL}/subscription?checkout=canceled`
         })
-
-        if (paymentRouting.provider === 'MERCADOPAGO') {
-            return NextResponse.json({
-                data: {
-                    sessionId: session.sessionId,
-                    status: 'processing',
-                    message: 'Procesando suscripción… esto puede demorar unos segundos.'
-                }
-            })
-        }
 
         if (!session.checkoutUrl) {
             throw new AppError(

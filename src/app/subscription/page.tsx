@@ -8,12 +8,9 @@ import { getActivePlans } from '@/data/repositories/subscription-plan.repo'
 import { countActiveBusinessesByUserId } from '@/data/repositories/business.repo'
 import { SubscriptionSettingsClient } from '@/components/dashboard/subscription-settings'
 import { Button } from '@/components/ui/button'
-import { resolvePaymentRouting } from '@/domain/subscriptions/payment-provider-selection'
-import { resolvePlanPriceId } from '@/lib/payments/plan-price-id'
-import { getMercadoPagoPreapprovalPlan } from '@/lib/payments/mercadopago/mercadopago.client'
 
 interface PageProps {
-    searchParams: Promise<{ checkout?: string; session_id?: string; preapproval_id?: string }>
+    searchParams: Promise<{ checkout?: string; session_id?: string }>
 }
 
 /**
@@ -38,42 +35,7 @@ export default async function SubscriptionPage({ searchParams }: PageProps) {
         countActiveBusinessesByUserId(prisma, user.id)
     ])
 
-    const paymentRouting = resolvePaymentRouting(subscription?.countryIso2)
-
-    const displayPlans =
-        paymentRouting.provider === 'MERCADOPAGO'
-            ? await Promise.all(
-                  plans.map(async plan => {
-                      try {
-                          const mpPlanId = resolvePlanPriceId({
-                              provider: 'MERCADOPAGO',
-                              planSlug: plan.slug,
-                              currency: 'ARS'
-                          })
-
-                          const mpPlan = await getMercadoPagoPreapprovalPlan(mpPlanId)
-                          const amount = mpPlan.auto_recurring?.transaction_amount
-                          const currency = mpPlan.auto_recurring?.currency_id?.toUpperCase()
-
-                          if (typeof amount !== 'number' || !currency) {
-                              return plan
-                          }
-
-                          return {
-                              ...plan,
-                              priceCents: Math.round(amount * 100),
-                              currency
-                          }
-                      } catch (error) {
-                          console.error('[SubscriptionPage] Failed to load Mercado Pago plan price:', {
-                              planSlug: plan.slug,
-                              error: error instanceof Error ? error.message : 'UNKNOWN'
-                          })
-                          return plan
-                      }
-                  })
-              )
-            : plans
+    const displayPlans = plans
 
     const currentPlan = subscription?.planId ? plans.find(plan => plan.id === subscription.planId) : null
     const showPremiumDowngradeWarning =
@@ -130,7 +92,6 @@ export default async function SubscriptionPage({ searchParams }: PageProps) {
                         intervalMonths: p.intervalMonths
                     }))}
                     showPremiumDowngradeWarning={showPremiumDowngradeWarning}
-                    checkoutProvider={paymentRouting.provider}
                     checkoutResult={checkout ?? null}
                     checkoutSessionId={sessionId ?? null}
                 />
