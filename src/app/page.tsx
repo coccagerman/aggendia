@@ -60,10 +60,12 @@ export default function Home() {
                         <h1 className='text-5xl font-extrabold tracking-tight text-zinc-900 dark:text-zinc-50 sm:text-6xl lg:text-7xl'>
                             Gestioná tus turnos sin complicaciones
                         </h1>
+
                         <p className='mt-6 text-lg leading-8 text-zinc-600 dark:text-zinc-400 sm:text-xl'>
                             Dejá atrás el caos de WhatsApp. Tu agenda ordenada, tus clientes reservan solos, vos te
                             dedicás a tu negocio.
                         </p>
+
                         <div className='mt-10 flex flex-col items-center justify-center gap-4 sm:flex-row'>
                             <Button asChild size='lg' className='w-full shadow-lg shadow-primary/30 sm:w-auto'>
                                 <Link href='/signup'>
