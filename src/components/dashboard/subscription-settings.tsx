@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import Script from 'next/script'
 import { useRouter } from 'next/navigation'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -131,12 +131,56 @@ export function SubscriptionSettingsClient({
     const [mercadoPagoModalOpen, setMercadoPagoModalOpen] = useState(false)
     const [mercadoPagoSdkReady, setMercadoPagoSdkReady] = useState(false)
     const [selectedCheckoutPlanId, setSelectedCheckoutPlanId] = useState<string | null>(null)
+    const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null)
+
+    // Polling: after MP checkout, periodically refresh to detect webhook-driven activation.
+    const startPolling = useCallback(() => {
+        // Clear any existing interval
+        if (pollingRef.current) {
+            clearInterval(pollingRef.current)
+        }
+
+        let attempts = 0
+        const MAX_ATTEMPTS = 10 // ~30s at 3s interval
+
+        pollingRef.current = setInterval(() => {
+            attempts++
+            router.refresh()
+
+            if (attempts >= MAX_ATTEMPTS) {
+                if (pollingRef.current) {
+                    clearInterval(pollingRef.current)
+                    pollingRef.current = null
+                }
+                setInfoMessage(
+                    'La suscripción se está procesando. Puede tardar unos minutos. Recargá la página más tarde.'
+                )
+            }
+        }, 3000)
+    }, [router])
+
+    // Cleanup polling on unmount
+    useEffect(() => {
+        return () => {
+            if (pollingRef.current) {
+                clearInterval(pollingRef.current)
+            }
+        }
+    }, [])
+
+    // Stop polling when subscription becomes ACTIVE
+    useEffect(() => {
+        if (subscription?.status === 'ACTIVE' && pollingRef.current) {
+            clearInterval(pollingRef.current)
+            pollingRef.current = null
+            setInfoMessage(null)
+        }
+    }, [subscription?.status])
     const [cardNumber, setCardNumber] = useState('')
     const [expirationMonth, setExpirationMonth] = useState('')
     const [expirationYear, setExpirationYear] = useState('')
     const [securityCode, setSecurityCode] = useState('')
     const [cardholderName, setCardholderName] = useState('')
-    const [identificationType, setIdentificationType] = useState('DNI')
     const [identificationNumber, setIdentificationNumber] = useState('')
 
     const isMercadoPagoCheckout = checkoutProvider === 'MERCADOPAGO'
@@ -189,7 +233,6 @@ export function SubscriptionSettingsClient({
         setExpirationYear('')
         setSecurityCode('')
         setCardholderName('')
-        setIdentificationType('DNI')
         setIdentificationNumber('')
         setMercadoPagoModalError(null)
     }
@@ -210,7 +253,7 @@ export function SubscriptionSettingsClient({
             cardExpirationMonth: expirationMonth.trim(),
             cardExpirationYear: expirationYear.trim(),
             securityCode: securityCode.trim(),
-            identificationType: identificationType.trim(),
+            identificationType: 'DNI',
             identificationNumber: identificationNumber.trim()
         })
 
@@ -253,7 +296,7 @@ export function SubscriptionSettingsClient({
             setMercadoPagoModalOpen(false)
             setInfoMessage(data.data?.message || 'Procesando suscripción… esto puede demorar unos segundos.')
             resetMercadoPagoForm()
-            router.refresh()
+            startPolling()
         } catch (checkoutError) {
             console.error('[SubscriptionSettings] Mercado Pago checkout error:', checkoutError)
             setMercadoPagoModalError('Error al iniciar el pago. Intentá nuevamente.')
@@ -503,25 +546,14 @@ export function SubscriptionSettingsClient({
                                 placeholder='APRO'
                             />
                         </div>
-                        <div className='grid grid-cols-2 gap-3'>
-                            <div className='space-y-1.5'>
-                                <Label htmlFor='mp-identification-type'>Tipo de documento</Label>
-                                <Input
-                                    id='mp-identification-type'
-                                    value={identificationType}
-                                    onChange={e => setIdentificationType(e.target.value)}
-                                    placeholder='DNI'
-                                />
-                            </div>
-                            <div className='space-y-1.5'>
-                                <Label htmlFor='mp-identification-number'>Número de documento</Label>
-                                <Input
-                                    id='mp-identification-number'
-                                    value={identificationNumber}
-                                    onChange={e => setIdentificationNumber(e.target.value)}
-                                    placeholder='12345678'
-                                />
-                            </div>
+                        <div className='space-y-1.5'>
+                            <Label htmlFor='mp-identification-number'>Número de documento (DNI)</Label>
+                            <Input
+                                id='mp-identification-number'
+                                value={identificationNumber}
+                                onChange={e => setIdentificationNumber(e.target.value)}
+                                placeholder='12345678'
+                            />
                         </div>
 
                         {mercadoPagoModalError && (
@@ -550,7 +582,6 @@ export function SubscriptionSettingsClient({
                                 !expirationYear ||
                                 !securityCode ||
                                 !cardholderName ||
-                                !identificationType ||
                                 !identificationNumber
                             }
                         >

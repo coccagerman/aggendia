@@ -98,6 +98,8 @@ export async function createMercadoPagoAuthorizedPreapproval(input: {
     const isDev = process.env.APP_ENV === 'local' || process.env.APP_ENV === 'dev'
     const payerEmail = (isDev && process.env.MERCADOPAGO_TEST_PAYER_EMAIL) || input.email
 
+    const notificationUrl = process.env.MERCADOPAGO_NOTIFICATION_URL
+
     return mercadopagoRequest<MercadoPagoPreapproval>('/preapproval', {
         method: 'POST',
         body: JSON.stringify({
@@ -106,7 +108,8 @@ export async function createMercadoPagoAuthorizedPreapproval(input: {
             reason: input.reason,
             payer_email: payerEmail,
             card_token_id: input.cardTokenId,
-            status: 'authorized'
+            status: 'authorized',
+            ...(notificationUrl ? { notification_url: notificationUrl } : {})
         })
     })
 }
