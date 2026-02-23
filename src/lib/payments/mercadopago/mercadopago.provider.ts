@@ -65,6 +65,18 @@ function toCents(amount: number | undefined): number | undefined {
     return Math.round(amount * 100)
 }
 
+/**
+ * MP dashboard webhooks use prefixed topics (e.g. "subscription_preapproval"),
+ * while IPN / notification_url uses the short form ("preapproval").
+ * Normalize to the short routing key so all downstream checks work uniformly.
+ */
+export function normalizeTopicForRouting(rawTopic: string): string {
+    if (rawTopic === 'subscription_preapproval') return 'preapproval'
+    if (rawTopic === 'subscription_authorized_payment') return 'payment'
+    if (rawTopic === 'subscription_preapproval_plan') return 'preapproval_plan'
+    return rawTopic
+}
+
 function normalizeWebhookSignature(signature: string): { ts?: string; v1?: string } {
     const entries = signature
         .split(',')
@@ -178,7 +190,8 @@ export class MercadoPagoProvider implements PaymentProvider {
 
         const parsedPayload = JSON.parse(payload.toString('utf-8')) as MercadoPagoWebhookPayload
 
-        const topic = (parsedPayload.type ?? parsedPayload.topic ?? '').toLowerCase()
+        const rawTopic = (parsedPayload.type ?? parsedPayload.topic ?? '').toLowerCase()
+        const topic = normalizeTopicForRouting(rawTopic)
         const action = (parsedPayload.action ?? '').toLowerCase()
         const resourceIdValue = parsedPayload.data?.id ?? parsedPayload.id
         const resourceId = resourceIdValue ? String(resourceIdValue) : null

@@ -12,6 +12,7 @@ import {
     handlePaymentFailed,
     handleProviderSubscriptionCanceled
 } from '@/domain/subscriptions/subscription.service'
+import { normalizeTopicForRouting } from '@/lib/payments/mercadopago/mercadopago.provider'
 
 const mercadopagoProvider = new MercadoPagoProvider()
 
@@ -48,7 +49,8 @@ function ack(data: Record<string, unknown> = {}) {
 
 async function constructWebhookEventWithoutSignature(rawBody: Buffer): Promise<MercadoPagoConstructedWebhook> {
     const payload = JSON.parse(rawBody.toString('utf-8')) as MercadoPagoWebhookPayload
-    const topic = (payload.type ?? payload.topic ?? '').toLowerCase()
+    const rawTopic = (payload.type ?? payload.topic ?? '').toLowerCase()
+    const topic = normalizeTopicForRouting(rawTopic)
     const action = (payload.action ?? '').toLowerCase()
     const resourceIdValue = payload.data?.id ?? payload.id
     const resourceId = resourceIdValue ? String(resourceIdValue) : null
@@ -84,8 +86,18 @@ export async function POST(request: NextRequest) {
             return ack({ processed: false })
         }
 
-        const isProduction = process.env.APP_ENV === 'production'
         const rawBody = Buffer.from(await request.arrayBuffer())
+        const parsedBody = JSON.parse(rawBody.toString('utf-8'))
+        console.log('[Webhook:MercadoPago] Received:', {
+            type: parsedBody.type,
+            topic: parsedBody.topic,
+            action: parsedBody.action,
+            dataId: parsedBody.data?.id ?? parsedBody.id,
+            hasSignature: Boolean(request.headers.get('x-signature')),
+            APP_ENV: process.env.APP_ENV
+        })
+
+        const isProduction = process.env.APP_ENV === 'production'
         const signature = request.headers.get('x-signature')
         const requestId = request.headers.get('x-request-id') ?? undefined
         const dataId = request.nextUrl.searchParams.get('data.id') ?? undefined
@@ -127,8 +139,23 @@ export async function POST(request: NextRequest) {
         const event = mercadopagoProvider.normalizeEvent(rawEvent)
 
         if (!event) {
+            const constructed = rawEvent as MercadoPagoConstructedWebhook
+            console.log('[Webhook:MercadoPago] normalizeEvent returned null:', {
+                topic: constructed?.topic,
+                action: constructed?.action,
+                resourceId: constructed?.resourceId,
+                hasPreapprovalDetails: Boolean(constructed?.preapprovalDetails),
+                preapprovalStatus: constructed?.preapprovalDetails?.status
+            })
             return ack({ processed: false })
         }
+
+        console.log('[Webhook:MercadoPago] Normalized event:', {
+            type: event.type,
+            providerSubscriptionId: event.providerSubscriptionId,
+            providerCustomerId: event.providerCustomerId,
+            providerEventId: event.providerEventId
+        })
 
         const alreadyProcessed = await paymentEventExists(prisma, event.providerEventId)
         if (alreadyProcessed) {

@@ -1,6 +1,6 @@
 import crypto from 'crypto'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { MercadoPagoProvider } from '@/lib/payments/mercadopago/mercadopago.provider'
+import { MercadoPagoProvider, normalizeTopicForRouting } from '@/lib/payments/mercadopago/mercadopago.provider'
 
 // Mock the external MP API calls used inside constructWebhookEvent
 vi.mock('@/lib/payments/mercadopago/mercadopago.client', () => ({
@@ -124,6 +124,48 @@ describe('MercadoPagoProvider - webhook signature validation', () => {
 
         expect(result).toBeDefined()
         expect((result as { topic: string }).topic).toBe('preapproval')
+    })
+
+    it('normalizes subscription_preapproval topic from dashboard webhook', async () => {
+        vi.stubEnv('MERCADOPAGO_WEBHOOK_SECRET', '')
+
+        const dashboardPayload = Buffer.from(
+            JSON.stringify({
+                id: 99999,
+                type: 'subscription_preapproval',
+                action: 'updated',
+                data: { id: 'preapproval_123' }
+            })
+        )
+
+        const result = await provider.constructWebhookEvent(dashboardPayload, 'ts=123,v1=fake', {
+            dataId: 'preapproval_123'
+        })
+
+        expect(result).toBeDefined()
+        // Topic should be normalized from "subscription_preapproval" to "preapproval"
+        expect((result as { topic: string }).topic).toBe('preapproval')
+        expect((result as { preapprovalDetails: unknown }).preapprovalDetails).not.toBeNull()
+    })
+})
+
+describe('normalizeTopicForRouting', () => {
+    it('maps subscription_preapproval to preapproval', () => {
+        expect(normalizeTopicForRouting('subscription_preapproval')).toBe('preapproval')
+    })
+
+    it('maps subscription_authorized_payment to payment', () => {
+        expect(normalizeTopicForRouting('subscription_authorized_payment')).toBe('payment')
+    })
+
+    it('maps subscription_preapproval_plan to preapproval_plan', () => {
+        expect(normalizeTopicForRouting('subscription_preapproval_plan')).toBe('preapproval_plan')
+    })
+
+    it('passes through unknown topics unchanged', () => {
+        expect(normalizeTopicForRouting('payment')).toBe('payment')
+        expect(normalizeTopicForRouting('preapproval')).toBe('preapproval')
+        expect(normalizeTopicForRouting('something_else')).toBe('something_else')
     })
 })
 
