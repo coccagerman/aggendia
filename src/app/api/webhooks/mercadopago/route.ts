@@ -84,9 +84,11 @@ export async function POST(request: NextRequest) {
             return ack({ processed: false })
         }
 
-        const isProduction = process.env.NODE_ENV === 'production'
+        const isProduction = process.env.APP_ENV === 'production'
         const rawBody = Buffer.from(await request.arrayBuffer())
         const signature = request.headers.get('x-signature')
+        const requestId = request.headers.get('x-request-id') ?? undefined
+        const dataId = request.nextUrl.searchParams.get('data.id') ?? undefined
 
         let rawEvent: unknown
 
@@ -97,17 +99,28 @@ export async function POST(request: NextRequest) {
             }
 
             try {
-                rawEvent = await mercadopagoProvider.constructWebhookEvent(rawBody, signature)
+                rawEvent = await mercadopagoProvider.constructWebhookEvent(rawBody, signature, {
+                    dataId,
+                    requestId
+                })
             } catch (error) {
                 console.error('[Webhook:MercadoPago] Signature verification failed in production:', error)
                 return ack({ processed: false })
             }
         } else {
-            try {
+            // Non-production: still validate signature if present, but don't fail on missing
+            if (signature) {
+                try {
+                    rawEvent = await mercadopagoProvider.constructWebhookEvent(rawBody, signature, {
+                        dataId,
+                        requestId
+                    })
+                } catch (error) {
+                    console.warn('[Webhook:MercadoPago] Signature verification failed (non-prod, proceeding):', error)
+                    rawEvent = await constructWebhookEventWithoutSignature(rawBody)
+                }
+            } else {
                 rawEvent = await constructWebhookEventWithoutSignature(rawBody)
-            } catch (error) {
-                console.error('[Webhook:MercadoPago] Non-production webhook parse failed:', error)
-                return ack({ processed: false })
             }
         }
 

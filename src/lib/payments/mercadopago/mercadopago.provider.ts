@@ -14,7 +14,8 @@ import type {
     CheckoutSession,
     CancelProviderSubscriptionInput,
     ChangeProviderSubscriptionPlanInput,
-    ReactivateProviderSubscriptionInput
+    ReactivateProviderSubscriptionInput,
+    WebhookVerificationMeta
 } from '@/domain/subscriptions/payment-provider'
 import type { PaymentEvent } from '@/domain/subscriptions/subscription.types'
 import {
@@ -139,7 +140,7 @@ export class MercadoPagoProvider implements PaymentProvider {
         })
     }
 
-    async constructWebhookEvent(payload: Buffer, signature: string): Promise<unknown> {
+    async constructWebhookEvent(payload: Buffer, signature: string, meta?: WebhookVerificationMeta): Promise<unknown> {
         const secret = process.env.MERCADOPAGO_WEBHOOK_SECRET
 
         if (secret) {
@@ -153,10 +154,18 @@ export class MercadoPagoProvider implements PaymentProvider {
                 )
             }
 
-            const expected = crypto
-                .createHmac('sha256', secret)
-                .update(`${ts}.${payload.toString('utf-8')}`)
-                .digest('hex')
+            // MP uses a manifest template: id:{data.id};request-id:{x-request-id};ts:{ts};
+            // Missing parts must be omitted entirely (not left empty).
+            let manifest = ''
+            if (meta?.dataId) {
+                manifest += `id:${meta.dataId};`
+            }
+            if (meta?.requestId) {
+                manifest += `request-id:${meta.requestId};`
+            }
+            manifest += `ts:${ts};`
+
+            const expected = crypto.createHmac('sha256', secret).update(manifest).digest('hex')
 
             if (expected !== v1) {
                 throw new AppError(

@@ -16,6 +16,18 @@
 import { PaymentEvent, PaymentProviderType } from './subscription.types'
 
 /**
+ * Optional metadata for webhook signature verification.
+ * MercadoPago requires `dataId` and `requestId` to compute its HMAC manifest.
+ * Stripe (and other providers) can ignore these fields.
+ */
+export interface WebhookVerificationMeta {
+    /** `data.id` query param from the webhook URL */
+    dataId?: string
+    /** `x-request-id` header from the webhook request */
+    requestId?: string
+}
+
+/**
  * Input for creating a customer in the payment provider
  */
 export interface CreateProviderCustomerInput {
@@ -115,8 +127,12 @@ export interface PaymentProvider {
     /**
      * Verify and parse a webhook payload from the provider.
      * Each provider has its own signature verification mechanism.
+     *
+     * `meta` carries provider-specific context needed for verification.
+     * MercadoPago requires `dataId` (query param) and `requestId` (header)
+     * to build the HMAC manifest.  Stripe ignores it.
      */
-    constructWebhookEvent(payload: Buffer, signature: string): Promise<unknown>
+    constructWebhookEvent(payload: Buffer, signature: string, meta?: WebhookVerificationMeta): Promise<unknown>
 
     /**
      * Normalize a provider-specific webhook event into a domain PaymentEvent.
