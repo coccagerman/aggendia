@@ -241,7 +241,13 @@ export function SubscriptionSettingsClient({
         }
     }
 
-    const status = subscription?.status as SubscriptionStatus | undefined
+    // Optimistic state: checkout just completed, show as ACTIVE even if webhook/sync
+    // hasn't propagated yet. The planId is persisted before Stripe redirect,
+    // so subscription.planId should already point to the correct plan.
+    const justCompletedCheckout = checkoutResult === 'success'
+
+    const serverStatus = subscription?.status as SubscriptionStatus | undefined
+    const status = justCompletedCheckout && serverStatus !== 'ACTIVE' ? 'ACTIVE' : serverStatus
     const statusInfo = status ? STATUS_LABELS[status] : null
     const currentPlanId = subscription?.planId ?? null
     const currentPlan = currentPlanId ? plans.find(p => p.id === currentPlanId) : undefined
@@ -255,8 +261,9 @@ export function SubscriptionSettingsClient({
         Boolean(scheduledPlanId) &&
         scheduledPlanEffectiveAtMs > Date.now()
     const canSubscribe =
-        !status || status === 'TRIALING' || status === 'EXPIRED' || status === 'ACTIVE' || status === 'CANCELED'
-    const canCancel = status === 'ACTIVE'
+        !justCompletedCheckout &&
+        (!status || status === 'TRIALING' || status === 'EXPIRED' || status === 'ACTIVE' || status === 'CANCELED')
+    const canCancel = status === 'ACTIVE' && !justCompletedCheckout
 
     function isUpgradePlan(plan: Plan): boolean {
         if (!currentPlan) return true
@@ -298,13 +305,26 @@ export function SubscriptionSettingsClient({
                 <CardContent className='space-y-4'>
                     {subscription ? (
                         <div className='space-y-3 text-sm'>
-                            {status === 'TRIALING' && subscription.trialEndsAt && (
+                            {status === 'TRIALING' && !justCompletedCheckout && subscription.trialEndsAt && (
                                 <div className='flex justify-between'>
                                     <span className='text-muted-foreground'>Prueba hasta</span>
                                     <span className='font-medium'>{formatDate(subscription.trialEndsAt)}</span>
                                 </div>
                             )}
-                            {status === 'ACTIVE' && subscription.currentPeriodEnd && (
+                            {justCompletedCheckout && currentPlan && (
+                                <div className='flex justify-between'>
+                                    <span className='text-muted-foreground'>Plan actual</span>
+                                    <span className='font-medium'>
+                                        {currentPlan.name} ({formatPrice(currentPlan.priceCents, currentPlan.currency)}{' '}
+                                        /{' '}
+                                        {currentPlan.intervalMonths === 1
+                                            ? 'mes'
+                                            : `${currentPlan.intervalMonths} meses`}
+                                        )
+                                    </span>
+                                </div>
+                            )}
+                            {status === 'ACTIVE' && !justCompletedCheckout && subscription.currentPeriodEnd && (
                                 <div className='flex justify-between'>
                                     <span className='text-muted-foreground'>Próxima renovación</span>
                                     <span className='font-medium'>{formatDate(subscription.currentPeriodEnd)}</span>

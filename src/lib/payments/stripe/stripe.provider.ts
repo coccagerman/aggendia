@@ -60,6 +60,7 @@ export class StripeProvider implements PaymentProvider {
         const session = await client.checkout.sessions.create({
             customer: input.providerCustomerId,
             mode: 'subscription',
+            locale: 'es',
             line_items: [
                 {
                     price: input.planPriceId,
