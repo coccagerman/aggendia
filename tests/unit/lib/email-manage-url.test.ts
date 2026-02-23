@@ -26,7 +26,6 @@ const baseConfirmationData: ConfirmationEmailData = {
     resourceName: 'Juan García',
     resourceLabel: 'Profesional',
     formattedDateTime: 'Lunes 15 de enero, 14:00',
-    timezone: 'Argentina',
     address: 'Av. Test 123'
 }
 
@@ -37,7 +36,6 @@ const baseReminderData: ReminderEmailData = {
     resourceName: 'Juan García',
     resourceLabel: 'Profesional',
     formattedDateTime: 'Lunes 15 de enero, 14:00',
-    timezone: 'Argentina',
     address: 'Av. Test 123',
     reminderType: '24h' as const
 }

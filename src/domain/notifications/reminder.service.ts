@@ -289,7 +289,6 @@ export async function sendReminderEmail(
             resourceName: resource.name,
             resourceLabel: business.resourceLabel,
             formattedDateTime: formatDateTimeForNotification(startAt, business.timezone, 'reminder'),
-            timezone: getTimezoneDisplayName(business.timezone),
             address: business.address,
             reminderType: getReminderType(offsetMinutes),
             manageUrl: input.manageUrl
@@ -908,7 +907,6 @@ export async function processReminders(
                                         appointment.business.timezone,
                                         'reminder'
                                     ),
-                                    timezone: getTimezoneDisplayName(appointment.business.timezone),
                                     address: appointment.business.address,
                                     reminderType: getReminderType(offset)
                                 }

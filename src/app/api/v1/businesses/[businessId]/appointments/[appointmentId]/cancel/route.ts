@@ -188,6 +188,7 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
                         name: business.name,
                         timezone: business.timezone,
                         resourceLabel: business.resourceLabel,
+                        address: business.address,
                         ownerEmail: business.ownerEmail,
                         ownerPhoneE164: business.ownerPhoneE164,
                         ownerEmailNotificationsEnabled: business.ownerEmailNotificationsEnabled,

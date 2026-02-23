@@ -148,6 +148,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
                 name: appointment.business.name,
                 timezone: appointment.business.timezone,
                 resourceLabel: appointment.business.resourceLabel,
+                address: appointment.business.address,
                 ownerEmail: appointment.business.ownerEmail,
                 ownerPhoneE164: appointment.business.ownerPhoneE164,
                 ownerEmailNotificationsEnabled: appointment.business.ownerEmailNotificationsEnabled,

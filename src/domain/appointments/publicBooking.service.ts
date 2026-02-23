@@ -86,7 +86,11 @@ export async function createPublicAppointment(
         }
     })
     if (!mapping) {
-        throw new AppError(SERVICE_RESOURCE_NOT_LINKED, 'Este recurso / prestador no ofrece el servicio seleccionado', 409)
+        throw new AppError(
+            SERVICE_RESOURCE_NOT_LINKED,
+            'Este recurso / prestador no ofrece el servicio seleccionado',
+            409
+        )
     }
 
     // 5. Parse and validate startAt
@@ -239,6 +243,7 @@ export async function createPublicAppointment(
         name: business.name,
         timezone: business.timezone,
         resourceLabel: business.resourceLabel,
+        address: business.address,
         ownerEmail: business.ownerEmail,
         ownerPhoneE164: business.ownerPhoneE164,
         ownerEmailNotificationsEnabled: business.ownerEmailNotificationsEnabled,

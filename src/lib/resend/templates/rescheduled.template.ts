@@ -21,8 +21,6 @@ export interface RescheduledEmailData {
     originalFormattedDateTime: string
     /** Formatted new date and time (e.g., "Martes 16 de enero, 10:00") */
     newFormattedDateTime: string
-    /** Business timezone display name (e.g., "Argentina") */
-    timezone: string
     /** Business address (optional) */
     address?: string | null
 }
@@ -97,10 +95,6 @@ export function renderRescheduledEmail(data: RescheduledEmailData): string {
                                                 <td style="padding: 8px 0; color: #666666; font-size: 14px;">Nueva fecha</td>
                                                 <td style="padding: 8px 0; color: #10b981; font-size: 14px; font-weight: 600; text-align: right;">${escapeHtml(data.newFormattedDateTime)}</td>
                                             </tr>
-                                            <tr>
-                                                <td style="padding: 8px 0; color: #666666; font-size: 14px;">Zona horaria</td>
-                                                <td style="padding: 8px 0; color: #999999; font-size: 12px; text-align: right;">${escapeHtml(data.timezone)}</td>
-                                            </tr>
                                             ${addressSection}
                                         </table>
                                     </td>
@@ -114,6 +108,9 @@ export function renderRescheduledEmail(data: RescheduledEmailData): string {
                         <td style="padding: 24px 32px 32px 32px; text-align: center; border-top: 1px solid #eaeaea;">
                             <p style="margin: 0 0 8px 0; font-size: 14px; color: #666666;">
                                 Si necesitás cancelar o reprogramar nuevamente, contactá al negocio.
+                            </p>
+                            <p style="margin: 0 0 8px 0; font-size: 12px; color: #999999;">
+                                Este es un email automático. No responda a esta casilla.
                             </p>
                             <p style="margin: 0; font-size: 12px; color: #999999;">
                                 Este email fue enviado por Aggendia
@@ -145,8 +142,7 @@ export function renderRescheduledEmailText(data: RescheduledEmailData): string {
         `Servicio: ${data.serviceName}`,
         `${data.resourceLabel}: ${data.resourceName}`,
         `Fecha anterior: ${data.originalFormattedDateTime}`,
-        `Nueva fecha: ${data.newFormattedDateTime} ✓`,
-        `Zona horaria: ${data.timezone}`
+        `Nueva fecha: ${data.newFormattedDateTime} ✓`
     ]
 
     if (data.address) {
@@ -158,6 +154,7 @@ export function renderRescheduledEmailText(data: RescheduledEmailData): string {
         `─────────────────────────`,
         `Si necesitás cancelar o reprogramar nuevamente, contactá al negocio.`,
         ``,
+        `Este es un email automático. No responda a esta casilla.`,
         `Este email fue enviado por Aggendia`
     )
 

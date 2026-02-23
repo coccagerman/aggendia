@@ -14,7 +14,8 @@ export interface BusinessConfirmationEmailData {
     resourceName: string
     resourceLabel: string
     formattedDateTime: string
-    timezone: string
+    /** Business address (optional) */
+    address?: string | null
 }
 
 export function renderBusinessConfirmationEmail(data: BusinessConfirmationEmailData): string {
@@ -23,6 +24,9 @@ export function renderBusinessConfirmationEmail(data: BusinessConfirmationEmailD
         : ''
     const customerPhone = data.customerPhone
         ? `<tr><td style="padding: 8px 0; color: #666666; font-size: 14px;">Teléfono del cliente</td><td style="padding: 8px 0; color: #333333; font-size: 14px; text-align: right;">${escapeHtml(data.customerPhone)}</td></tr>`
+        : ''
+    const addressRow = data.address
+        ? `<tr><td style="padding: 8px 0; color: #666666; font-size: 14px;">Dirección</td><td style="padding: 8px 0; color: #333333; font-size: 14px; text-align: right;">${escapeHtml(data.address)}</td></tr>`
         : ''
 
     return `
@@ -41,7 +45,7 @@ export function renderBusinessConfirmationEmail(data: BusinessConfirmationEmailD
                     <tr>
                         <td style="padding: 32px 32px 24px 32px; text-align: center; border-bottom: 1px solid #eaeaea;">
                             <h1 style="margin: 0 0 8px 0; font-size: 24px; font-weight: 600; color: #10b981;">
-                                📅 Nuevo turno reservado
+                                ✅ Nuevo turno reservado
                             </h1>
                             <p style="margin: 0; font-size: 16px; color: #666666;">
                                 ${escapeHtml(data.customerName)} reservó un turno en ${escapeHtml(data.businessName)}.
@@ -75,10 +79,7 @@ export function renderBusinessConfirmationEmail(data: BusinessConfirmationEmailD
                                                 <td style="padding: 8px 0; color: #666666; font-size: 14px;">Fecha y hora</td>
                                                 <td style="padding: 8px 0; color: #333333; font-size: 14px; font-weight: 600; text-align: right;">${escapeHtml(data.formattedDateTime)}</td>
                                             </tr>
-                                            <tr>
-                                                <td style="padding: 8px 0; color: #666666; font-size: 14px;">Zona horaria</td>
-                                                <td style="padding: 8px 0; color: #999999; font-size: 12px; text-align: right;">${escapeHtml(data.timezone)}</td>
-                                            </tr>
+                                            ${addressRow}
                                         </table>
                                     </td>
                                 </tr>
@@ -87,6 +88,9 @@ export function renderBusinessConfirmationEmail(data: BusinessConfirmationEmailD
                     </tr>
                     <tr>
                         <td style="padding: 24px 32px 32px 32px; text-align: center; border-top: 1px solid #eaeaea;">
+                            <p style="margin: 0 0 8px 0; font-size: 12px; color: #999999;">
+                                Este es un email automático. No responda a esta casilla.
+                            </p>
                             <p style="margin: 0; font-size: 12px; color: #999999;">
                                 Este email fue enviado por Aggendia
                             </p>
@@ -103,7 +107,7 @@ export function renderBusinessConfirmationEmail(data: BusinessConfirmationEmailD
 
 export function renderBusinessConfirmationEmailText(data: BusinessConfirmationEmailData): string {
     const lines = [
-        `📅 NUEVO TURNO RESERVADO`,
+        `✅ NUEVO TURNO RESERVADO`,
         ``,
         `${data.customerName} reservó un turno en ${data.businessName}.`,
         ``,
@@ -116,10 +120,13 @@ export function renderBusinessConfirmationEmailText(data: BusinessConfirmationEm
     lines.push(
         `Servicio: ${data.serviceName}`,
         `${data.resourceLabel}: ${data.resourceName}`,
-        `Fecha y hora: ${data.formattedDateTime}`,
-        `Zona horaria: ${data.timezone}`,
+        `Fecha y hora: ${data.formattedDateTime}`
+    )
+    if (data.address) lines.push(`Dirección: ${data.address}`)
+    lines.push(
         ``,
         `─────────────────────────`,
+        `Este es un email automático. No responda a esta casilla.`,
         `Este email fue enviado por Aggendia`
     )
     return lines.join('\n')

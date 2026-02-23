@@ -19,8 +19,6 @@ export interface ConfirmationEmailData {
     resourceLabel: string
     /** Formatted date and time (e.g., "Lunes 15 de enero, 14:00") */
     formattedDateTime: string
-    /** Business timezone display name (e.g., "Argentina") */
-    timezone: string
     /** Business address (optional) */
     address?: string | null
     /** Self-service manage URL for cancel/reschedule (optional) */
@@ -93,10 +91,6 @@ export function renderConfirmationEmail(data: ConfirmationEmailData): string {
                                                 <td style="padding: 8px 0; color: #666666; font-size: 14px;">Fecha y hora</td>
                                                 <td style="padding: 8px 0; color: #333333; font-size: 14px; font-weight: 600; text-align: right;">${escapeHtml(data.formattedDateTime)}</td>
                                             </tr>
-                                            <tr>
-                                                <td style="padding: 8px 0; color: #666666; font-size: 14px;">Zona horaria</td>
-                                                <td style="padding: 8px 0; color: #999999; font-size: 12px; text-align: right;">${escapeHtml(data.timezone)}</td>
-                                            </tr>
                                             ${addressSection}
                                         </table>
                                     </td>
@@ -123,6 +117,9 @@ export function renderConfirmationEmail(data: ConfirmationEmailData): string {
                             </p>
                             `
                             }
+                            <p style="margin: 0 0 8px 0; font-size: 12px; color: #999999;">
+                                Este es un email automático. No responda a esta casilla.
+                            </p>
                             <p style="margin: 0; font-size: 12px; color: #999999;">
                                 Este email fue enviado por Aggendia
                             </p>
@@ -152,8 +149,7 @@ export function renderConfirmationEmailText(data: ConfirmationEmailData): string
         `Negocio: ${data.businessName}`,
         `Servicio: ${data.serviceName}`,
         `${data.resourceLabel}: ${data.resourceName}`,
-        `Fecha y hora: ${data.formattedDateTime}`,
-        `Zona horaria: ${data.timezone}`
+        `Fecha y hora: ${data.formattedDateTime}`
     ]
 
     if (data.address) {
@@ -167,6 +163,7 @@ export function renderConfirmationEmailText(data: ConfirmationEmailData): string
             ? `¿Necesitás cancelar o reprogramar? Ingresá aquí: ${data.manageUrl}`
             : `Si necesitás cancelar o reprogramar, contactá al negocio.`,
         ``,
+        `Este es un email automático. No responda a esta casilla.`,
         `Este email fue enviado por Aggendia`
     )
 

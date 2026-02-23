@@ -197,7 +197,6 @@ export async function sendConfirmationEmail(
             resourceName: resource.name,
             resourceLabel: business.resourceLabel,
             formattedDateTime: formatDateTimeForNotification(startAt, business.timezone),
-            timezone: getTimezoneDisplayName(business.timezone),
             address: business.address,
             manageUrl
         }
@@ -577,7 +576,7 @@ export async function sendCancellationEmail(
             resourceName: resource.name,
             resourceLabel: business.resourceLabel,
             formattedDateTime: formatDateTimeForNotification(startAt, business.timezone),
-            timezone: getTimezoneDisplayName(business.timezone)
+            address: business.address
         }
 
         // 6. Send email via Resend
@@ -933,7 +932,6 @@ export async function sendRescheduledEmail(
             resourceLabel: business.resourceLabel,
             originalFormattedDateTime: formatDateTimeForNotification(originalStartAt, business.timezone),
             newFormattedDateTime: formatDateTimeForNotification(newStartAt, business.timezone),
-            timezone: getTimezoneDisplayName(business.timezone),
             address: business.address
         }
 
@@ -1328,7 +1326,7 @@ export async function sendBusinessConfirmationEmail(
                 resourceName: resource.name,
                 resourceLabel: business.resourceLabel,
                 formattedDateTime: formatDateTimeForNotification(startAt, business.timezone),
-                timezone: getTimezoneDisplayName(business.timezone)
+                address: business.address
             }
 
             const { error: sendError } = await resend!.emails.send({
@@ -1439,7 +1437,7 @@ export async function sendBusinessCancellationEmail(
                 resourceName: resource.name,
                 resourceLabel: business.resourceLabel,
                 formattedDateTime: formatDateTimeForNotification(startAt, business.timezone),
-                timezone: getTimezoneDisplayName(business.timezone)
+                address: business.address
             }
 
             const { error: sendError } = await resend!.emails.send({
@@ -1551,7 +1549,7 @@ export async function sendBusinessRescheduledEmail(
                 resourceLabel: business.resourceLabel,
                 previousFormattedDateTime: formatDateTimeForNotification(originalStartAt, business.timezone),
                 newFormattedDateTime: formatDateTimeForNotification(newStartAt, business.timezone),
-                timezone: getTimezoneDisplayName(business.timezone)
+                address: business.address
             }
 
             const { error: sendError } = await resend!.emails.send({

@@ -14,7 +14,8 @@ export interface BusinessRescheduledEmailData {
     resourceLabel: string
     previousFormattedDateTime: string
     newFormattedDateTime: string
-    timezone: string
+    /** Business address (optional) */
+    address?: string | null
 }
 
 export function renderBusinessRescheduledEmail(data: BusinessRescheduledEmailData): string {
@@ -23,6 +24,9 @@ export function renderBusinessRescheduledEmail(data: BusinessRescheduledEmailDat
         : ''
     const customerPhone = data.customerPhone
         ? `<tr><td style="padding: 8px 0; color: #666666; font-size: 14px;">Teléfono del cliente</td><td style="padding: 8px 0; color: #333333; font-size: 14px; text-align: right;">${escapeHtml(data.customerPhone)}</td></tr>`
+        : ''
+    const addressRow = data.address
+        ? `<tr><td style="padding: 8px 0; color: #666666; font-size: 14px;">Dirección</td><td style="padding: 8px 0; color: #333333; font-size: 14px; text-align: right;">${escapeHtml(data.address)}</td></tr>`
         : ''
 
     return `
@@ -85,10 +89,7 @@ export function renderBusinessRescheduledEmail(data: BusinessRescheduledEmailDat
                                                     </div>
                                                 </td>
                                             </tr>
-                                            <tr>
-                                                <td style="padding: 8px 0; color: #666666; font-size: 14px;">Zona horaria</td>
-                                                <td style="padding: 8px 0; color: #999999; font-size: 12px; text-align: right;">${escapeHtml(data.timezone)}</td>
-                                            </tr>
+                                            ${addressRow}
                                         </table>
                                     </td>
                                 </tr>
@@ -97,6 +98,9 @@ export function renderBusinessRescheduledEmail(data: BusinessRescheduledEmailDat
                     </tr>
                     <tr>
                         <td style="padding: 24px 32px 32px 32px; text-align: center; border-top: 1px solid #eaeaea;">
+                            <p style="margin: 0 0 8px 0; font-size: 12px; color: #999999;">
+                                Este es un email automático. No responda a esta casilla.
+                            </p>
                             <p style="margin: 0; font-size: 12px; color: #999999;">
                                 Este email fue enviado por Aggendia
                             </p>
@@ -128,10 +132,13 @@ export function renderBusinessRescheduledEmailText(data: BusinessRescheduledEmai
         `${data.resourceLabel}: ${data.resourceName}`,
         ``,
         `Antes: ${data.previousFormattedDateTime}`,
-        `Ahora: ${data.newFormattedDateTime}`,
-        `Zona horaria: ${data.timezone}`,
+        `Ahora: ${data.newFormattedDateTime}`
+    )
+    if (data.address) lines.push(`Dirección: ${data.address}`)
+    lines.push(
         ``,
         `─────────────────────────`,
+        `Este es un email automático. No responda a esta casilla.`,
         `Este email fue enviado por Aggendia`
     )
     return lines.join('\n')

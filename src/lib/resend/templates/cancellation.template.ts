@@ -19,8 +19,8 @@ export interface CancellationEmailData {
     resourceLabel: string
     /** Formatted date and time (e.g., "Lunes 15 de enero, 14:00") */
     formattedDateTime: string
-    /** Business timezone display name (e.g., "Argentina") */
-    timezone: string
+    /** Business address (optional) */
+    address?: string | null
 }
 
 /**
@@ -28,6 +28,15 @@ export interface CancellationEmailData {
  * Uses inline styles for email client compatibility
  */
 export function renderCancellationEmail(data: CancellationEmailData): string {
+    const addressSection = data.address
+        ? `
+        <tr>
+            <td style="padding: 8px 0; color: #666666; font-size: 14px;">Dirección</td>
+            <td style="padding: 8px 0; color: #333333; font-size: 14px; text-align: right;">${escapeHtml(data.address)}</td>
+        </tr>
+        `
+        : ''
+
     return `
 <!DOCTYPE html>
 <html lang="es">
@@ -80,10 +89,7 @@ export function renderCancellationEmail(data: CancellationEmailData): string {
                                                 <td style="padding: 8px 0; color: #666666; font-size: 14px;">Fecha y hora</td>
                                                 <td style="padding: 8px 0; color: #999999; font-size: 14px; text-decoration: line-through; text-align: right;">${escapeHtml(data.formattedDateTime)}</td>
                                             </tr>
-                                            <tr>
-                                                <td style="padding: 8px 0; color: #666666; font-size: 14px;">Zona horaria</td>
-                                                <td style="padding: 8px 0; color: #999999; font-size: 12px; text-align: right;">${escapeHtml(data.timezone)}</td>
-                                            </tr>
+                                            ${addressSection}
                                         </table>
                                     </td>
                                 </tr>
@@ -96,6 +102,9 @@ export function renderCancellationEmail(data: CancellationEmailData): string {
                         <td style="padding: 24px 32px 32px 32px; text-align: center; border-top: 1px solid #eaeaea;">
                             <p style="margin: 0 0 8px 0; font-size: 14px; color: #666666;">
                                 Si deseas reservar un nuevo turno, visitá la página del negocio.
+                            </p>
+                            <p style="margin: 0 0 8px 0; font-size: 12px; color: #999999;">
+                                Este es un email automático. No responda a esta casilla.
                             </p>
                             <p style="margin: 0; font-size: 12px; color: #999999;">
                                 Este email fue enviado por Aggendia
@@ -126,14 +135,21 @@ export function renderCancellationEmailText(data: CancellationEmailData): string
         `Negocio: ${data.businessName}`,
         `Servicio: ${data.serviceName}`,
         `${data.resourceLabel}: ${data.resourceName}`,
-        `Fecha y hora: ${data.formattedDateTime} (cancelado)`,
-        `Zona horaria: ${data.timezone}`,
+        `Fecha y hora: ${data.formattedDateTime} (cancelado)`
+    ]
+
+    if (data.address) {
+        lines.push(`Dirección: ${data.address}`)
+    }
+
+    lines.push(
         ``,
         `─────────────────────────`,
         `Si deseas reservar un nuevo turno, visitá la página del negocio.`,
         ``,
+        `Este es un email automático. No responda a esta casilla.`,
         `Este email fue enviado por Aggendia`
-    ]
+    )
 
     return lines.join('\n')
 }

@@ -117,7 +117,6 @@ async function processConfirmationEmail(
             resourceName: appointment.resource.name,
             resourceLabel: appointment.business.resourceLabel,
             formattedDateTime: formatDateTimeForNotification(appointment.startAt, appointment.business.timezone),
-            timezone: getTimezoneDisplayName(appointment.business.timezone),
             address: appointment.business.address
         }
 
@@ -221,7 +220,7 @@ async function processCancellationEmail(
             resourceName: appointment.resource.name,
             resourceLabel: appointment.business.resourceLabel,
             formattedDateTime: formatDateTimeForNotification(appointment.startAt, appointment.business.timezone),
-            timezone: getTimezoneDisplayName(appointment.business.timezone)
+            address: appointment.business.address
         }
 
         const { error: sendError } = await resend!.emails.send({
@@ -330,7 +329,6 @@ async function processRescheduledEmail(
             resourceLabel: appointment.business.resourceLabel,
             originalFormattedDateTime: formatDateTimeForNotification(originalStartAt, appointment.business.timezone),
             newFormattedDateTime: formatDateTimeForNotification(appointment.startAt, appointment.business.timezone),
-            timezone: getTimezoneDisplayName(appointment.business.timezone),
             address: appointment.business.address
         }
 
@@ -442,7 +440,7 @@ async function processBusinessNotification(
                     resourceName: appointment.resource.name,
                     resourceLabel: biz.resourceLabel,
                     formattedDateTime: formatDateTimeForNotification(appointment.startAt, biz.timezone),
-                    timezone: getTimezoneDisplayName(biz.timezone)
+                    address: biz.address
                 }
                 const { error } = await resend!.emails.send({
                     from: defaultFromEmail,
@@ -464,7 +462,7 @@ async function processBusinessNotification(
                     resourceName: appointment.resource.name,
                     resourceLabel: biz.resourceLabel,
                     formattedDateTime: formatDateTimeForNotification(appointment.startAt, biz.timezone),
-                    timezone: getTimezoneDisplayName(biz.timezone)
+                    address: biz.address
                 }
                 const { error } = await resend!.emails.send({
                     from: defaultFromEmail,
@@ -489,7 +487,7 @@ async function processBusinessNotification(
                     resourceLabel: biz.resourceLabel,
                     previousFormattedDateTime: formatDateTimeForNotification(originalStartAt, biz.timezone),
                     newFormattedDateTime: formatDateTimeForNotification(appointment.startAt, biz.timezone),
-                    timezone: getTimezoneDisplayName(biz.timezone)
+                    address: biz.address
                 }
                 const { error } = await resend!.emails.send({
                     from: defaultFromEmail,

@@ -333,6 +333,7 @@ export interface BusinessOwnerNotificationConfig {
     name: string
     timezone: string
     resourceLabel: string
+    address: string | null
     ownerEmail: string | null
     ownerPhoneE164: string | null
     ownerEmailNotificationsEnabled: boolean
