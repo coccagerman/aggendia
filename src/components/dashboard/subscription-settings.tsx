@@ -344,7 +344,7 @@ export function SubscriptionSettingsClient({
                                     </p>
                                 </div>
                             )}
-                            {status === 'ACTIVE' && currentPlan && (
+                            {status === 'ACTIVE' && !justCompletedCheckout && currentPlan && (
                                 <div className='flex justify-between'>
                                     <span className='text-muted-foreground'>Plan actual</span>
                                     <span className='font-medium'>

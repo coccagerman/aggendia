@@ -34,9 +34,11 @@ function getSubscriptionPeriod(subscription: Stripe.Subscription | null): {
         }
     }
 
-    const raw = subscription as unknown as Record<string, unknown>
-    const start = typeof raw.current_period_start === 'number' ? raw.current_period_start : null
-    const end = typeof raw.current_period_end === 'number' ? raw.current_period_end : null
+    // Stripe API 2026-01-28.clover moved current_period_start/end
+    // from the Subscription level to the SubscriptionItem level.
+    const item = subscription.items?.data?.[0] as unknown as Record<string, unknown> | undefined
+    const start = item && typeof item.current_period_start === 'number' ? item.current_period_start : null
+    const end = item && typeof item.current_period_end === 'number' ? item.current_period_end : null
 
     return {
         currentPeriodStart: toDate(start),
