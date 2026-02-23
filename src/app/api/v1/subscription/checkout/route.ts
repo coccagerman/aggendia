@@ -88,9 +88,11 @@ export async function POST(request: NextRequest) {
         const planPriceId = resolvePlanPriceId({ planSlug: plan.slug })
         const provider = getPaymentProvider(paymentRouting.provider)
 
-        // Create or reuse Stripe customer
+        // Create or reuse Stripe customer.
+        // Guard: if providerCustomerId doesn't look like a Stripe customer ID
+        // (e.g. a stale UUID from a previous provider), create a fresh one.
         let providerCustomerId = subscription.providerCustomerId
-        if (!providerCustomerId) {
+        if (!providerCustomerId || !providerCustomerId.startsWith('cus_')) {
             const customer = await provider.createCustomer({
                 email,
                 businessId: userId, // user-level subscription: store userId in metadata
@@ -139,7 +141,12 @@ export async function POST(request: NextRequest) {
             return NextResponse.json(error.toJSON(), { status: error.httpStatus })
         }
 
-        console.error('Error al crear checkout:', error instanceof Error ? error.message : 'UNKNOWN')
+        console.error('Error al crear checkout:', {
+            message: error instanceof Error ? error.message : 'UNKNOWN',
+            stack: error instanceof Error ? error.stack : undefined,
+            code: (error as Record<string, unknown>)?.code,
+            type: (error as Record<string, unknown>)?.type
+        })
         return NextResponse.json(
             { error: { code: 'INTERNAL_ERROR', message: 'Error al crear la sesión de pago.' } },
             { status: 500 }
