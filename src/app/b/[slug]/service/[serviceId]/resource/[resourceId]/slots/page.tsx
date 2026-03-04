@@ -10,6 +10,7 @@ import { prisma } from '@/data/prisma/prisma'
 import { findActiveBusinessBySlug } from '@/data/repositories/business.repo'
 import { addDays, startOfDay } from 'date-fns'
 import { SlotGrid } from './slot-grid'
+import { MAX_DAYS_AHEAD } from '@/domain/slots/slots.types'
 
 // Force dynamic rendering
 export const dynamic = 'force-dynamic'
@@ -84,9 +85,9 @@ export default async function SlotsPage({ params }: PageProps) {
         notFound()
     }
 
-    // Default date range: today + 7 days
+    // Default date range: today + 30 days (max allowed by public slots API)
     const fromDate = startOfDay(new Date())
-    const toDate = addDays(fromDate, 7)
+    const toDate = addDays(fromDate, MAX_DAYS_AHEAD)
 
     return (
         <div className='flex min-h-screen flex-col bg-zinc-50 dark:bg-zinc-950'>

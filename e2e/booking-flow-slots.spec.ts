@@ -36,6 +36,10 @@ test.describe('Booking Flow - Service → Resource → Slots E2E', () => {
         await expect(page.getByText(/elegí tu horario/i)).toBeVisible()
         const summary = page.getByText(new RegExp(`${serviceName}\\s*\\u2022\\s*${resourceName}`))
         await expect(summary).toBeVisible()
+        await expect(page.getByText(/seleccioná un día/i)).toBeVisible()
+        await expect(page.getByRole('button', { name: /día con turnos anterior/i })).toBeVisible()
+        await expect(page.getByRole('button', { name: /día con turnos siguiente/i })).toBeVisible()
+        await expect(page.getByText(/día seleccionado/i)).toBeVisible()
     })
 
     test('click en slot navega a página de confirmación con parámetros correctos', async ({
@@ -59,6 +63,7 @@ test.describe('Booking Flow - Service → Resource → Slots E2E', () => {
 
         // Esperar a que carguen los slots
         await page.waitForLoadState('networkidle')
+        await expect(page.getByText(/seleccioná un día/i)).toBeVisible()
 
         // Click en primer slot disponible (formato HH:MM)
         const firstSlotButton = page

@@ -3,24 +3,24 @@ import { resolvePaymentRouting } from '@/domain/subscriptions/payment-provider-s
 
 describe('resolvePaymentRouting', () => {
     it('uses Stripe + USD for all countries (single-provider mode)', () => {
-        expect(resolvePaymentRouting('AR')).toEqual({
+        expect(resolvePaymentRouting()).toEqual({
             provider: 'STRIPE',
             currency: 'USD'
         })
 
-        expect(resolvePaymentRouting('US')).toEqual({
+        expect(resolvePaymentRouting()).toEqual({
             provider: 'STRIPE',
             currency: 'USD'
         })
 
-        expect(resolvePaymentRouting('CL')).toEqual({
+        expect(resolvePaymentRouting()).toEqual({
             provider: 'STRIPE',
             currency: 'USD'
         })
     })
 
-    it('defaults to Stripe + USD when country is missing', () => {
-        expect(resolvePaymentRouting(null)).toEqual({
+    it('returns Stripe + USD in single-provider mode', () => {
+        expect(resolvePaymentRouting()).toEqual({
             provider: 'STRIPE',
             currency: 'USD'
         })
