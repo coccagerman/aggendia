@@ -22,6 +22,9 @@ export const metadata: Metadata = {
     icons: {
         icon: [{ url: '/favicon.svg', type: 'image/svg+xml' }],
         apple: '/aggendia_icon.png'
+    },
+    other: {
+        'facebook-domain-verification': 'r2n1be8mvy0xqppb9o3yw56c2ogtmw'
     }
 }
 
