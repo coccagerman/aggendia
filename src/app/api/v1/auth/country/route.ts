@@ -7,6 +7,7 @@ import { startTrial } from '@/domain/subscriptions/subscription.service'
 import { SUBSCRIPTION_DEFAULTS } from '@/domain/subscriptions/subscription.types'
 import { AppError, ValidationErrorCodes } from '@/domain/common/errors'
 import { isSupportedCountryIso2, resolveTimezoneForCountry } from '@/lib/country'
+import { getAppDisabledErrorPayload, isAppDisabledInProd } from '@/lib/app-disabled'
 
 const updateCountrySchema = z.object({
     countryIso2: z
@@ -24,6 +25,10 @@ const updateCountrySchema = z.object({
  */
 export async function POST(request: NextRequest) {
     try {
+        if (isAppDisabledInProd()) {
+            return NextResponse.json(getAppDisabledErrorPayload(), { status: 503 })
+        }
+
         const { userId } = await requireAuth()
 
         const body = await request.json()

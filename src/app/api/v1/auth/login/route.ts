@@ -4,6 +4,7 @@ import { loginRequestSchema } from '../dto'
 import { mapAuthError } from '@/lib/auth/map-auth-error'
 import { AppError, ValidationErrorCodes, SystemErrorCodes } from '@/domain/common/errors'
 import { checkRateLimit, getClientIp } from '@/lib/rate-limit'
+import { getAppDisabledErrorPayload, isAppDisabledInProd } from '@/lib/app-disabled'
 
 /**
  * POST /api/v1/auth/login
@@ -12,6 +13,10 @@ import { checkRateLimit, getClientIp } from '@/lib/rate-limit'
  */
 export async function POST(request: Request) {
     try {
+        if (isAppDisabledInProd()) {
+            return NextResponse.json(getAppDisabledErrorPayload(), { status: 503 })
+        }
+
         const body = await request.json()
 
         // Validación con Zod (primero validar, luego rate limit)

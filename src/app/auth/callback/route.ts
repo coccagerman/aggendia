@@ -6,6 +6,7 @@ import { getSubscriptionByUserId } from '@/data/repositories/subscription.repo'
 import { startTrial } from '@/domain/subscriptions/subscription.service'
 import { SUBSCRIPTION_DEFAULTS } from '@/domain/subscriptions/subscription.types'
 import { countryRequiresTimezoneSelection } from '@/lib/country'
+import { isAppDisabledInProd } from '@/lib/app-disabled'
 
 /**
  * GET /auth/callback
@@ -23,6 +24,11 @@ import { countryRequiresTimezoneSelection } from '@/lib/country'
  */
 export async function GET(request: NextRequest) {
     const { searchParams, origin } = new URL(request.url)
+
+    if (isAppDisabledInProd()) {
+        return NextResponse.redirect(new URL('/maintenance', origin))
+    }
+
     const code = searchParams.get('code')
     const errorParam = searchParams.get('error')
     const errorDescription = searchParams.get('error_description')

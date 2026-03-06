@@ -8,6 +8,7 @@ import { prisma } from '@/data/prisma/prisma'
 import { getSubscriptionByUserId } from '@/data/repositories/subscription.repo'
 import { startTrial } from '@/domain/subscriptions/subscription.service'
 import { SUBSCRIPTION_DEFAULTS } from '@/domain/subscriptions/subscription.types'
+import { getAppDisabledErrorPayload, isAppDisabledInProd } from '@/lib/app-disabled'
 
 /**
  * POST /api/v1/auth/signup
@@ -16,6 +17,10 @@ import { SUBSCRIPTION_DEFAULTS } from '@/domain/subscriptions/subscription.types
  */
 export async function POST(request: Request) {
     try {
+        if (isAppDisabledInProd()) {
+            return NextResponse.json(getAppDisabledErrorPayload(), { status: 503 })
+        }
+
         const body = await request.json()
 
         // Validación con Zod (primero validar, luego rate limit)

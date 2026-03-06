@@ -17,6 +17,18 @@ export function isAppDisabledInProd(): boolean {
     return isDisableEnvEnabled()
 }
 
+export function getAppDisabledErrorPayload() {
+    return {
+        error: {
+            code: 'APP_DISABLED',
+            message: 'Aplicación temporalmente deshabilitada.',
+            details: {
+                reason: 'MAINTENANCE_MODE'
+            }
+        }
+    }
+}
+
 export function isAllowedPathWhenAppDisabled(pathname: string): boolean {
     if (ALLOWED_DISABLED_PAGES.has(pathname) || ALLOWED_SYSTEM_PATHS.has(pathname)) {
         return true

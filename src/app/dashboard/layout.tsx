@@ -4,6 +4,7 @@ import { prisma } from '@/data/prisma/prisma'
 import { checkUserAccess } from '@/domain/subscriptions/subscription.service'
 import { isWarningState } from '@/domain/subscriptions/subscription.policy'
 import { SubscriptionBanner } from '@/components/dashboard/subscription-banner'
+import { isAppDisabledInProd } from '@/lib/app-disabled'
 
 /**
  * Root layout for /dashboard/**
@@ -18,6 +19,10 @@ import { SubscriptionBanner } from '@/components/dashboard/subscription-banner'
  * are consistent regardless of which business or section the user is viewing.
  */
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
+    if (isAppDisabledInProd()) {
+        redirect('/maintenance')
+    }
+
     const supabase = await createClient()
     const {
         data: { user }
