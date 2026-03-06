@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 import { createServerClient } from '@supabase/ssr'
+import { isAllowedPathWhenAppDisabled, isAppDisabledInProd } from '@/lib/app-disabled'
 
 /**
  * Middleware para proteger rutas privadas (/dashboard/**).
@@ -10,8 +11,44 @@ import { createServerClient } from '@supabase/ssr'
  * Las variables se validan en build-time por lib/env.ts usado en otros módulos.
  */
 export async function middleware(request: NextRequest) {
+    const pathname = request.nextUrl.pathname
+
+    if (isAppDisabledInProd()) {
+        if (pathname.startsWith('/api/v1/') || pathname.startsWith('/api/cron/')) {
+            return NextResponse.json(
+                {
+                    error: {
+                        code: 'APP_DISABLED',
+                        message: 'Aplicación temporalmente deshabilitada en producción.',
+                        details: {
+                            reason: 'MAINTENANCE_MODE'
+                        }
+                    }
+                },
+                { status: 503 }
+            )
+        }
+
+        if (!isAllowedPathWhenAppDisabled(pathname)) {
+            const redirectUrl = request.nextUrl.clone()
+            redirectUrl.pathname = '/maintenance'
+            redirectUrl.search = ''
+            return NextResponse.redirect(redirectUrl)
+        }
+    }
+
     const requestHeaders = new Headers(request.headers)
-    requestHeaders.set('x-pathname', request.nextUrl.pathname)
+    requestHeaders.set('x-pathname', pathname)
+
+    if (!pathname.startsWith('/dashboard')) {
+        const passthroughResponse = NextResponse.next({
+            request: {
+                headers: requestHeaders
+            }
+        })
+        passthroughResponse.headers.set('x-pathname', pathname)
+        return passthroughResponse
+    }
 
     let supabaseResponse = NextResponse.next({
         request: {
@@ -55,19 +92,19 @@ export async function middleware(request: NextRequest) {
 
     // I1: Validar que el usuario tenga email (consistencia con requireAuth)
     // M3: Loguear path bloqueado para debugging
-    if ((!user || !user.email) && request.nextUrl.pathname.startsWith('/dashboard')) {
-        console.log('Unauthorized access attempt to:', request.nextUrl.pathname)
+    if (!user || !user.email) {
+        console.log('Unauthorized access attempt to:', pathname)
         const redirectUrl = request.nextUrl.clone()
         redirectUrl.pathname = '/login'
         return NextResponse.redirect(redirectUrl)
     }
 
     // Keep response header as a debug aid; layout reads request header.
-    supabaseResponse.headers.set('x-pathname', request.nextUrl.pathname)
+    supabaseResponse.headers.set('x-pathname', pathname)
 
     return supabaseResponse
 }
 
 export const config = {
-    matcher: ['/dashboard/:path*']
+    matcher: ['/((?!_next/static|_next/image|favicon.ico|robots.txt|sitemap.xml).*)']
 }

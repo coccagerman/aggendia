@@ -19,8 +19,12 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Separator } from '@/components/ui/separator'
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
+import { isAppDisabledInProd } from '@/lib/app-disabled'
 
 export default function Home() {
+    const isAppDisabled = isAppDisabledInProd()
+
     return (
         <div className='flex min-h-screen flex-col'>
             {/* Header */}
@@ -35,12 +39,44 @@ export default function Home() {
                         priority
                     />
                     <div className='flex items-center gap-2'>
-                        <Button asChild variant='ghost' size='sm'>
-                            <Link href='/login'>Iniciar sesión</Link>
-                        </Button>
-                        <Button asChild size='sm'>
-                            <Link href='/signup'>Prueba gratis</Link>
-                        </Button>
+                        {isAppDisabled ? (
+                            <>
+                                <Tooltip>
+                                    <TooltipTrigger asChild>
+                                        <span tabIndex={0}>
+                                            <Button variant='ghost' size='sm' disabled className='pointer-events-none'>
+                                                Iniciar sesión
+                                            </Button>
+                                        </span>
+                                    </TooltipTrigger>
+                                    <TooltipContent>
+                                        Aplicación temporalmente deshabilitada. Próximamente.
+                                    </TooltipContent>
+                                </Tooltip>
+
+                                <Tooltip>
+                                    <TooltipTrigger asChild>
+                                        <span tabIndex={0}>
+                                            <Button size='sm' disabled className='pointer-events-none'>
+                                                Prueba gratis
+                                            </Button>
+                                        </span>
+                                    </TooltipTrigger>
+                                    <TooltipContent>
+                                        Aplicación temporalmente deshabilitada. Próximamente.
+                                    </TooltipContent>
+                                </Tooltip>
+                            </>
+                        ) : (
+                            <>
+                                <Button asChild variant='ghost' size='sm'>
+                                    <Link href='/login'>Iniciar sesión</Link>
+                                </Button>
+                                <Button asChild size='sm'>
+                                    <Link href='/signup'>Prueba gratis</Link>
+                                </Button>
+                            </>
+                        )}
                     </div>
                 </div>
             </header>
@@ -68,16 +104,58 @@ export default function Home() {
                         </p>
 
                         <div className='mt-10 flex flex-col items-center justify-center gap-4 sm:flex-row'>
-                            <Button asChild size='lg' className='w-full shadow-lg shadow-primary/30 sm:w-auto'>
-                                <Link href='/signup'>
-                                    Iniciar prueba gratis (30 días)
-                                    <ArrowRight className='ml-2 h-4 w-4' />
-                                </Link>
-                            </Button>
+                            {isAppDisabled ? (
+                                <>
+                                    <Tooltip>
+                                        <TooltipTrigger asChild>
+                                            <span tabIndex={0} className='w-full sm:w-auto'>
+                                                <Button
+                                                    size='lg'
+                                                    className='w-full shadow-lg shadow-primary/30 sm:w-auto pointer-events-none'
+                                                    disabled
+                                                >
+                                                    Iniciar prueba gratis (30 días)
+                                                    <ArrowRight className='ml-2 h-4 w-4' />
+                                                </Button>
+                                            </span>
+                                        </TooltipTrigger>
+                                        <TooltipContent>
+                                            Aplicación temporalmente deshabilitada. Próximamente.
+                                        </TooltipContent>
+                                    </Tooltip>
 
-                            <Button asChild variant='ghost' size='lg' className='w-full sm:w-auto'>
-                                <Link href='/login'>¿Ya tenés tu cuenta? Iniciar sesión</Link>
-                            </Button>
+                                    <Tooltip>
+                                        <TooltipTrigger asChild>
+                                            <span tabIndex={0} className='w-full sm:w-auto'>
+                                                <Button
+                                                    variant='ghost'
+                                                    size='lg'
+                                                    className='w-full sm:w-auto pointer-events-none'
+                                                    disabled
+                                                >
+                                                    ¿Ya tenés tu cuenta? Iniciar sesión
+                                                </Button>
+                                            </span>
+                                        </TooltipTrigger>
+                                        <TooltipContent>
+                                            Aplicación temporalmente deshabilitada. Próximamente.
+                                        </TooltipContent>
+                                    </Tooltip>
+                                </>
+                            ) : (
+                                <>
+                                    <Button asChild size='lg' className='w-full shadow-lg shadow-primary/30 sm:w-auto'>
+                                        <Link href='/signup'>
+                                            Iniciar prueba gratis (30 días)
+                                            <ArrowRight className='ml-2 h-4 w-4' />
+                                        </Link>
+                                    </Button>
+
+                                    <Button asChild variant='ghost' size='lg' className='w-full sm:w-auto'>
+                                        <Link href='/login'>¿Ya tenés tu cuenta? Iniciar sesión</Link>
+                                    </Button>
+                                </>
+                            )}
                         </div>
                     </div>
                 </div>
@@ -346,9 +424,28 @@ export default function Home() {
 
                     <div className='mx-auto mt-12 grid max-w-5xl gap-3 md:grid-cols-2 md:gap-6 sm:mt-14'>
                         <div className='flex justify-center'>
-                            <Button asChild size='lg' className='w-full max-w-[260px]'>
-                                <Link href='/signup'>Empezar prueba gratis</Link>
-                            </Button>
+                            {isAppDisabled ? (
+                                <Tooltip>
+                                    <TooltipTrigger asChild>
+                                        <span tabIndex={0} className='w-full max-w-[260px]'>
+                                            <Button
+                                                size='lg'
+                                                className='w-full max-w-[260px] pointer-events-none'
+                                                disabled
+                                            >
+                                                Empezar prueba gratis
+                                            </Button>
+                                        </span>
+                                    </TooltipTrigger>
+                                    <TooltipContent>
+                                        Aplicación temporalmente deshabilitada. Próximamente.
+                                    </TooltipContent>
+                                </Tooltip>
+                            ) : (
+                                <Button asChild size='lg' className='w-full max-w-[260px]'>
+                                    <Link href='/signup'>Empezar prueba gratis</Link>
+                                </Button>
+                            )}
                         </div>
                         <div className='flex justify-center'>
                             <Button asChild size='lg' variant='outline' className='w-full max-w-[260px]'>
@@ -427,17 +524,36 @@ export default function Home() {
                         mismo día.
                     </p>
                     <div className='mt-8 flex flex-col items-center justify-center gap-4 sm:flex-row'>
-                        <Button
-                            asChild
-                            size='lg'
-                            variant='secondary'
-                            className='w-full bg-white text-primary hover:bg-orange-50 sm:w-auto'
-                        >
-                            <Link href='/signup'>
-                                Crear mi cuenta gratis
-                                <ArrowRight className='ml-2 h-4 w-4' />
-                            </Link>
-                        </Button>
+                        {isAppDisabled ? (
+                            <Tooltip>
+                                <TooltipTrigger asChild>
+                                    <span tabIndex={0}>
+                                        <Button
+                                            size='lg'
+                                            variant='secondary'
+                                            className='w-full bg-white text-primary hover:bg-orange-50 sm:w-auto pointer-events-none'
+                                            disabled
+                                        >
+                                            Crear mi cuenta gratis
+                                            <ArrowRight className='ml-2 h-4 w-4' />
+                                        </Button>
+                                    </span>
+                                </TooltipTrigger>
+                                <TooltipContent>Aplicación temporalmente deshabilitada. Próximamente.</TooltipContent>
+                            </Tooltip>
+                        ) : (
+                            <Button
+                                asChild
+                                size='lg'
+                                variant='secondary'
+                                className='w-full bg-white text-primary hover:bg-orange-50 sm:w-auto'
+                            >
+                                <Link href='/signup'>
+                                    Crear mi cuenta gratis
+                                    <ArrowRight className='ml-2 h-4 w-4' />
+                                </Link>
+                            </Button>
+                        )}
                     </div>
                 </div>
             </section>

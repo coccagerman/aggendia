@@ -19,3 +19,19 @@
 - Se preservó la infraestructura de Strategy Pattern (`PaymentProvider` interface + factory) para facilitar re-integración futura si fuera necesario.
 - El enum `MERCADOPAGO` se mantiene en el schema de Prisma para no romper registros existentes; no se usa en código nuevo.
 - `resolvePaymentRouting()` ahora retorna siempre `STRIPE + USD` independientemente del país.
+
+## 2026-03-06 — Modo "app deshabilitada" para producción
+
+- Se incorpora un bloqueo global por entorno, activo únicamente cuando:
+    - `APP_ENV="prod"`
+    - `DISABLE_ENV="true"`
+- En ese modo, solo quedan habilitadas las rutas públicas:
+    - `/`
+    - `/privacy`
+    - `/terms`
+    - `/maintenance`
+- Cualquier otra ruta web redirige a `/maintenance`.
+- Las APIs bajo `/api/v1/*` y `/api/cron/*` responden `503` con:
+    - `code: "APP_DISABLED"`
+- Se agrega página de mantenimiento informativa (sin CTA) con ilustración SVG inline, sin dependencias externas.
+- En la landing, CTAs de login/signup quedan deshabilitados y muestran tooltip explicativo mientras el modo está activo.
