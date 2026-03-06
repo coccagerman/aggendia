@@ -25,6 +25,7 @@ describe('middleware - app disabled in prod', () => {
 
         expect(response.status).toBe(307)
         expect(response.headers.get('location')).toBe('http://localhost/maintenance')
+        expect(response.headers.get('x-app-disabled-mode')).toBe('true')
     })
 
     it('returns 503 with APP_DISABLED for blocked APIs', async () => {
@@ -39,6 +40,7 @@ describe('middleware - app disabled in prod', () => {
 
         expect(response.status).toBe(503)
         expect(body.error.code).toBe('APP_DISABLED')
+        expect(response.headers.get('x-app-disabled-mode')).toBe('true')
     })
 
     it('allows whitelisted public pages', async () => {
@@ -50,5 +52,6 @@ describe('middleware - app disabled in prod', () => {
 
         expect(response.status).toBe(200)
         expect(response.headers.get('location')).toBeNull()
+        expect(response.headers.get('x-app-disabled-mode')).toBe('true')
     })
 })

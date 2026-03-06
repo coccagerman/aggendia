@@ -24,7 +24,13 @@ describe('app-disabled helpers', () => {
         vi.stubEnv('DISABLE_ENV', '  true  ')
         expect(isAppDisabledInProd()).toBe(true)
 
+        vi.stubEnv('DISABLE_ENV', '"true"')
+        expect(isAppDisabledInProd()).toBe(true)
+
         vi.stubEnv('DISABLE_ENV', '1')
+        expect(isAppDisabledInProd()).toBe(true)
+
+        vi.stubEnv('DISABLE_ENV', 'on')
         expect(isAppDisabledInProd()).toBe(true)
     })
 

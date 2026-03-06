@@ -12,8 +12,9 @@ import { isAllowedPathWhenAppDisabled, isAppDisabledInProd } from '@/lib/app-dis
  */
 export async function middleware(request: NextRequest) {
     const pathname = request.nextUrl.pathname
+    const isAppDisabled = isAppDisabledInProd()
 
-    if (isAppDisabledInProd()) {
+    if (isAppDisabled) {
         if (pathname.startsWith('/api/v1/') || pathname.startsWith('/api/cron/')) {
             return NextResponse.json(
                 {
@@ -25,7 +26,12 @@ export async function middleware(request: NextRequest) {
                         }
                     }
                 },
-                { status: 503 }
+                {
+                    status: 503,
+                    headers: {
+                        'x-app-disabled-mode': 'true'
+                    }
+                }
             )
         }
 
@@ -33,7 +39,9 @@ export async function middleware(request: NextRequest) {
             const redirectUrl = request.nextUrl.clone()
             redirectUrl.pathname = '/maintenance'
             redirectUrl.search = ''
-            return NextResponse.redirect(redirectUrl)
+            const response = NextResponse.redirect(redirectUrl)
+            response.headers.set('x-app-disabled-mode', 'true')
+            return response
         }
     }
 
@@ -47,6 +55,9 @@ export async function middleware(request: NextRequest) {
             }
         })
         passthroughResponse.headers.set('x-pathname', pathname)
+        if (isAppDisabled) {
+            passthroughResponse.headers.set('x-app-disabled-mode', 'true')
+        }
         return passthroughResponse
     }
 

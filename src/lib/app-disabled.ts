@@ -7,8 +7,10 @@ function isStaticAsset(pathname: string): boolean {
 }
 
 function isDisableEnvEnabled(): boolean {
-    const value = process.env.DISABLE_ENV?.trim().toLowerCase()
-    return value === 'true' || value === '1'
+    const value = process.env.DISABLE_ENV?.trim()
+        .replace(/^['\"]|['\"]$/g, '')
+        .toLowerCase()
+    return value === 'true' || value === '1' || value === 'yes' || value === 'on'
 }
 
 export function isAppDisabledInProd(): boolean {
