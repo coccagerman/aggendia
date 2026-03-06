@@ -52,6 +52,7 @@ describe('middleware - app disabled in prod', () => {
 
         expect(response.status).toBe(200)
         expect(response.headers.get('location')).toBeNull()
+        expect(response.headers.get('x-middleware-active')).toBe('true')
         expect(response.headers.get('x-app-disabled-mode')).toBe('true')
     })
 })

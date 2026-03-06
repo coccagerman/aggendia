@@ -14,6 +14,11 @@ export async function middleware(request: NextRequest) {
     const pathname = request.nextUrl.pathname
     const isAppDisabled = isAppDisabledInProd()
 
+    const diagnosticHeaders = {
+        'x-middleware-active': 'true',
+        'x-app-disabled-evaluated': isAppDisabled ? 'true' : 'false'
+    }
+
     if (isAppDisabled) {
         if (pathname.startsWith('/api/v1/') || pathname.startsWith('/api/cron/')) {
             return NextResponse.json(
@@ -29,6 +34,7 @@ export async function middleware(request: NextRequest) {
                 {
                     status: 503,
                     headers: {
+                        ...diagnosticHeaders,
                         'x-app-disabled-mode': 'true'
                     }
                 }
@@ -40,6 +46,8 @@ export async function middleware(request: NextRequest) {
             redirectUrl.pathname = '/maintenance'
             redirectUrl.search = ''
             const response = NextResponse.redirect(redirectUrl)
+            response.headers.set('x-middleware-active', 'true')
+            response.headers.set('x-app-disabled-evaluated', 'true')
             response.headers.set('x-app-disabled-mode', 'true')
             return response
         }
@@ -55,6 +63,8 @@ export async function middleware(request: NextRequest) {
             }
         })
         passthroughResponse.headers.set('x-pathname', pathname)
+        passthroughResponse.headers.set('x-middleware-active', 'true')
+        passthroughResponse.headers.set('x-app-disabled-evaluated', isAppDisabled ? 'true' : 'false')
         if (isAppDisabled) {
             passthroughResponse.headers.set('x-app-disabled-mode', 'true')
         }
@@ -112,6 +122,8 @@ export async function middleware(request: NextRequest) {
 
     // Keep response header as a debug aid; layout reads request header.
     supabaseResponse.headers.set('x-pathname', pathname)
+    supabaseResponse.headers.set('x-middleware-active', 'true')
+    supabaseResponse.headers.set('x-app-disabled-evaluated', isAppDisabled ? 'true' : 'false')
 
     return supabaseResponse
 }
