@@ -8,6 +8,8 @@ describe('app-disabled helpers', () => {
 
     it('returns true only when APP_ENV=prod and DISABLE_ENV=true', () => {
         vi.stubEnv('APP_ENV', 'prod')
+        vi.stubEnv('NODE_ENV', 'development')
+        vi.stubEnv('VERCEL_ENV', 'preview')
         vi.stubEnv('DISABLE_ENV', 'true')
         expect(isAppDisabledInProd()).toBe(true)
 
@@ -17,6 +19,19 @@ describe('app-disabled helpers', () => {
         vi.stubEnv('APP_ENV', 'dev')
         vi.stubEnv('DISABLE_ENV', 'true')
         expect(isAppDisabledInProd()).toBe(false)
+    })
+
+    it('falls back to NODE_ENV/VERCEL_ENV production when APP_ENV is not prod', () => {
+        vi.stubEnv('DISABLE_ENV', 'true')
+
+        vi.stubEnv('APP_ENV', 'dev')
+        vi.stubEnv('VERCEL_ENV', 'production')
+        vi.stubEnv('NODE_ENV', 'development')
+        expect(isAppDisabledInProd()).toBe(true)
+
+        vi.stubEnv('VERCEL_ENV', 'preview')
+        vi.stubEnv('NODE_ENV', 'production')
+        expect(isAppDisabledInProd()).toBe(true)
     })
 
     it('allows only public pages and system assets when app is disabled', () => {

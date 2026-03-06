@@ -7,7 +7,7 @@ function isStaticAsset(pathname: string): boolean {
 }
 
 export function isAppDisabledInProd(): boolean {
-    return process.env.APP_ENV === 'prod' && process.env.DISABLE_ENV === 'true'
+    return process.env.DISABLE_ENV === 'true'
 }
 
 export function isAllowedPathWhenAppDisabled(pathname: string): boolean {

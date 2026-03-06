@@ -35,3 +35,11 @@
     - `code: "APP_DISABLED"`
 - Se agrega página de mantenimiento informativa (sin CTA) con ilustración SVG inline, sin dependencias externas.
 - En la landing, CTAs de login/signup quedan deshabilitados y muestran tooltip explicativo mientras el modo está activo.
+
+### Ajuste de robustez en deploy (Vercel)
+
+- Se detectó que en algunos deploys el runtime no evaluaba `APP_ENV` de forma consistente en middleware.
+- Se robusteció la detección de producción para `DISABLE_ENV` con fallback a:
+    - `VERCEL_ENV === "production"`
+    - `NODE_ENV === "production"`
+- Regla final de bloqueo: `DISABLE_ENV="true"` + runtime de producción (por `APP_ENV`, `VERCEL_ENV` o `NODE_ENV`).
