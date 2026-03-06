@@ -6,8 +6,13 @@ function isStaticAsset(pathname: string): boolean {
     return /\.[a-zA-Z0-9]+$/.test(pathname)
 }
 
+function isDisableEnvEnabled(): boolean {
+    const value = process.env.DISABLE_ENV?.trim().toLowerCase()
+    return value === 'true' || value === '1'
+}
+
 export function isAppDisabledInProd(): boolean {
-    return process.env.DISABLE_ENV === 'true'
+    return isDisableEnvEnabled()
 }
 
 export function isAllowedPathWhenAppDisabled(pathname: string): boolean {

@@ -20,10 +20,9 @@
 - El enum `MERCADOPAGO` se mantiene en el schema de Prisma para no romper registros existentes; no se usa en código nuevo.
 - `resolvePaymentRouting()` ahora retorna siempre `STRIPE + USD` independientemente del país.
 
-## 2026-03-06 — Modo "app deshabilitada" para producción
+## 2026-03-06 — Modo "app deshabilitada"
 
-- Se incorpora un bloqueo global por entorno, activo únicamente cuando:
-    - `APP_ENV="prod"`
+- Se incorpora un bloqueo global controlado únicamente por:
     - `DISABLE_ENV="true"`
 - En ese modo, solo quedan habilitadas las rutas públicas:
     - `/`
@@ -35,11 +34,4 @@
     - `code: "APP_DISABLED"`
 - Se agrega página de mantenimiento informativa (sin CTA) con ilustración SVG inline, sin dependencias externas.
 - En la landing, CTAs de login/signup quedan deshabilitados y muestran tooltip explicativo mientras el modo está activo.
-
-### Ajuste de robustez en deploy (Vercel)
-
-- Se detectó que en algunos deploys el runtime no evaluaba `APP_ENV` de forma consistente en middleware.
-- Se robusteció la detección de producción para `DISABLE_ENV` con fallback a:
-    - `VERCEL_ENV === "production"`
-    - `NODE_ENV === "production"`
-- Regla final de bloqueo: `DISABLE_ENV="true"` + runtime de producción (por `APP_ENV`, `VERCEL_ENV` o `NODE_ENV`).
+- Se simplifica el `matcher` de middleware a `/:path*` para evitar bypass por rutas específicas (ej: `/login`).

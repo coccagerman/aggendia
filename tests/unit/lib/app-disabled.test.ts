@@ -6,8 +6,8 @@ describe('app-disabled helpers', () => {
         vi.unstubAllEnvs()
     })
 
-    it('returns true only when APP_ENV=prod and DISABLE_ENV=true', () => {
-        vi.stubEnv('APP_ENV', 'prod')
+    it('depends only on DISABLE_ENV=true', () => {
+        vi.stubEnv('APP_ENV', 'dev')
         vi.stubEnv('NODE_ENV', 'development')
         vi.stubEnv('VERCEL_ENV', 'preview')
         vi.stubEnv('DISABLE_ENV', 'true')
@@ -15,22 +15,16 @@ describe('app-disabled helpers', () => {
 
         vi.stubEnv('DISABLE_ENV', 'false')
         expect(isAppDisabledInProd()).toBe(false)
-
-        vi.stubEnv('APP_ENV', 'dev')
-        vi.stubEnv('DISABLE_ENV', 'true')
-        expect(isAppDisabledInProd()).toBe(false)
     })
 
-    it('falls back to NODE_ENV/VERCEL_ENV production when APP_ENV is not prod', () => {
-        vi.stubEnv('DISABLE_ENV', 'true')
-
-        vi.stubEnv('APP_ENV', 'dev')
-        vi.stubEnv('VERCEL_ENV', 'production')
-        vi.stubEnv('NODE_ENV', 'development')
+    it('accepts normalized true values', () => {
+        vi.stubEnv('DISABLE_ENV', 'TRUE')
         expect(isAppDisabledInProd()).toBe(true)
 
-        vi.stubEnv('VERCEL_ENV', 'preview')
-        vi.stubEnv('NODE_ENV', 'production')
+        vi.stubEnv('DISABLE_ENV', '  true  ')
+        expect(isAppDisabledInProd()).toBe(true)
+
+        vi.stubEnv('DISABLE_ENV', '1')
         expect(isAppDisabledInProd()).toBe(true)
     })
 
