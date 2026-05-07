@@ -42,6 +42,10 @@ yarn-error.log*
 # vercel
 .vercel
 
+# repository-local folders not meant for remote tracking
+/.github/
+/docs/
+
 # local agent / AI tooling
 /.agent/
 /.agents/

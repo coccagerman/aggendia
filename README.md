@@ -133,7 +133,6 @@ tests/           # unit and integration suites
 e2e/             # Playwright flows
 prisma/          # Prisma schema and migrations
 scripts/         # operational and testing scripts
-docs/            # product, architecture, and data model documentation
 ```
 
 ## Local Development
@@ -209,15 +208,6 @@ This project is a strong representation of product-minded backend and full-stack
 - Testable business logic and explicit contracts.
 
 In practice, that means the repository is not just a CRUD dashboard. It is a deliberately structured application with real scheduling rules, business constraints, and operational workflows.
-
-## Reference Documentation
-
-- `docs/prd.md` for product scope and goals.
-- `docs/user-stories.md` for acceptance criteria.
-- `docs/data-model.md` for entities, relationships, and invariants.
-- `docs/flows.md` for core product flows.
-- `docs/conventions.md` for architecture and implementation conventions.
-- `docs/adr.md` for stack and core design decisions.
 
 ## Operational Notes
 
