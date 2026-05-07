@@ -12,6 +12,8 @@
 
 # testing
 /coverage
+/playwright-report
+/test-results
 
 # next.js
 /.next/
@@ -39,6 +41,14 @@ yarn-error.log*
 
 # vercel
 .vercel
+
+# local agent / AI tooling
+/.agent/
+/.agents/
+/.claude/
+/.codex/
+/.gemini/
+/skills/
 
 # typescript
 *.tsbuildinfo

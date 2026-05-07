@@ -1,177 +1,226 @@
-# Supabase CLI
+# turnosapp
 
-[![Coverage Status](https://coveralls.io/repos/github/supabase/cli/badge.svg?branch=main)](https://coveralls.io/github/supabase/cli?branch=main) [![Bitbucket Pipelines](https://img.shields.io/bitbucket/pipelines/supabase-cli/setup-cli/master?style=flat-square&label=Bitbucket%20Canary)](https://bitbucket.org/supabase-cli/setup-cli/pipelines) [![Gitlab Pipeline Status](https://img.shields.io/gitlab/pipeline-status/sweatybridge%2Fsetup-cli?label=Gitlab%20Canary)
-](https://gitlab.com/sweatybridge/setup-cli/-/pipelines)
+turnosapp is a full-stack appointment scheduling platform for service businesses. It combines a public booking experience with a private operations dashboard, built around an explicit domain model for services, resources, availability, appointments, and notifications.
 
-[Supabase](https://supabase.io) is an open source Firebase alternative. We're building the features of Firebase using enterprise-grade open source tools.
+This repository is intentionally opinionated from an engineering standpoint: strong separation of concerns, tenant isolation, explicit domain rules, typed contracts, and a test strategy that supports safe iteration.
 
-This repository contains all the functionality for Supabase CLI.
+## Technical Highlights
 
-- [x] Running Supabase locally
-- [x] Managing database migrations
-- [x] Creating and deploying Supabase Functions
-- [x] Generating types directly from your database schema
-- [x] Making authenticated HTTP requests to [Management API](https://supabase.com/docs/reference/api/introduction)
+- Full-stack Next.js application using the App Router for both product UI and server endpoints.
+- Clean architecture split across transport, domain, and data layers.
+- Multi-tenant design with business-scoped access and validation.
+- Explicit service-to-resource mapping instead of implicit scheduling assumptions.
+- UTC persistence with business-local timezone rendering and scheduling rules.
+- Strong booking consistency with domain validation plus database-backed safeguards.
+- Asynchronous notification workflow for confirmation and reminder delivery.
+- Typed validation and error contracts designed for predictable API behavior.
 
-## Getting started
+## Product Scope
 
-### Install the CLI
+The product addresses a common operational problem for small and medium-sized businesses: appointment scheduling managed manually through chat, calls, or spreadsheets.
 
-Available via [NPM](https://www.npmjs.com) as dev dependency. To install:
+turnosapp provides:
+
+- A public booking page for customers.
+- A private dashboard for business operators.
+- Service configuration with duration and slot interval rules.
+- Resource management for people or assets with independent schedules.
+- Weekly availability and one-off blocking windows.
+- Appointment lifecycle operations: create, cancel, reschedule, complete.
+- Automated email and WhatsApp notifications.
+
+## User Flows
+
+### Business workflow
+
+1. Sign up and complete onboarding.
+2. Create a business and configure the resource label used in the UI.
+3. Create resources such as staff members, rooms, courts, or equipment.
+4. Create services with duration, slot interval, pricing, and booking constraints.
+5. Assign which resources can deliver each service.
+6. Configure recurring availability and point-in-time blocks.
+7. Share the public booking URL.
+8. Manage the operational agenda from the dashboard.
+
+### Customer workflow
+
+1. Open the business public page.
+2. Select an active service.
+3. Select a valid resource when more than one resource supports that service.
+4. Browse real availability filtered by service, resource, existing bookings, and booking rules.
+5. Confirm the booking with minimal customer data.
+6. Receive confirmation and reminders through the configured channels.
+
+## Domain Model
+
+### Service
+
+A service is what the customer books. It defines:
+
+- Appointment duration.
+- Slot interval.
+- Optional pricing.
+- Forward-looking booking constraints.
+
+### Resource
+
+A resource is the schedulable entity that fulfills the service. It may represent a person or a physical asset, and it owns its own schedule.
+
+### Service-resource mapping
+
+Services and resources are related through an explicit many-to-many mapping. A service is only bookable when it is active and has at least one active assigned resource. This makes availability calculation and scheduling decisions explicit instead of inferred.
+
+## Architecture
+
+The codebase follows a clear transport/domain/data split to keep business rules independent from framework and persistence concerns.
+
+### Stack
+
+- Next.js 16 App Router
+- TypeScript
+- Tailwind CSS
+- shadcn/ui
+- Prisma
+- Postgres on Supabase
+- Supabase Auth
+- Zod
+- Vitest
+- Playwright
+
+### Layer responsibilities
+
+- `src/app`
+  Next.js routes, pages, layouts, and route handlers.
+
+- `src/domain`
+  Pure business rules, scheduling logic, policies, and domain-level invariants.
+
+- `src/data`
+  Repository implementations and persistence concerns.
+
+- `src/lib`
+  Shared infrastructure helpers and cross-cutting utilities.
+
+- `tests`
+  Unit and integration coverage for domain and server behavior.
+
+- `e2e`
+  End-to-end coverage for critical user journeys.
+
+This separation is one of the strongest engineering qualities of the project: route handlers authenticate and validate, domain services make decisions, and repositories persist state. The domain layer is not coupled to Next.js or Prisma.
+
+## Engineering Principles
+
+- Strict tenant isolation by `business_id`.
+- Domain-first scheduling rules.
+- Consistent API contracts: `{ data: ... }` for success and `{ error: { code, message, details? } }` for failures.
+- UTC storage with timezone-aware business behavior.
+- Soft deletion where historical integrity matters.
+- Strong anti-double-booking guarantees.
+- Asynchronous side effects for external notification delivery.
+- Minimal, explicit boundaries between UI, domain logic, and persistence.
+
+## Repository Structure
+
+```text
+src/
+  app/           # public pages, dashboard, and API routes
+  components/    # reusable UI components
+  data/          # repositories and Prisma access
+  domain/        # business rules and scheduling logic
+  lib/           # auth, HTTP, and shared utilities
+tests/           # unit and integration suites
+e2e/             # Playwright flows
+prisma/          # Prisma schema and migrations
+scripts/         # operational and testing scripts
+docs/            # product, architecture, and data model documentation
+```
+
+## Local Development
+
+### Requirements
+
+- Node.js compatible with Next.js 16.
+- Yarn classic (`1.22.x`).
+- Project environment variables.
+- Database and provider configuration when testing integrations.
+
+### Install dependencies
 
 ```bash
-npm i supabase --save-dev
+yarn install
 ```
 
-When installing with yarn 4, you need to disable experimental fetch with the following nodejs config.
-
-```
-NODE_OPTIONS=--no-experimental-fetch yarn add supabase
-```
-
-> **Note**
-For Bun versions below v1.0.17, you must add `supabase` as a [trusted dependency](https://bun.sh/guides/install/trusted) before running `bun add -D supabase`.
-
-<details>
-  <summary><b>macOS</b></summary>
-
-  Available via [Homebrew](https://brew.sh). To install:
-
-  ```sh
-  brew install supabase/tap/supabase
-  ```
-
-  To install the beta release channel:
-  
-  ```sh
-  brew install supabase/tap/supabase-beta
-  brew link --overwrite supabase-beta
-  ```
-  
-  To upgrade:
-
-  ```sh
-  brew upgrade supabase
-  ```
-</details>
-
-<details>
-  <summary><b>Windows</b></summary>
-
-  Available via [Scoop](https://scoop.sh). To install:
-
-  ```powershell
-  scoop bucket add supabase https://github.com/supabase/scoop-bucket.git
-  scoop install supabase
-  ```
-
-  To upgrade:
-
-  ```powershell
-  scoop update supabase
-  ```
-</details>
-
-<details>
-  <summary><b>Linux</b></summary>
-
-  Available via [Homebrew](https://brew.sh) and Linux packages.
-
-  #### via Homebrew
-
-  To install:
-
-  ```sh
-  brew install supabase/tap/supabase
-  ```
-
-  To upgrade:
-
-  ```sh
-  brew upgrade supabase
-  ```
-
-  #### via Linux packages
-
-  Linux packages are provided in [Releases](https://github.com/supabase/cli/releases). To install, download the `.apk`/`.deb`/`.rpm`/`.pkg.tar.zst` file depending on your package manager and run the respective commands.
-
-  ```sh
-  sudo apk add --allow-untrusted <...>.apk
-  ```
-
-  ```sh
-  sudo dpkg -i <...>.deb
-  ```
-
-  ```sh
-  sudo rpm -i <...>.rpm
-  ```
-
-  ```sh
-  sudo pacman -U <...>.pkg.tar.zst
-  ```
-</details>
-
-<details>
-  <summary><b>Other Platforms</b></summary>
-
-  You can also install the CLI via [go modules](https://go.dev/ref/mod#go-install) without the help of package managers.
-
-  ```sh
-  go install github.com/supabase/cli@latest
-  ```
-
-  Add a symlink to the binary in `$PATH` for easier access:
-
-  ```sh
-  ln -s "$(go env GOPATH)/bin/cli" /usr/bin/supabase
-  ```
-
-  This works on other non-standard Linux distros.
-</details>
-
-<details>
-  <summary><b>Community Maintained Packages</b></summary>
-
-  Available via [pkgx](https://pkgx.sh/). Package script [here](https://github.com/pkgxdev/pantry/blob/main/projects/supabase.com/cli/package.yml).
-  To install in your working directory:
-
-  ```bash
-  pkgx install supabase
-  ```
-
-  Available via [Nixpkgs](https://nixos.org/). Package script [here](https://github.com/NixOS/nixpkgs/blob/master/pkgs/development/tools/supabase-cli/default.nix).
-</details>
-
-### Run the CLI
+### Start the development server
 
 ```bash
-supabase bootstrap
+yarn dev
 ```
 
-Or using npx:
+### Start against the test environment
 
 ```bash
-npx supabase bootstrap
+yarn dev:test
 ```
 
-The bootstrap command will guide you through the process of setting up a Supabase project using one of the [starter](https://github.com/supabase-community/supabase-samples/blob/main/samples.json) templates.
+## Scripts
 
-## Docs
-
-Command & config reference can be found [here](https://supabase.com/docs/reference/cli/about).
-
-## Breaking changes
-
-We follow semantic versioning for changes that directly impact CLI commands, flags, and configurations.
-
-However, due to dependencies on other service images, we cannot guarantee that schema migrations, seed.sql, and generated types will always work for the same CLI major version. If you need such guarantees, we encourage you to pin a specific version of CLI in package.json.
-
-## Developing
-
-To run from source:
-
-```sh
-# Go >= 1.22
-go run . help
+```bash
+yarn dev              # start local development
+yarn build            # production build
+yarn start            # run the production build
+yarn lint             # eslint
+yarn tsc --noEmit     # type-check only
+yarn test:setup       # prepare the test environment
+yarn test             # run Vitest
+yarn test:watch       # run Vitest in watch mode
+yarn test:coverage    # coverage report
+yarn test:reset-db    # reset the test database
+yarn e2e              # run Playwright
 ```
+
+## Testing Strategy
+
+- Unit tests cover domain rules and policy decisions.
+- Integration tests cover contracts, auth, multi-tenant behavior, and persistence.
+- End-to-end tests cover realistic user flows across the public and private surfaces.
+
+Recommended local validation sequence:
+
+```bash
+yarn test:setup && yarn test && yarn tsc --noEmit && yarn lint
+```
+
+If the change affects database state or integration scenarios:
+
+```bash
+yarn test:reset-db
+```
+
+## Why This Project Is Technically Interesting
+
+This project is a strong representation of product-minded backend and full-stack engineering because it combines:
+
+- Domain modeling that reflects real operational constraints.
+- Clear architectural boundaries instead of framework-driven sprawl.
+- Multi-tenant security requirements.
+- Scheduling logic with time, availability, overlap, and state transitions.
+- External integrations without leaking infrastructure concerns into the core domain.
+- Testable business logic and explicit contracts.
+
+In practice, that means the repository is not just a CRUD dashboard. It is a deliberately structured application with real scheduling rules, business constraints, and operational workflows.
+
+## Reference Documentation
+
+- `docs/prd.md` for product scope and goals.
+- `docs/user-stories.md` for acceptance criteria.
+- `docs/data-model.md` for entities, relationships, and invariants.
+- `docs/flows.md` for core product flows.
+- `docs/conventions.md` for architecture and implementation conventions.
+- `docs/adr.md` for stack and core design decisions.
+
+## Operational Notes
+
+- This repository uses Yarn classic as its package manager.
+- Local agent folders, test reports, and generated artifacts are ignored in git to keep the repository clean.
+- If those files were previously tracked, they must be removed from the git index once before `.gitignore` takes effect.
